@@ -1,0 +1,1601 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Liga Fantasy · 12 Managers</title>
+<style>
+  :root{
+    --pitch:#0d3b25;
+    --pitch-line:#f4f1e6;
+    --night:#0a1712;
+    --panel:#122a20;
+    --panel-2:#163527;
+    --gold:#e8b84b;
+    --gold-dim:#b8912f;
+    --chalk:#f4f1e6;
+    --chalk-dim:#a9c2b3;
+    --red-card:#c1443a;
+    --yellow-card:#e8b84b;
+    --win:#5fae7a;
+    --lose:#c1443a;
+    --draw:#a9c2b3;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      repeating-linear-gradient(90deg, rgba(244,241,230,0.02) 0 60px, rgba(244,241,230,0.05) 60px 61px),
+      linear-gradient(180deg,var(--night),var(--pitch) 40%, var(--night));
+    color:var(--chalk);
+    font-family:'Oswald',Arial Narrow,Arial,sans-serif;
+    min-height:100vh;
+  }
+  h1,h2,h3,h4{
+    font-family:'Oswald',Arial Narrow,Arial,sans-serif;
+    letter-spacing:0.5px;
+    text-transform:uppercase;
+    margin:0 0 8px 0;
+  }
+  .num{ font-variant-numeric: tabular-nums; }
+  header.top{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 22px;
+    background:linear-gradient(180deg, rgba(0,0,0,0.35), transparent);
+    border-bottom:2px solid var(--gold-dim);
+  }
+  header.top .brand{ display:flex; align-items:center; gap:12px; }
+  header.top .crest{
+    width:38px;height:38px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, var(--gold), var(--gold-dim));
+    display:flex;align-items:center;justify-content:center;
+    font-weight:bold;color:var(--night);font-size:18px;
+  }
+  header.top h1{ font-size:22px; color:var(--gold); margin:0; }
+  header.top .sub{ font-size:12px; color:var(--chalk-dim); text-transform:none; letter-spacing:0; }
+
+  nav.tabs{
+    display:flex; flex-wrap:wrap; gap:2px;
+    padding:0 18px; background:rgba(0,0,0,0.25);
+    border-bottom:1px solid rgba(244,241,230,0.1);
+  }
+  nav.tabs button{
+    background:transparent; border:none; color:var(--chalk-dim);
+    padding:12px 16px; font-family:inherit; font-size:13px;
+    text-transform:uppercase; letter-spacing:1px; cursor:pointer;
+    border-bottom:3px solid transparent;
+  }
+  nav.tabs button:hover{ color:var(--chalk); }
+  nav.tabs button.active{ color:var(--gold); border-bottom:3px solid var(--gold); }
+
+  main{ padding:20px; max-width:1200px; margin:0 auto; }
+  .view{ display:none; }
+  .view.active{ display:block; }
+
+  .card{
+    background:var(--panel);
+    border:1px solid rgba(244,241,230,0.08);
+    border-radius:var(--radius);
+    padding:18px;
+    margin-bottom:16px;
+  }
+  .card h2{ color:var(--gold); font-size:15px; border-bottom:1px solid rgba(244,241,230,0.12); padding-bottom:8px; margin-bottom:14px;}
+  .grid{ display:grid; gap:12px; }
+  .grid.cols-2{ grid-template-columns:1fr 1fr; }
+  .grid.cols-3{ grid-template-columns:repeat(3,1fr); }
+  .grid.cols-4{ grid-template-columns:repeat(4,1fr); }
+  @media (max-width:800px){ .grid.cols-2,.grid.cols-3,.grid.cols-4{ grid-template-columns:1fr; } }
+
+  label{ font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:var(--chalk-dim); display:block; margin-bottom:4px; }
+  input[type=text], input[type=number], select{
+    width:100%; background:var(--panel-2); border:1px solid rgba(244,241,230,0.15);
+    color:var(--chalk); padding:7px 9px; border-radius:6px; font-family:inherit; font-size:13px;
+  }
+  input:focus, select:focus{ outline:2px solid var(--gold); }
+  input[type=number]{ text-align:center; }
+
+  button.btn{
+    background:var(--gold); color:var(--night); border:none; padding:9px 16px;
+    border-radius:6px; font-family:inherit; text-transform:uppercase; letter-spacing:0.5px;
+    font-size:12px; font-weight:bold; cursor:pointer;
+  }
+  button.btn:hover{ background:#f3c862; }
+  button.btn.ghost{ background:transparent; border:1px solid var(--gold-dim); color:var(--gold); }
+  button.btn.danger{ background:var(--red-card); color:var(--chalk); }
+  button.btn:disabled{ opacity:0.4; cursor:not-allowed; }
+  button.btn.small{ padding:5px 10px; font-size:11px; }
+
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  table th{ text-align:left; color:var(--gold); text-transform:uppercase; font-size:11px; letter-spacing:0.5px;
+    border-bottom:2px solid rgba(244,241,230,0.15); padding:8px 6px; }
+  table td{ padding:7px 6px; border-bottom:1px solid rgba(244,241,230,0.06); }
+  table tr:hover td{ background:rgba(244,241,230,0.03); }
+
+  .badge{ display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:bold; }
+  .badge.win{ background:var(--win); color:var(--night); }
+  .badge.lose{ background:var(--lose); color:var(--chalk); }
+  .badge.draw{ background:var(--draw); color:var(--night); }
+
+  .pos-tag{ font-size:10px; padding:1px 6px; border-radius:4px; text-transform:uppercase; font-weight:bold; }
+  .pos-GK{ background:#4b6ea8; color:#fff; }
+  .pos-DF{ background:#3d7a4f; color:#fff; }
+  .pos-MF{ background:#c98a2c; color:#fff; }
+  .pos-FW{ background:#c1443a; color:#fff; }
+
+  .pitch-mini{
+    background:repeating-linear-gradient(0deg, rgba(244,241,230,0.04) 0 30px, rgba(244,241,230,0.08) 30px 31px);
+    border:1px solid rgba(244,241,230,0.15); border-radius:8px; padding:12px;
+  }
+
+  .matchup-card{
+    background:var(--panel-2); border-radius:8px; margin-bottom:10px;
+    border-left:3px solid var(--gold-dim); overflow:hidden;
+  }
+  .matchup-card.expanded{ border-left-color:var(--gold); }
+  .matchup{
+    display:grid; grid-template-columns:1fr auto 1fr auto; align-items:center; gap:14px;
+    padding:12px 16px; cursor:pointer;
+  }
+  .matchup:hover{ background:rgba(244,241,230,0.03); }
+  .matchup .side{ font-size:14px; font-weight:bold; }
+  .matchup .side.right{ text-align:right; }
+  .matchup .score{ font-size:22px; font-weight:bold; color:var(--gold); min-width:70px; text-align:center; }
+  .matchup .cats{ font-size:11px; color:var(--chalk-dim); text-align:center; }
+  .matchup .chevron{ font-size:12px; color:var(--gold-dim); transition:transform 0.2s; }
+  .matchup-card.expanded .chevron{ transform:rotate(180deg); color:var(--gold); }
+
+  .scoreboard{ padding:4px 18px 16px; border-top:1px solid rgba(244,241,230,0.08); }
+  .scoreboard-cat{ padding:10px 0; border-bottom:1px solid rgba(244,241,230,0.06); }
+  .scoreboard-cat:last-child{ border-bottom:none; }
+  .scoreboard-cat .sc-head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
+  .scoreboard-cat .sc-label{ font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:var(--chalk-dim); }
+  .scoreboard-cat .sc-icon{ margin-right:6px; }
+  .scoreboard-cat .sc-score{ font-size:16px; font-weight:bold; font-variant-numeric:tabular-nums; }
+  .scoreboard-cat .sc-score .win{ color:var(--win); }
+  .scoreboard-cat .sc-score .lose{ color:var(--chalk-dim); }
+  .scoreboard-cat .sc-score .tiev{ color:var(--gold); }
+  .sc-bar{ display:flex; height:8px; border-radius:4px; overflow:hidden; background:rgba(244,241,230,0.08); }
+  .sc-bar .fillA{ background:linear-gradient(90deg, var(--gold-dim), var(--gold)); }
+  .sc-bar .fillB{ background:linear-gradient(90deg, #5f8bc7, #3d5f8f); }
+  .sc-pt-badge{ font-size:10px; padding:1px 7px; border-radius:10px; background:rgba(244,241,230,0.1); color:var(--chalk-dim); margin-left:8px; }
+  .scoreboard-summary{ display:flex; justify-content:space-between; align-items:center; padding:12px 0 6px; }
+  .scoreboard-summary .total{ font-size:26px; font-weight:bold; color:var(--gold); }
+  .editStatsLink{ font-size:11px; color:var(--gold); text-decoration:underline; cursor:pointer; background:none; border:none; font-family:inherit; padding:0; }
+
+  .cat-row{ display:grid; grid-template-columns:1fr 60px 60px 60px; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid rgba(244,241,230,0.06); }
+  .cat-row .label{ font-size:12px; }
+  .cat-row .val{ text-align:center; font-weight:bold; font-size:15px; }
+  .cat-row .val.mine{ color:var(--win); }
+  .cat-row .val.theirs{ color:var(--lose); }
+  .cat-row .val.tied{ color:var(--gold); }
+  .cat-row .pt{ text-align:center; font-size:11px; color:var(--chalk-dim);}
+
+  .club-tag{ font-size:11px; color:var(--chalk-dim); }
+
+  .toolbar{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
+  .pill{ background:var(--panel-2); border-radius:20px; padding:6px 14px; font-size:12px; }
+
+  .lineup-row{ display:grid; grid-template-columns:34px 1.6fr 1.2fr 90px; gap:8px; align-items:center; padding:5px 0; }
+  .slot-num{ width:24px; height:24px; border-radius:50%; background:var(--gold); color:var(--night); font-weight:bold; font-size:11px; display:flex; align-items:center; justify-content:center; }
+
+  .warn{ color:var(--red-card); font-size:12px; margin-top:6px; }
+  .ok{ color:var(--win); font-size:12px; margin-top:6px; }
+
+  .bracket-col{ display:flex; flex-direction:column; gap:20px; justify-content:center; }
+  .bracket-wrap{ display:flex; gap:30px; overflow-x:auto; padding-bottom:10px; }
+  .bracket-match{
+    background:var(--panel-2); border-radius:8px; padding:10px 12px; min-width:190px;
+    border-left:3px solid var(--gold-dim);
+  }
+  .bracket-match .p{ display:flex; justify-content:space-between; font-size:12px; padding:3px 0; }
+  .bracket-match .p.winner{ color:var(--gold); font-weight:bold; }
+
+  footer.foot{ text-align:center; color:var(--chalk-dim); font-size:11px; padding:24px; }
+  .empty{ text-align:center; color:var(--chalk-dim); padding:30px; font-size:13px; }
+  .flex-between{ display:flex; justify-content:space-between; align-items:center; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <div class="crest">⚽</div>
+    <div>
+      <h1>Liga Fantasy</h1>
+      <div class="sub">12 managers · Solo ida · 11 jornadas</div>
+    </div>
+  </div>
+  <div>
+    <button class="btn ghost small" id="exportBtn">Exportar datos</button>
+    <button class="btn ghost small" id="importBtn">Importar</button>
+    <input type="file" id="importFile" style="display:none" accept=".json">
+  </div>
+</header>
+
+<nav class="tabs">
+  <button data-view="inicio" class="active">Inicio</button>
+  <button data-view="config">Configuración</button>
+  <button data-view="jugadores">Jugadores</button>
+  <button data-view="plantillas">Plantillas</button>
+  <button data-view="jornada">Jornada</button>
+  <button data-view="clasificacion">Clasificación</button>
+  <button data-view="playoffs">Playoffs</button>
+  <button data-view="reglas">Reglamento</button>
+</nav>
+
+<main>
+
+  <!-- ===================== INICIO ===================== -->
+  <div class="view active" id="view-inicio">
+    <div class="card">
+      <h2>Inscripción de managers</h2>
+      <p style="font-size:12px;color:var(--chalk-dim);margin-top:0;">Cada persona elige una plaza libre, pone su nombre y el nombre de su equipo. Se guarda en este navegador — si jugáis desde el mismo dispositivo, cada uno se inscribe por turno; si cada uno abre el archivo en su propio ordenador, tendréis que compartir luego los datos (exportar/importar) para juntar todas las inscripciones en una sola liga.</p>
+      <div class="grid cols-3" id="inicioSlots"></div>
+    </div>
+  </div>
+
+  <!-- ===================== CONFIG ===================== -->
+  <div class="view" id="view-config">
+    <div class="card">
+      <h2>Managers (12)</h2>
+      <div class="grid cols-3" id="managerInputs"></div>
+      <div style="margin-top:12px;">
+        <button class="btn" id="saveManagers">Guardar nombres</button>
+        <span class="ok" id="managersSaved" style="display:none;">Guardado ✓</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Equipos de Primera División</h2>
+      <p style="font-size:12px;color:var(--chalk-dim);margin-top:0;">Edita esta lista si la composición de la liga cambia de temporada. Cada equipo solo puede aportar 1 jugador a la plantilla de cada manager por jornada.</p>
+      <div class="grid cols-4" id="teamsList"></div>
+      <div style="margin-top:12px;display:flex;gap:8px;">
+        <input type="text" id="newTeamInput" placeholder="Añadir equipo…" style="max-width:220px;">
+        <button class="btn ghost small" id="addTeamBtn">+ Añadir</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Calendario (round-robin, 11 jornadas)</h2>
+      <p style="font-size:12px;color:var(--chalk-dim);margin-top:0;">Generado automáticamente a partir del orden de los managers. Regenerar reordena los cruces (usa esto solo si cambias los managers).</p>
+      <button class="btn ghost small" id="regenScheduleBtn">Regenerar calendario</button>
+      <div id="scheduleOverview" style="margin-top:12px;"></div>
+    </div>
+  </div>
+
+  <!-- ===================== JUGADORES ===================== -->
+  <div class="view" id="view-jugadores">
+    <div class="card">
+      <h2>Base de datos de jugadores por equipo</h2>
+      <p style="font-size:12px;color:var(--chalk-dim);margin-top:0;">Añade aquí la plantilla real de cada equipo (nombre + posición) copiándola de Flashscore. Una vez cargados, en la pestaña Plantillas podrás elegir el jugador de una lista en vez de escribirlo. Actualiza esta lista cuando haya fichajes o bajas.</p>
+      <div class="toolbar">
+        <label style="margin:0;">Equipo</label>
+        <select id="jugadoresTeamSel"></select>
+        <span class="pill" id="jugadoresCount"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="color:var(--gold);font-size:13px;">Añadir un jugador</h3>
+      <div class="grid cols-3">
+        <div><label>Nombre</label><input type="text" id="newPlayerName" placeholder="Ej. Vinícius Jr."></div>
+        <div><label>Posición</label>
+          <select id="newPlayerPos">
+            <option value="GK">Portero (GK)</option>
+            <option value="DF">Defensa (DF)</option>
+            <option value="MF">Centrocampista (MF)</option>
+            <option value="FW">Delantero (FW)</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:end;"><button class="btn" id="addPlayerBtn">+ Añadir jugador</button></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="color:var(--gold);font-size:13px;">Añadir varios a la vez (pegar desde Flashscore o Transfermarkt)</h3>
+      <p style="font-size:12px;color:var(--chalk-dim);margin-top:0;">Pega el bloque de la plantilla tal cual lo copies de la web (con fechas, valores de mercado, etc. — no pasa nada, se ignora automáticamente) o, si prefieres, escribe línea a línea con formato <code>Nombre - POS</code> (POS = GK, DF, MF o FW).</p>
+      <textarea id="bulkPlayerInput" rows="8" style="width:100%;background:var(--panel-2);border:1px solid rgba(244,241,230,0.15);color:var(--chalk);padding:9px;border-radius:6px;font-family:inherit;font-size:13px;" placeholder="Pega aquí el bloque completo de la plantilla…"></textarea>
+      <div style="margin-top:10px;"><button class="btn ghost" id="bulkAddPlayersBtn">Añadir todos</button></div>
+      <div id="bulkAddResult" style="margin-top:8px;"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="color:var(--gold);font-size:13px;">Plantilla actual</h3>
+      <div id="teamPlayersList"></div>
+    </div>
+  </div>
+
+  <!-- ===================== PLANTILLAS ===================== -->
+  <div class="view" id="view-plantillas">
+    <div class="card">
+      <div class="toolbar">
+        <label style="margin:0;">Jornada</label>
+        <select id="plantillaJornadaSel"></select>
+        <label style="margin:0 0 0 16px;">Manager</label>
+        <select id="plantillaManagerSel"></select>
+      </div>
+    </div>
+
+    <div class="card" id="plantillaEditor"></div>
+  </div>
+
+  <!-- ===================== JORNADA ===================== -->
+  <div class="view" id="view-jornada">
+    <div class="card">
+      <div class="toolbar">
+        <label style="margin:0;">Jornada</label>
+        <select id="jornadaSel"></select>
+      </div>
+      <div id="jornadaFixtures"></div>
+    </div>
+    <div id="jornadaDetail"></div>
+  </div>
+
+  <!-- ===================== CLASIFICACION ===================== -->
+  <div class="view" id="view-clasificacion">
+    <div class="card">
+      <h2>Clasificación — Liga regular</h2>
+      <div id="tablaClasificacion"></div>
+    </div>
+  </div>
+
+  <!-- ===================== PLAYOFFS ===================== -->
+  <div class="view" id="view-playoffs">
+    <div class="card">
+      <div class="flex-between">
+        <h2 style="border:none;margin:0;">Playoffs — Puestos 1º a 8º</h2>
+        <button class="btn small" id="generateBracketBtn">Generar/Actualizar bracket</button>
+      </div>
+      <p style="font-size:12px;color:var(--chalk-dim);">Cuartos: 1º-8º · 2º-7º · 3º-6º · 4º-5º. Series al mejor de 3. Factor cancha: P1 mejor clasificado en casa, P2 peor clasificado en casa, P3 mejor clasificado en casa. El de casa recibe el plus: +1 gol, +1 asist, +2 tarjetas, +3 pts equipo, +2 portería a 0, +3 faltas, +5 córners, +2 tiros a puerta.</p>
+      <div id="bracketTop" class="bracket-wrap"></div>
+    </div>
+    <div class="card">
+      <div class="flex-between">
+        <h2 style="border:none;margin:0;">Playoff de consolación — Puestos 9º a 12º</h2>
+        <button class="btn small" id="generateBracketBtnB">Generar/Actualizar</button>
+      </div>
+      <p style="font-size:12px;color:var(--chalk-dim);">9º-12º · 10º-11º, mismo formato al mejor de 3 con factor cancha alternado.</p>
+      <div id="bracketBottom" class="bracket-wrap"></div>
+    </div>
+    <div class="card" id="playoffSeriesEditor"></div>
+  </div>
+
+  <!-- ===================== REGLAS ===================== -->
+  <div class="view" id="view-reglas">
+    <div class="card">
+      <h2>Reglamento</h2>
+      <h3 style="color:var(--gold);font-size:13px;">Plantillas</h3>
+      <p style="font-size:13px;line-height:1.6;">11 titulares elegidos de toda la Primera División, máximo 1 jugador por equipo real. Formación libre entre las disponibles. La alineación se confirma antes del inicio de la jornada. Si el equipo real de un jugador no juega esa jornada (aplazado/suspendido), ese jugador no puntúa en ninguna categoría.</p>
+      <h3 style="color:var(--gold);font-size:13px;">8 categorías por jornada</h3>
+      <table>
+        <tr><th>Categoría</th><th>Reparto de puntos</th></tr>
+        <tr><td>Goles</td><td>Delantero/Centrocampista: 1 · Defensa/Portero: 2</td></tr>
+        <tr><td>Asistencias</td><td>Todas las posiciones: 1</td></tr>
+        <tr><td>Tarjetas</td><td>Amarilla: 1 · Doble amarilla: 3 · Roja directa: 5 (gana quien MÁS acumule)</td></tr>
+        <tr><td>Puntos por equipo</td><td>Puntos reales de liga del club de cada jugador esa jornada</td></tr>
+        <tr><td>Portería a 0</td><td>Portero: 3 · Defensa: 2 · Centrocampista: 1 · Delantero: 1</td></tr>
+        <tr><td>Faltas</td><td>1 cada una (gana quien MÁS haga)</td></tr>
+        <tr><td>Córners</td><td>Suma de córners del equipo real de cada jugador</td></tr>
+        <tr><td>Tiros a puerta</td><td>Portero/Defensa: 3 · Centrocampista: 2 · Delantero: 1</td></tr>
+      </table>
+      <h3 style="color:var(--gold);font-size:13px;margin-top:14px;">Resultado del cruce</h3>
+      <p style="font-size:13px;line-height:1.6;">Cada categoría reparte 1 subpunto: al que la gane, o 1 a cada uno si hay empate. Quien sume más subpuntos gana el cruce y se lleva 3 puntos de liga. Si el total de subpuntos también queda igualado, 1 punto de liga para cada uno.</p>
+      <h3 style="color:var(--gold);font-size:13px;margin-top:14px;">Playoffs</h3>
+      <p style="font-size:13px;line-height:1.6;">Clasifican los 8 primeros: cuartos 1º-8º, 2º-7º, 3º-6º, 4º-5º. Los 4 últimos juegan su propio playoff de consolación para las plazas 9ª-12ª. Series al mejor de 3 (2 victorias pasan de ronda); si un lado gana 2-0, el tercer partido se juega igualmente. Factor cancha por partido de la serie: P1 lo tiene el mejor clasificado en liga regular, P2 el peor clasificado, P3 el mejor clasificado de nuevo. Solo el que juega en casa ese partido recibe el plus de categorías.</p>
+    </div>
+  </div>
+
+</main>
+
+<footer class="foot">Datos guardados en este navegador (localStorage). Usa "Exportar datos" para hacer copia de seguridad.</footer>
+
+<script>
+/* ============================================================
+   DATA MODEL & PERSISTENCE
+   ============================================================ */
+const STORAGE_KEY = 'ligaFantasyData_v1';
+
+const DEFAULT_TEAMS = [
+  "Real Madrid","FC Barcelona","Atlético de Madrid","Athletic Club","Real Sociedad",
+  "Real Betis","Villarreal","Valencia","Sevilla","Celta de Vigo","Elche",
+  "Espanyol","Getafe","Levante","Osasuna","Rayo Vallecano","Alavés",
+  "Racing de Santander","Deportivo de La Coruña","Málaga"
+];
+
+const FORMATIONS = {
+  "1-4-4-2": {DF:4,MF:4,FW:2},
+  "1-4-3-3": {DF:4,MF:3,FW:3},
+  "1-3-4-3": {DF:3,MF:4,FW:3},
+  "1-3-5-2": {DF:3,MF:5,FW:2},
+  "1-5-3-2": {DF:5,MF:3,FW:2},
+  "1-5-4-1": {DF:5,MF:4,FW:1},
+  "1-4-5-1": {DF:4,MF:5,FW:1},
+  "1-4-2-3-1": {DF:4,MF:5,FW:1},
+  "1-3-4-2-1": {DF:3,MF:6,FW:1},
+  "1-4-1-4-1": {DF:4,MF:5,FW:1},
+};
+
+const CATEGORY_DEFS = [
+  {key:'goles', label:'Goles', higherWins:true},
+  {key:'asistencias', label:'Asistencias', higherWins:true},
+  {key:'tarjetas', label:'Tarjetas', higherWins:true},
+  {key:'ptsEquipo', label:'Puntos por equipo', higherWins:true},
+  {key:'porteria0', label:'Portería a 0', higherWins:true},
+  {key:'faltas', label:'Faltas', higherWins:true},
+  {key:'corners', label:'Córners', higherWins:true},
+  {key:'tiros', label:'Tiros a puerta', higherWins:true},
+];
+
+const HOME_BONUS = {
+  goles:1, asistencias:1, tarjetas:2, ptsEquipo:3, porteria0:2, faltas:3, corners:5, tiros:2
+};
+
+const SPANISH_POS_MAP = {
+  'portero':'GK', 'guardameta':'GK',
+  'defensa central':'DF', 'central':'DF', 'lateral izquierdo':'DF', 'lateral derecho':'DF',
+  'carrilero izquierdo':'DF', 'carrilero derecho':'DF', 'lateral':'DF',
+  'pivote':'MF', 'mediocentro':'MF', 'mediocentro defensivo':'MF', 'mediocentro ofensivo':'MF',
+  'interior derecho':'MF', 'interior izquierdo':'MF', 'centrocampista':'MF',
+  'extremo izquierdo':'FW', 'extremo derecho':'FW', 'segundo delantero':'FW',
+  'delantero centro':'FW', 'delantero':'FW'
+};
+
+function parseBulkPlayers(text){
+  const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
+  const results = [];
+  const seen = new Set();
+  function add(name, pos){
+    name = name.replace(/\s{2,}/g,' ').trim();
+    if(!name) return;
+    const k = name.toLowerCase();
+    if(seen.has(k)) return;
+    seen.add(k);
+    results.push({name, pos});
+  }
+  // Strategy A: simple "Nombre - POS" / "Nombre, POS" lines
+  lines.forEach(line=>{
+    const m = line.match(/^(.+?)[-–,]\s*(GK|DF|MF|FW)\s*$/i);
+    if(m) add(m[1].trim(), m[2].toUpperCase());
+  });
+  // Strategy B: Transfermarkt-style block paste (name line directly above a Spanish position line)
+  for(let i=0;i<lines.length;i++){
+    const key = lines[i].toLowerCase();
+    if(SPANISH_POS_MAP[key]){
+      const pos = SPANISH_POS_MAP[key];
+      for(let j=i-1;j>=0 && j>=i-4;j--){
+        const cand = lines[j];
+        if(/^\d+(\s|$)/.test(cand)) continue; // squad number (possibly with prior-club text)
+        if(/mill\.|€|\d{1,2}\/\d{1,2}\/\d{4}/.test(cand)) continue; // value / birthdate line
+        if(SPANISH_POS_MAP[cand.toLowerCase()]) continue; // another position label
+        const candName = cand.split('\t')[0].trim();
+        if(candName.length>1){ add(candName, pos); break; }
+      }
+    }
+  }
+  return results;
+}
+
+const SEED_PLAYERS = {
+  "Real Madrid": [
+    {name:"Thibaut Courtois", pos:"GK"}, {name:"Andriy Lunin", pos:"GK"},
+    {name:"Dean Huijsen", pos:"DF"}, {name:"Ibrahima Konaté", pos:"DF"}, {name:"Raúl Asencio", pos:"DF"},
+    {name:"Éder Militão", pos:"DF"}, {name:"Antonio Rüdiger", pos:"DF"}, {name:"Marc Cucurella", pos:"DF"},
+    {name:"Álvaro Carreras", pos:"DF"}, {name:"Ferland Mendy", pos:"DF"}, {name:"Trent Alexander-Arnold", pos:"DF"},
+    {name:"Denzel Dumfries", pos:"DF"},
+    {name:"Aurélien Tchouaméni", pos:"MF"}, {name:"Federico Valverde", pos:"MF"}, {name:"Eduardo Camavinga", pos:"MF"},
+    {name:"Thiago Pitarch", pos:"MF"}, {name:"Jorge Cestero", pos:"MF"}, {name:"Jude Bellingham", pos:"MF"},
+    {name:"Arda Güler", pos:"MF"}, {name:"Bernardo Silva", pos:"MF"},
+    {name:"Vinicius Junior", pos:"FW"}, {name:"Yan Diomande", pos:"FW"}, {name:"Rodrygo", pos:"FW"},
+    {name:"Brahim Díaz", pos:"FW"}, {name:"Kylian Mbappé", pos:"FW"}, {name:"Endrick", pos:"FW"}, {name:"Carlos Espí", pos:"FW"}
+  ],
+  "FC Barcelona": [
+    {name:"Joan García", pos:"GK"}, {name:"Wojciech Szczęsny", pos:"GK"},
+    {name:"Pau Cubarsí", pos:"DF"}, {name:"Eric García", pos:"DF"}, {name:"Gerard Martín", pos:"DF"},
+    {name:"Andreas Christensen", pos:"DF"}, {name:"Álvaro Cortés", pos:"DF"}, {name:"Alejandro Balde", pos:"DF"},
+    {name:"Jules Koundé", pos:"DF"}, {name:"Héctor Fort", pos:"DF"}, {name:"João Cancelo", pos:"DF"}, {name:"Xavi Espart", pos:"DF"},
+    {name:"Rodri", pos:"MF"}, {name:"Marc Bernal", pos:"MF"}, {name:"Marc Casadó", pos:"MF"},
+    {name:"Pedri", pos:"MF"}, {name:"Frenkie de Jong", pos:"MF"}, {name:"Gavi", pos:"MF"},
+    {name:"Guille Fernández", pos:"MF"}, {name:"Brian Fariñas", pos:"MF"}, {name:"Fermín López", pos:"MF"},
+    {name:"Dani Olmo", pos:"MF"}, {name:"Toni Fernández", pos:"MF"},
+    {name:"Anthony Gordon", pos:"FW"}, {name:"Raphinha", pos:"FW"}, {name:"Jesse Bisiwu", pos:"FW"},
+    {name:"Lamine Yamal", pos:"FW"}, {name:"Karim Adeyemi", pos:"FW"}, {name:"Roony Bardghji", pos:"FW"},
+    {name:"Hamza Abdelkarim", pos:"FW"}
+  ],
+  "Atlético de Madrid": [
+    {name:"Jan Oblak", pos:"GK"}, {name:"Juan Musso", pos:"GK"},
+    {name:"Cristian Romero", pos:"DF"}, {name:"Dávid Hancko", pos:"DF"}, {name:"Marc Pubill", pos:"DF"},
+    {name:"Robin Le Normand", pos:"DF"}, {name:"José María Giménez", pos:"DF"}, {name:"Dani Martinez", pos:"DF"},
+    {name:"Jorge Domínguez", pos:"DF"}, {name:"Alejandro Grimaldo", pos:"DF"}, {name:"Marcos Llorente", pos:"DF"},
+    {name:"Morten Hjulmand", pos:"MF"}, {name:"Pablo Barrios", pos:"MF"}, {name:"Rodrigo Mendoza", pos:"MF"},
+    {name:"Johnny Cardoso", pos:"MF"}, {name:"Obed Vargas", pos:"MF"}, {name:"Koke", pos:"MF"},
+    {name:"Kang-in Lee", pos:"MF"}, {name:"Thomas Lemar", pos:"MF"},
+    {name:"Álex Baena", pos:"FW"}, {name:"Ademola Lookman", pos:"FW"}, {name:"Carlos Martín", pos:"FW"},
+    {name:"Arnau Ortiz", pos:"FW"}, {name:"Giuliano Simeone", pos:"FW"}, {name:"Julián Alvarez", pos:"FW"},
+    {name:"Alexander Sørloth", pos:"FW"}
+  ],
+  "Villarreal": [
+    {name:"Luiz Júnior", pos:"GK"}, {name:"Péter Gulácsi", pos:"GK"}, {name:"Rubén Gómez", pos:"GK"},
+    {name:"Renato Veiga", pos:"DF"}, {name:"Logan Costa", pos:"DF"}, {name:"Pau Navarro", pos:"DF"},
+    {name:"Juan Foyth", pos:"DF"}, {name:"Willy Kambwala", pos:"DF"}, {name:"Carlos Romero", pos:"DF"},
+    {name:"Sergi Cardona", pos:"DF"}, {name:"Santiago Mouriño", pos:"DF"}, {name:"Alex Freeman", pos:"DF"},
+    {name:"Pape Gueye", pos:"MF"}, {name:"Santi Comesaña", pos:"MF"}, {name:"Carlos Macià", pos:"MF"}, {name:"Alassane Diatta", pos:"MF"},
+    {name:"Alberto Moleiro", pos:"FW"}, {name:"Ilias Akhomach", pos:"FW"}, {name:"Tajon Buchanan", pos:"FW"},
+    {name:"Nicolas Pépé", pos:"FW"}, {name:"Georges Mikautadze", pos:"FW"}, {name:"Tani Oluwaseyi", pos:"FW"},
+    {name:"Ayoze Pérez", pos:"FW"}, {name:"Gerard Moreno", pos:"FW"}
+  ],
+  "Real Betis": [
+    {name:"Álvaro Valles", pos:"GK"}, {name:"Diego Conde", pos:"GK"},
+    {name:"Natan", pos:"DF"}, {name:"Valentín Gómez", pos:"DF"}, {name:"Diego Llorente", pos:"DF"}, {name:"Marc Bartra", pos:"DF"},
+    {name:"Fran García", pos:"DF"}, {name:"Junior Firpo", pos:"DF"}, {name:"Ángel Ortiz", pos:"DF"}, {name:"Héctor Bellerín", pos:"DF"},
+    {name:"Facundo Bernal", pos:"MF"}, {name:"Marc Roca", pos:"MF"}, {name:"Nelson Deossa", pos:"MF"}, {name:"Pablo Fornals", pos:"MF"},
+    {name:"Álvaro Fidalgo", pos:"MF"}, {name:"Giovani Lo Celso", pos:"MF"}, {name:"Isco", pos:"MF"}, {name:"Iker Losada", pos:"MF"},
+    {name:"Abde Ezzalzouli", pos:"FW"}, {name:"Rodrigo Riquelme", pos:"FW"}, {name:"Antony", pos:"FW"},
+    {name:"Pablo García", pos:"FW"}, {name:"Aitor Ruibal", pos:"FW"}, {name:"Troy Parrott", pos:"FW"},
+    {name:"Cucho Hernández", pos:"FW"}, {name:"Gonzalo Petit", pos:"FW"}
+  ],
+  "Real Sociedad": [
+    {name:"Álex Remiro", pos:"GK"}, {name:"Unai Marrero", pos:"GK"},
+    {name:"Jon Martín", pos:"DF"}, {name:"Igor Zubeldia", pos:"DF"}, {name:"Jon Pacheco", pos:"DF"},
+    {name:"Sergio Gómez", pos:"DF"}, {name:"Aihen Muñoz", pos:"DF"}, {name:"Jon Aramburu", pos:"DF"}, {name:"Álvaro Odriozola", pos:"DF"},
+    {name:"Jon Gorrotxategi", pos:"MF"}, {name:"Beñat Turrientes", pos:"MF"}, {name:"Luka Sucic", pos:"MF"},
+    {name:"Carlos Soler", pos:"MF"}, {name:"Yangel Herrera", pos:"MF"}, {name:"Arsen Zakharyan", pos:"MF"},
+    {name:"Pablo Marín", pos:"MF"}, {name:"Mikel Goti", pos:"MF"},
+    {name:"Ander Barrenetxea", pos:"FW"}, {name:"Gonçalo Guedes", pos:"FW"}, {name:"Takefusa Kubo", pos:"FW"},
+    {name:"Job Ochieng", pos:"FW"}, {name:"Mikel Oyarzabal", pos:"FW"}, {name:"Orri Óskarsson", pos:"FW"}, {name:"Jon Karrikaburu", pos:"FW"}
+  ],
+  "Athletic Club": [
+    {name:"Unai Simón", pos:"GK"}, {name:"Álex Padilla", pos:"GK"},
+    {name:"Dani Vivian", pos:"DF"}, {name:"Aymeric Laporte", pos:"DF"}, {name:"Aitor Paredes", pos:"DF"}, {name:"Yeray Álvarez", pos:"DF"},
+    {name:"Unai Egiluz", pos:"DF"}, {name:"Adama Boiro", pos:"DF"}, {name:"Yuri Berchiche", pos:"DF"}, {name:"Jesús Areso", pos:"DF"},
+    {name:"Hugo Rincón", pos:"DF"}, {name:"Andoni Gorosabel", pos:"DF"},
+    {name:"Mikel Jauregizar", pos:"MF"}, {name:"Beñat Prados", pos:"MF"}, {name:"Alejandro Rego", pos:"MF"}, {name:"Selton Sánchez", pos:"MF"},
+    {name:"Iñigo Ruiz de Galarreta", pos:"MF"}, {name:"Unai Vencedor", pos:"MF"}, {name:"Beñat Gerenabarrena", pos:"MF"},
+    {name:"Oihan Sancet", pos:"MF"}, {name:"Peio Canales", pos:"MF"},
+    {name:"Nico Williams", pos:"FW"}, {name:"Álex Berenguer", pos:"FW"}, {name:"Álvaro Djaló", pos:"FW"}, {name:"Nico Serrano", pos:"FW"},
+    {name:"Iñaki Williams", pos:"FW"}, {name:"Robert Navarro", pos:"FW"}, {name:"Gorka Guruzeta", pos:"FW"}, {name:"Maroan Sannadi", pos:"FW"}
+  ],
+  "Celta de Vigo": [
+    {name:"Ionuț Radu", pos:"GK"}, {name:"Altay Bayındır", pos:"GK"}, {name:"Iván Villar", pos:"GK"},
+    {name:"Javi Rodríguez", pos:"DF"}, {name:"Carl Starfelt", pos:"DF"}, {name:"Abdoulaye Faye", pos:"DF"}, {name:"Yoel Lago", pos:"DF"},
+    {name:"Marcos Alonso", pos:"DF"}, {name:"Javi Galán", pos:"DF"}, {name:"Sergio Carreira", pos:"DF"}, {name:"Javi Rueda", pos:"DF"}, {name:"Álvaro Núñez", pos:"DF"},
+    {name:"Ilaix Moriba", pos:"MF"}, {name:"Miguel Román", pos:"MF"}, {name:"Aleix Febas", pos:"MF"},
+    {name:"Williot Swedberg", pos:"FW"}, {name:"Hugo Álvarez", pos:"FW"}, {name:"Ferran Jutglà", pos:"FW"},
+    {name:"Jones El-Abdellaoui", pos:"FW"}, {name:"Carles Pérez", pos:"FW"}, {name:"Hugo González", pos:"FW"},
+    {name:"Pablo Durán", pos:"FW"}, {name:"Borja Iglesias", pos:"FW"}, {name:"Iago Aspas", pos:"FW"}
+  ],
+  "Sevilla": [
+    {name:"Odysseas Vlachodimos", pos:"GK"}, {name:"Fran González", pos:"GK"},
+    {name:"Kike Salas", pos:"DF"}, {name:"Arouna Sangante", pos:"DF"}, {name:"Andrés Castrín", pos:"DF"}, {name:"Marcão", pos:"DF"}, {name:"Fábio Cardoso", pos:"DF"},
+    {name:"Gabriel Suazo", pos:"DF"}, {name:"Adrià Pedrosa", pos:"DF"}, {name:"Julio Díaz", pos:"DF"}, {name:"José Ángel Carmona", pos:"DF"}, {name:"Juan Iglesias", pos:"DF"},
+    {name:"Lucien Agoumé", pos:"MF"}, {name:"Giorgi Kochorashvili", pos:"MF"}, {name:"Jon Guridi", pos:"MF"}, {name:"Manu Bueno", pos:"MF"}, {name:"Nico Guillén", pos:"MF"}, {name:"Peque Fernández", pos:"MF"},
+    {name:"Rubén Vargas", pos:"FW"}, {name:"Oso", pos:"FW"}, {name:"Chidera Ejuke", pos:"FW"}, {name:"Alfon González", pos:"FW"}, {name:"Miguel Sierra", pos:"FW"},
+    {name:"Robbie Ure", pos:"FW"}, {name:"Isaac Romero", pos:"FW"}
+  ],
+  "Valencia": [
+    {name:"Kayne van Oevelen", pos:"GK"}, {name:"Stole Dimitrievski", pos:"GK"}, {name:"Cristian Rivero", pos:"GK"},
+    {name:"César Tárrega", pos:"DF"}, {name:"Justin de Haas", pos:"DF"}, {name:"José Copete", pos:"DF"}, {name:"Mouctar Diakhaby", pos:"DF"}, {name:"Iker Córdoba", pos:"DF"},
+    {name:"José Gayà", pos:"DF"}, {name:"Jesús Vázquez", pos:"DF"}, {name:"Pablo Maffeo", pos:"DF"}, {name:"Dimitri Foulquier", pos:"DF"},
+    {name:"Pepelu", pos:"MF"}, {name:"Guido Rodríguez", pos:"MF"}, {name:"Aliou Dieng", pos:"MF"}, {name:"Javi Guerra", pos:"MF"}, {name:"Filip Ugrinic", pos:"MF"},
+    {name:"André Almeida", pos:"MF"}, {name:"Dani Raba", pos:"MF"},
+    {name:"Arnaut Danjuma", pos:"FW"}, {name:"Ryunosuke Sato", pos:"FW"}, {name:"Sergi Canós", pos:"FW"}, {name:"Diego López", pos:"FW"}, {name:"Luis Rioja", pos:"FW"},
+    {name:"Hugo Duro", pos:"FW"}, {name:"Umar Sadiq", pos:"FW"}, {name:"Alberto Marí", pos:"FW"}
+  ],
+  "Espanyol": [
+    {name:"Marko Dmitrovic", pos:"GK"}, {name:"Ángel Fortuño", pos:"GK"},
+    {name:"Vanja Drkusic", pos:"DF"}, {name:"Clemens Riedel", pos:"DF"}, {name:"Unai Núñez", pos:"DF"}, {name:"Leandro Cabrera", pos:"DF"},
+    {name:"Quilindschy Hartman", pos:"DF"}, {name:"Roger Hinojo", pos:"DF"}, {name:"Omar El Hilali", pos:"DF"}, {name:"Rubén Sánchez", pos:"DF"},
+    {name:"Urko González de Zárate", pos:"MF"}, {name:"Gabriel Moscardo", pos:"MF"}, {name:"Pol Lozano", pos:"MF"},
+    {name:"Edu Expósito", pos:"MF"}, {name:"Rafel Bauzà", pos:"MF"}, {name:"Álex Calatrava", pos:"MF"}, {name:"Javi Hernández", pos:"MF"},
+    {name:"Javi Puado", pos:"FW"}, {name:"Pere Milla", pos:"FW"}, {name:"Tyrhys Dolan", pos:"FW"}, {name:"Jofre Carreras", pos:"FW"},
+    {name:"Roberto Fernández", pos:"FW"}, {name:"Marcos Fernández", pos:"FW"}, {name:"Kike García", pos:"FW"}
+  ],
+  "Getafe": [
+    {name:"David Soria", pos:"GK"}, {name:"Jiri Letacek", pos:"GK"},
+    {name:"Abdel Abqar", pos:"DF"}, {name:"Zaid Romero", pos:"DF"}, {name:"Sebastián Boselli", pos:"DF"}, {name:"Juan Berrocal", pos:"DF"},
+    {name:"Dakonam Djené", pos:"DF"}, {name:"Saba Sazonov", pos:"DF"}, {name:"Jean Ives Valou", pos:"DF"},
+    {name:"Johan Mojica", pos:"DF"}, {name:"Davinchi", pos:"DF"}, {name:"Andrés García", pos:"DF"}, {name:"Kiko Femenía", pos:"DF"}, {name:"Ismael Bekhoucha", pos:"DF"},
+    {name:"Mario Martín", pos:"MF"}, {name:"Orel Mangala", pos:"MF"}, {name:"Yvan Neyou", pos:"MF"},
+    {name:"Ramón Terrats", pos:"MF"}, {name:"Francho Serrano", pos:"MF"}, {name:"Javi Muñoz", pos:"MF"},
+    {name:"Juanmi", pos:"FW"}, {name:"Álex Sancris", pos:"FW"}, {name:"Christantus Uche", pos:"FW"},
+    {name:"Martín Satriano", pos:"FW"}, {name:"Enes Ünal", pos:"FW"}, {name:"Borja Mayoral", pos:"FW"}
+  ],
+  "Levante": [
+    {name:"Mathew Ryan", pos:"GK"}, {name:"Pablo Campos", pos:"GK"}, {name:"Dani Martín", pos:"GK"}, {name:"Álex Primo", pos:"GK"},
+    {name:"Adrián Dela", pos:"DF"}, {name:"Ifeanyi Ndukwe", pos:"DF"}, {name:"Aïssa Mandi", pos:"DF"}, {name:"Jorge Cabello", pos:"DF"},
+    {name:"Manu Sánchez", pos:"DF"}, {name:"Marc Santos", pos:"DF"}, {name:"Jeremy Toljan", pos:"DF"}, {name:"Xavi Grande", pos:"DF"}, {name:"Nacho Pérez", pos:"DF"},
+    {name:"Oriol Rey", pos:"MF"}, {name:"Enzo Bardeli", pos:"MF"}, {name:"Hugo Sotelo", pos:"MF"}, {name:"Jon Ander Olasagasti", pos:"MF"},
+    {name:"Dani Requena", pos:"MF"}, {name:"Carlos Álvarez", pos:"MF"},
+    {name:"Thiago Fernández", pos:"FW"}, {name:"Roger Brugué", pos:"FW"}, {name:"Paco Cortés", pos:"FW"}, {name:"Kareem Tunde", pos:"FW"},
+    {name:"Víctor García", pos:"FW"}, {name:"Tay Abed", pos:"FW"}, {name:"Karl Etta Eyong", pos:"FW"}, {name:"Iván Romero", pos:"FW"}, {name:"Yanis Musuayi", pos:"FW"}
+  ],
+  "Racing de Santander": [
+    {name:"Julen Agirrezabala", pos:"GK"}, {name:"Simon Eriksson", pos:"GK"},
+    {name:"Facundo González", pos:"DF"}, {name:"Pedro Felipe", pos:"DF"}, {name:"Manu Hernando", pos:"DF"}, {name:"Pablo Ramón", pos:"DF"},
+    {name:"Jorge Salinas", pos:"DF"}, {name:"Álvaro Mantilla", pos:"DF"},
+    {name:"Maguette Gueye", pos:"MF"}, {name:"Gustavo Puerta", pos:"MF"}, {name:"Iván Martín", pos:"MF"}, {name:"Sergio Martínez", pos:"MF"},
+    {name:"Íñigo Sainz-Maza", pos:"MF"}, {name:"Sergio Canales", pos:"MF"},
+    {name:"Iñigo Vicente", pos:"FW"}, {name:"Andrés Martín", pos:"FW"}, {name:"Yassir Zabiri", pos:"FW"},
+    {name:"Giorgi Guliashvili", pos:"FW"}, {name:"Asier Villalibre", pos:"FW"}, {name:"Juan Carlos Arana", pos:"FW"}
+  ],
+  "Deportivo de La Coruña": [
+    {name:"Leo Román", pos:"GK"}, {name:"Álvaro Ferllo", pos:"GK"}, {name:"Germán Parreño", pos:"GK"}, {name:"Eric Puerto", pos:"GK"},
+    {name:"Lucas Noubi", pos:"DF"}, {name:"Dani Barcia", pos:"DF"}, {name:"Bright Ede", pos:"DF"}, {name:"Arnau Comas", pos:"DF"},
+    {name:"Angeliño", pos:"DF"}, {name:"Giacomo Quagliata", pos:"DF"}, {name:"Adrià Altimira", pos:"DF"}, {name:"Miguel Loureiro", pos:"DF"}, {name:"Ximo Navarro", pos:"DF"},
+    {name:"Lorenzo Amatucci", pos:"MF"}, {name:"Riki Rodríguez", pos:"MF"}, {name:"Diego Villares", pos:"MF"}, {name:"Noé Carrillo", pos:"MF"},
+    {name:"Teun Gijselhart", pos:"MF"}, {name:"Charlie Patiño", pos:"MF"}, {name:"José Ángel Jurado", pos:"MF"}, {name:"Mario Soriano", pos:"MF"}, {name:"Jonathan Asp Jensen", pos:"MF"},
+    {name:"Yeremay Hernández", pos:"FW"}, {name:"David Mella", pos:"FW"}, {name:"Luismi Cruz", pos:"FW"},
+    {name:"Bil Nsongo", pos:"FW"}, {name:"Pierre-Emerick Aubameyang", pos:"FW"}, {name:"Zakaria Eddahchouri", pos:"FW"}, {name:"Kevin Sánchez", pos:"FW"}
+  ],
+  "Elche": [
+    {name:"Alejandro Iturbe", pos:"GK"}, {name:"Matías Dituro", pos:"GK"},
+    {name:"David Affengruber", pos:"DF"}, {name:"Víctor Chust", pos:"DF"}, {name:"John Donald", pos:"DF"}, {name:"Matia Barzic", pos:"DF"},
+    {name:"Bambo Diaby", pos:"DF"}, {name:"Pedro Bigas", pos:"DF"}, {name:"Buba Sangaré", pos:"DF"},
+    {name:"Marc Aguado", pos:"MF"}, {name:"Federico Redondo", pos:"MF"}, {name:"Martim Neto", pos:"MF"}, {name:"Gonzalo Villar", pos:"MF"},
+    {name:"Javi Morcillo", pos:"MF"}, {name:"Facundo Buonanotte", pos:"MF"}, {name:"Adam Boayar", pos:"MF"}, {name:"Ali Houary", pos:"MF"},
+    {name:"Germán Valera", pos:"FW"}, {name:"Lucas Cepeda", pos:"FW"}, {name:"Tete Morente", pos:"FW"}, {name:"Yago Santiago", pos:"FW"},
+    {name:"Rafa Núñez", pos:"FW"}, {name:"Grady Diangana", pos:"FW"}, {name:"Josan", pos:"FW"},
+    {name:"Ezequiel Ponce", pos:"FW"}, {name:"Fer Niño", pos:"FW"}, {name:"Abiel Osorio", pos:"FW"}
+  ],
+  "Rayo Vallecano": [
+    {name:"Augusto Batalla", pos:"GK"}, {name:"Dani Cárdenas", pos:"GK"},
+    {name:"Marash Kumbulla", pos:"DF"}, {name:"Luiz Felipe", pos:"DF"}, {name:"Jozhua Vertrouwd", pos:"DF"}, {name:"Florian Lejeune", pos:"DF"},
+    {name:"Pelayo Fernández", pos:"DF"}, {name:"Andrei Rațiu", pos:"DF"}, {name:"Iván Balliu", pos:"DF"},
+    {name:"Pedro Díaz", pos:"MF"}, {name:"Unai López", pos:"MF"}, {name:"Óscar Valentín", pos:"MF"}, {name:"Pathé Ciss", pos:"MF"},
+    {name:"Randy Nteka", pos:"MF"}, {name:"Isi Palazón", pos:"MF"},
+    {name:"Giorgi Tsitaishvili", pos:"FW"}, {name:"Álvaro García", pos:"FW"}, {name:"Jorge de Frutos", pos:"FW"}, {name:"Fran Pérez", pos:"FW"},
+    {name:"Alemão", pos:"FW"}, {name:"Sergio Camello", pos:"FW"}, {name:"Raúl de Tomás", pos:"FW"}, {name:"Etienne Eto'o", pos:"FW"}
+  ],
+  "Osasuna": [
+    {name:"Sergio Herrera", pos:"GK"}, {name:"Aitor Fernández", pos:"GK"},
+    {name:"Enzo Boyomo", pos:"DF"}, {name:"Jorge Herrando", pos:"DF"}, {name:"Alejandro Catena", pos:"DF"}, {name:"Rockson Yeboah", pos:"DF"},
+    {name:"Abel Bretones", pos:"DF"}, {name:"Diego Rico", pos:"DF"}, {name:"Valentin Rosier", pos:"DF"}, {name:"Iñigo Arguibide", pos:"DF"},
+    {name:"Lucas Torró", pos:"MF"}, {name:"Iker Muñoz", pos:"MF"}, {name:"Jon Moncayola", pos:"MF"}, {name:"Asier Osambela", pos:"MF"},
+    {name:"Aimar Oroz", pos:"MF"}, {name:"Moi Gómez", pos:"MF"},
+    {name:"Raúl Moro", pos:"FW"}, {name:"Jonathan Dubasin", pos:"FW"}, {name:"Rubén García", pos:"FW"}, {name:"Kike Barja", pos:"FW"},
+    {name:"Raúl García", pos:"FW"}, {name:"Ante Budimir", pos:"FW"}
+  ],
+  "Alavés": [
+    {name:"Antonio Sivera", pos:"GK"}, {name:"Jesús Owono", pos:"GK"}, {name:"Adrián Rodríguez", pos:"GK"},
+    {name:"Nicolás Valentini", pos:"DF"}, {name:"Ville Koski", pos:"DF"}, {name:"Facundo Garcés", pos:"DF"},
+    {name:"Youssef Enríquez", pos:"DF"}, {name:"Nahuel Tenaglia", pos:"DF"}, {name:"Jonny Otto", pos:"DF"}, {name:"Hugo Novoa", pos:"DF"},
+    {name:"Antonio Blanco", pos:"MF"}, {name:"Carlos Protesoni", pos:"MF"}, {name:"Tomás Mendes", pos:"MF"}, {name:"Pablo Ibáñez", pos:"MF"},
+    {name:"Carles Aleñá", pos:"MF"}, {name:"Ander Guevara", pos:"MF"}, {name:"Mikel Rodriguez", pos:"MF"}, {name:"Selu Diallo", pos:"MF"}, {name:"Denis Suárez", pos:"MF"},
+    {name:"Abde Rebbach", pos:"FW"}, {name:"Miguel Rodríguez", pos:"FW"}, {name:"Ángel Pérez", pos:"FW"},
+    {name:"Toni Martínez", pos:"FW"}, {name:"Lucas Boyé", pos:"FW"}, {name:"Aitor Mañas", pos:"FW"}, {name:"Mariano Díaz", pos:"FW"}
+  ],
+  "Málaga": [
+    {name:"Alfonso Herrero", pos:"GK"}, {name:"Carlos López", pos:"GK"},
+    {name:"Fernando Calero", pos:"DF"}, {name:"Diego Murillo", pos:"DF"}, {name:"Einar Galilea", pos:"DF"}, {name:"Álex Pastor", pos:"DF"}, {name:"Ángel Recio", pos:"DF"},
+    {name:"José Salinas", pos:"DF"}, {name:"Dani Sánchez", pos:"DF"}, {name:"Rafita Garrido", pos:"DF"}, {name:"Carlos Puga", pos:"DF"},
+    {name:"Pablo Martínez", pos:"MF"}, {name:"Izan Merino", pos:"MF"}, {name:"Carlos Dotor", pos:"MF"}, {name:"Ramón Enríquez", pos:"MF"}, {name:"Pablo Arriaza", pos:"MF"},
+    {name:"Dani Lorenzo", pos:"MF"}, {name:"Rafa Rodríguez", pos:"MF"}, {name:"Aarón Ochoa", pos:"MF"},
+    {name:"Juan Cruz", pos:"FW"}, {name:"Joaquín Muñoz", pos:"FW"}, {name:"Julen Lobete", pos:"FW"}, {name:"David Larrubia", pos:"FW"}, {name:"Haitam Abaida", pos:"FW"},
+    {name:"Chupe", pos:"FW"}, {name:"Adrián Niño", pos:"FW"}, {name:"Eneko Jauregi", pos:"FW"}
+  ]
+};
+
+function defaultData(){
+  return {
+    managers: Array.from({length:12}, (_,i)=>`Manager ${i+1}`),
+    owners: Array.from({length:12}, ()=>''), // real person's name behind each team
+    teams: [...DEFAULT_TEAMS],
+    players: {}, // { teamName: [ {name, pos} ] }
+    schedule: null, // array of 11 rounds, each an array of [i,j] manager indices
+    lineups: {}, // key `${jornada}_${managerIdx}` -> {formation, players:[{team,name,pos}]}
+    matchStats: {}, // key `${jornada}_${team}` -> {teamPoints,corners,cleanSheet}
+    playerStats: {}, // key `${jornada}_${managerIdx}_${slot}` -> {goals,assists,yellow,secondYellow,red,fouls,shots}
+    playoffs: { top: null, bottom: null } // bracket structures
+  };
+}
+
+let DATA = loadData();
+
+function loadData(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw) return Object.assign(defaultData(), JSON.parse(raw));
+  }catch(e){ console.error(e); }
+  return defaultData();
+}
+function saveData(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
+}
+
+/* ============================================================
+   ROUND ROBIN SCHEDULE (circle method) — 12 managers, 11 rounds
+   ============================================================ */
+function generateSchedule(n){
+  const idx = Array.from({length:n}, (_,i)=>i);
+  const rounds = [];
+  const fixed = idx[0];
+  let rest = idx.slice(1);
+  for(let r=0;r<n-1;r++){
+    const round = [];
+    const arr = [fixed, ...rest];
+    for(let i=0;i<n/2;i++){
+      round.push([arr[i], arr[n-1-i]]);
+    }
+    rounds.push(round);
+    rest.push(rest.shift());
+  }
+  return rounds;
+}
+
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+document.querySelectorAll('nav.tabs button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+    renderAll();
+  });
+});
+
+/* ============================================================
+   INICIO — sign-up panel
+   ============================================================ */
+function renderInicio(){
+  const el = document.getElementById('inicioSlots');
+  let html = '';
+  for(let i=0;i<12;i++){
+    const teamName = DATA.managers[i];
+    const owner = DATA.owners[i] || '';
+    const isTaken = owner.trim().length>0;
+    html += `<div class="card" style="margin-bottom:0;padding:14px;" data-slot="${i}">
+      <div class="flex-between" style="margin-bottom:8px;">
+        <span class="pill">Plaza ${i+1}</span>
+        ${isTaken ? '<span class="badge win">Inscrito</span>' : '<span class="badge lose">Libre</span>'}
+      </div>
+      <div class="inicio-display" style="${isTaken?'':'display:none;'}">
+        <div style="font-size:15px;font-weight:bold;color:var(--gold);">${escapeHtml(teamName)}</div>
+        <div style="font-size:12px;color:var(--chalk-dim);margin-bottom:10px;">Manager: ${escapeHtml(owner)}</div>
+        <button class="btn ghost small editSlotBtn" data-idx="${i}">Editar</button>
+      </div>
+      <div class="inicio-form" style="${isTaken?'display:none;':''}">
+        <label>Tu nombre</label>
+        <input type="text" class="ownerInput" data-idx="${i}" placeholder="Ej. Miguel" value="${escapeHtml(owner)}">
+        <label style="margin-top:8px;">Nombre de tu equipo</label>
+        <input type="text" class="teamNameInput" data-idx="${i}" placeholder="Ej. Deportivo Siuuu FC" value="${escapeHtml(isTaken?teamName:(teamName.startsWith('Manager ')?'':teamName))}">
+        <button class="btn small" style="margin-top:10px;" data-idx="${i}" onclick="confirmarInscripcion(${i})">Inscribirme</button>
+      </div>
+    </div>`;
+  }
+  el.innerHTML = html;
+  el.querySelectorAll('.editSlotBtn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const card = btn.closest('.card');
+      card.querySelector('.inicio-display').style.display = 'none';
+      card.querySelector('.inicio-form').style.display = 'block';
+    });
+  });
+}
+
+function confirmarInscripcion(idx){
+  const ownerInput = document.querySelector(`.ownerInput[data-idx="${idx}"]`);
+  const teamInput = document.querySelector(`.teamNameInput[data-idx="${idx}"]`);
+  const owner = ownerInput.value.trim();
+  const teamName = teamInput.value.trim();
+  if(!owner || !teamName){ alert('Escribe tu nombre y el nombre de tu equipo.'); return; }
+  DATA.owners[idx] = owner;
+  DATA.managers[idx] = teamName;
+  saveData();
+  renderAll();
+}
+function renderConfig(){
+  const wrap = document.getElementById('managerInputs');
+  wrap.innerHTML = '';
+  DATA.managers.forEach((name,i)=>{
+    const d = document.createElement('div');
+    const owner = DATA.owners[i] ? ` <span style="color:var(--chalk-dim);font-weight:normal;">(${escapeHtml(DATA.owners[i])})</span>` : '';
+    d.innerHTML = `<label>Equipo ${i+1}${owner}</label><input type="text" data-idx="${i}" class="managerName" value="${escapeHtml(name)}">`;
+    wrap.appendChild(d);
+  });
+
+  const teamsWrap = document.getElementById('teamsList');
+  teamsWrap.innerHTML = '';
+  DATA.teams.forEach((t,i)=>{
+    const d = document.createElement('div');
+    d.style.display='flex'; d.style.gap='4px'; d.style.alignItems='center';
+    d.innerHTML = `<input type="text" data-idx="${i}" class="teamName" value="${escapeHtml(t)}" style="flex:1;">
+      <button class="btn danger small removeTeam" data-idx="${i}">✕</button>`;
+    teamsWrap.appendChild(d);
+  });
+
+  document.getElementById('managersSaved').style.display='none';
+
+  renderScheduleOverview();
+}
+
+function renderScheduleOverview(){
+  const el = document.getElementById('scheduleOverview');
+  if(!DATA.schedule){ el.innerHTML = '<p class="empty">Aún no hay calendario generado.</p>'; return; }
+  let html = '<div class="grid cols-3">';
+  DATA.schedule.forEach((round, r)=>{
+    html += `<div class="pitch-mini"><strong style="color:var(--gold);font-size:12px;">Jornada ${r+1}</strong><ul style="font-size:12px;padding-left:16px;margin:8px 0 0;">`;
+    round.forEach(([a,b])=>{
+      html += `<li>${escapeHtml(DATA.managers[a])} vs ${escapeHtml(DATA.managers[b])}</li>`;
+    });
+    html += '</ul></div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+document.getElementById('saveManagers').addEventListener('click', ()=>{
+  document.querySelectorAll('.managerName').forEach(inp=>{
+    DATA.managers[+inp.dataset.idx] = inp.value.trim() || `Manager ${(+inp.dataset.idx)+1}`;
+  });
+  if(!DATA.schedule) DATA.schedule = generateSchedule(12);
+  saveData();
+  document.getElementById('managersSaved').style.display='inline';
+  renderAll();
+});
+
+document.getElementById('addTeamBtn').addEventListener('click', ()=>{
+  const inp = document.getElementById('newTeamInput');
+  const v = inp.value.trim();
+  if(v){ DATA.teams.push(v); inp.value=''; saveData(); renderConfig(); }
+});
+document.getElementById('teamsList').addEventListener('click', (e)=>{
+  if(e.target.classList.contains('removeTeam')){
+    DATA.teams.splice(+e.target.dataset.idx,1);
+    saveData(); renderConfig();
+  }
+});
+document.getElementById('teamsList').addEventListener('change', (e)=>{
+  if(e.target.classList.contains('teamName')){
+    DATA.teams[+e.target.dataset.idx] = e.target.value.trim();
+    saveData();
+  }
+});
+document.getElementById('regenScheduleBtn').addEventListener('click', ()=>{
+  if(confirm('¿Seguro? Esto reordena todos los cruces de la temporada.')){
+    DATA.schedule = generateSchedule(12);
+    saveData(); renderScheduleOverview();
+  }
+});
+
+/* ============================================================
+   JUGADORES VIEW — team player database
+   ============================================================ */
+function getTeamPlayers(team){
+  if(!DATA.players[team]) DATA.players[team] = [];
+  return DATA.players[team];
+}
+
+function renderJugadoresTeamSel(){
+  const sel = document.getElementById('jugadoresTeamSel');
+  const cur = sel.value;
+  sel.innerHTML = DATA.teams.map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+  if(cur && DATA.teams.includes(cur)) sel.value = cur;
+}
+
+function renderJugadores(){
+  renderJugadoresTeamSel();
+  renderTeamPlayersList();
+}
+
+function renderTeamPlayersList(){
+  const team = document.getElementById('jugadoresTeamSel').value;
+  const list = getTeamPlayers(team);
+  document.getElementById('jugadoresCount').textContent = `${list.length} jugador(es)`;
+  const posOrder = {GK:0, DF:1, MF:2, FW:3};
+  const sorted = [...list].sort((a,b)=> posOrder[a.pos]-posOrder[b.pos] || a.name.localeCompare(b.name));
+  const el = document.getElementById('teamPlayersList');
+  if(sorted.length===0){ el.innerHTML = '<p class="empty">Aún no hay jugadores para este equipo. Añádelos arriba.</p>'; return; }
+  el.innerHTML = `<table><tr><th>Jugador</th><th>Posición</th><th></th></tr>` +
+    sorted.map((p,i)=>{
+      const realIdx = list.indexOf(p);
+      return `<tr><td>${escapeHtml(p.name)}</td><td><span class="pos-tag pos-${p.pos}">${p.pos}</span></td><td><button class="btn danger small removePlayerBtn" data-idx="${realIdx}">✕</button></td></tr>`;
+    }).join('') + `</table>`;
+  el.querySelectorAll('.removePlayerBtn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      list.splice(+btn.dataset.idx, 1);
+      saveData();
+      renderTeamPlayersList();
+    });
+  });
+}
+
+document.getElementById('jugadoresTeamSel').addEventListener('change', renderTeamPlayersList);
+
+document.getElementById('addPlayerBtn').addEventListener('click', ()=>{
+  const team = document.getElementById('jugadoresTeamSel').value;
+  const name = document.getElementById('newPlayerName').value.trim();
+  const pos = document.getElementById('newPlayerPos').value;
+  if(!name) return;
+  const list = getTeamPlayers(team);
+  if(list.some(p=>p.name.toLowerCase()===name.toLowerCase())){ alert('Ese jugador ya está en la lista.'); return; }
+  list.push({name, pos});
+  document.getElementById('newPlayerName').value = '';
+  saveData();
+  renderTeamPlayersList();
+});
+
+document.getElementById('bulkAddPlayersBtn').addEventListener('click', ()=>{
+  const team = document.getElementById('jugadoresTeamSel').value;
+  const raw = document.getElementById('bulkPlayerInput').value;
+  const parsed = parseBulkPlayers(raw);
+  const list = getTeamPlayers(team);
+  let added=0, skipped=0;
+  parsed.forEach(({name,pos})=>{
+    if(list.some(p=>p.name.toLowerCase()===name.toLowerCase())){ skipped++; return; }
+    list.push({name, pos});
+    added++;
+  });
+  const totalLines = raw.split('\n').map(l=>l.trim()).filter(Boolean).length;
+  saveData();
+  document.getElementById('bulkPlayerInput').value = '';
+  document.getElementById('bulkAddResult').innerHTML = added>0
+    ? `<span class="ok">${added} jugador(es) añadido(s) ✓</span>${skipped>0?` · ${skipped} ya estaban en la lista`:''}`
+    : `<span class="warn">No se ha reconocido ningún jugador. Prueba con el formato "Nombre - POS" o pega directamente el bloque copiado de Flashscore/Transfermarkt.</span>`;
+  renderTeamPlayersList();
+});
+function populateJornadaSelects(){
+  ['plantillaJornadaSel','jornadaSel'].forEach(id=>{
+    const sel = document.getElementById(id);
+    const current = sel.value;
+    sel.innerHTML = Array.from({length:11},(_,i)=>`<option value="${i}">Jornada ${i+1}</option>`).join('');
+    if(current) sel.value = current;
+  });
+  const mgrSel = document.getElementById('plantillaManagerSel');
+  const cur = mgrSel.value;
+  mgrSel.innerHTML = DATA.managers.map((m,i)=>`<option value="${i}">${escapeHtml(m)}</option>`).join('');
+  if(cur) mgrSel.value = cur;
+}
+
+function renderPlantillaEditor(){
+  const jornada = +document.getElementById('plantillaJornadaSel').value || 0;
+  const managerIdx = +document.getElementById('plantillaManagerSel').value || 0;
+  const key = `${jornada}_${managerIdx}`;
+  let lineup = DATA.lineups[key];
+  if(!lineup){
+    lineup = { formation:'1-4-4-2', confirmed:false, players: buildEmptySlots('1-4-4-2') };
+    DATA.lineups[key] = lineup;
+  }
+
+  const el = document.getElementById('plantillaEditor');
+  const formationOptions = Object.keys(FORMATIONS).map(f=>`<option value="${f}" ${f===lineup.formation?'selected':''}>${f}</option>`).join('');
+
+  const usedTeams = {};
+  lineup.players.forEach(p=>{ if(p.team) usedTeams[p.team] = (usedTeams[p.team]||0)+1; });
+
+  function teamOptionsHtml(selected){
+    return `<option value="">— equipo —</option>` + DATA.teams.map(t=>{
+      const usedElsewhere = usedTeams[t] && t !== selected;
+      return `<option value="${escapeHtml(t)}" ${t===selected?'selected':''}>${escapeHtml(t)}${usedElsewhere?' ⚠️ repetido':''}</option>`;
+    }).join('');
+  }
+  function playerOptionsHtml(team, pos, selectedName){
+    const list = getTeamPlayers(team).filter(p=>p.pos===pos);
+    let opts = `<option value="">— jugador —</option>`;
+    opts += list.map(p=>`<option value="${escapeHtml(p.name)}" ${p.name===selectedName?'selected':''}>${escapeHtml(p.name)}</option>`).join('');
+    if(selectedName && !list.some(p=>p.name===selectedName)){
+      opts += `<option value="${escapeHtml(selectedName)}" selected>${escapeHtml(selectedName)} (fuera de la BD)</option>`;
+    }
+    return opts;
+  }
+
+  let rowsHtml = '';
+  lineup.players.forEach((p, idx)=>{
+    const noPlayersInDb = p.team && getTeamPlayers(p.team).filter(pl=>pl.pos===p.pos).length===0;
+    rowsHtml += `
+      <div class="lineup-row">
+        <div class="slot-num">${idx+1}</div>
+        <select class="playerTeam" data-idx="${idx}">${teamOptionsHtml(p.team)}</select>
+        <select class="playerName" data-idx="${idx}" ${!p.team?'disabled':''}>${playerOptionsHtml(p.team, p.pos, p.name)}</select>
+        <span class="pos-tag pos-${p.pos}">${p.pos}</span>
+      </div>
+      ${noPlayersInDb ? `<div style="font-size:11px;color:var(--chalk-dim);margin:-4px 0 6px 42px;">Sin jugadores ${p.pos} cargados para ${escapeHtml(p.team)} — añádelos en la pestaña Jugadores.</div>` : ''}`;
+  });
+
+  el.innerHTML = `
+    <div class="flex-between">
+      <h2 style="border:none;margin:0;">${escapeHtml(DATA.managers[managerIdx])} — Jornada ${jornada+1}</h2>
+      <div>${lineup.confirmed ? '<span class="badge win">Confirmada</span>' : '<span class="badge lose">Sin confirmar</span>'}</div>
+    </div>
+    <div class="toolbar">
+      <label style="margin:0;">Formación</label>
+      <select id="formationSel">${formationOptions}</select>
+    </div>
+    <div id="lineupRows">${rowsHtml}</div>
+    <div id="lineupValidation" style="margin-top:10px;"></div>
+    <div style="margin-top:14px;display:flex;gap:8px;">
+      <button class="btn" id="saveLineupBtn">Guardar alineación</button>
+      <button class="btn ghost" id="confirmLineupBtn">${lineup.confirmed?'Quitar confirmación':'Confirmar alineación'}</button>
+    </div>
+  `;
+
+  document.getElementById('formationSel').addEventListener('change', (e)=>{
+    lineup.formation = e.target.value;
+    const newSlots = buildEmptySlots(lineup.formation);
+    const oldByPos = {GK:[],DF:[],MF:[],FW:[]};
+    lineup.players.forEach(p=>oldByPos[p.pos].push(p));
+    newSlots.forEach(s=>{
+      const pool = oldByPos[s.pos];
+      if(pool && pool.length){ const o = pool.shift(); s.name=o.name; s.team=o.team; }
+    });
+    lineup.players = newSlots;
+    saveData();
+    renderPlantillaEditor();
+  });
+
+  el.querySelectorAll('.playerTeam').forEach(sel=>{
+    sel.addEventListener('change', ()=>{
+      const idx = +sel.dataset.idx;
+      lineup.players[idx].team = sel.value;
+      lineup.players[idx].name = ''; // reset player when team changes
+      saveData();
+      renderPlantillaEditor();
+    });
+  });
+  el.querySelectorAll('.playerName').forEach(sel=>{
+    sel.addEventListener('change', ()=>{
+      const idx = +sel.dataset.idx;
+      lineup.players[idx].name = sel.value;
+      saveData();
+    });
+  });
+
+  document.getElementById('saveLineupBtn').addEventListener('click', ()=>{
+    const validation = validateLineup(lineup);
+    const vEl = document.getElementById('lineupValidation');
+    if(validation.valid){
+      vEl.innerHTML = '<span class="ok">Alineación guardada correctamente ✓</span>';
+    }else{
+      vEl.innerHTML = `<span class="warn">${validation.errors.join('<br>')}</span>`;
+    }
+    saveData();
+  });
+
+  document.getElementById('confirmLineupBtn').addEventListener('click', ()=>{
+    const validation = validateLineup(lineup);
+    if(!validation.valid && !lineup.confirmed){
+      alert('No se puede confirmar:\n' + validation.errors.join('\n'));
+      return;
+    }
+    lineup.confirmed = !lineup.confirmed;
+    saveData();
+    renderPlantillaEditor();
+  });
+}
+
+function buildEmptySlots(formationKey){
+  const f = FORMATIONS[formationKey];
+  const slots = [{pos:'GK', name:'', team:''}];
+  for(let i=0;i<f.DF;i++) slots.push({pos:'DF', name:'', team:''});
+  for(let i=0;i<f.MF;i++) slots.push({pos:'MF', name:'', team:''});
+  for(let i=0;i<f.FW;i++) slots.push({pos:'FW', name:'', team:''});
+  return slots;
+}
+
+function validateLineup(lineup){
+  const errors = [];
+  const teamsUsed = {};
+  let missingNames = 0, missingTeams = 0;
+  lineup.players.forEach(p=>{
+    if(!p.name) missingNames++;
+    if(!p.team) missingTeams++;
+    if(p.team){ teamsUsed[p.team] = (teamsUsed[p.team]||0)+1; }
+  });
+  if(missingNames>0) errors.push(`Faltan ${missingNames} nombre(s) de jugador.`);
+  if(missingTeams>0) errors.push(`Faltan ${missingTeams} equipo(s) asignado(s).`);
+  Object.entries(teamsUsed).forEach(([team,count])=>{
+    if(count>1) errors.push(`"${team}" aparece ${count} veces — máximo 1 jugador por equipo.`);
+  });
+  return { valid: errors.length===0, errors };
+}
+
+document.getElementById('plantillaJornadaSel').addEventListener('change', renderPlantillaEditor);
+document.getElementById('plantillaManagerSel').addEventListener('change', renderPlantillaEditor);
+
+/* ============================================================
+   JORNADA VIEW — stats entry & category calculation
+   ============================================================ */
+const CATEGORY_ICONS = {
+  goles:'⚽', asistencias:'🎯', tarjetas:'🟨', ptsEquipo:'🏆',
+  porteria0:'🧤', faltas:'⚠️', corners:'🚩', tiros:'🥅'
+};
+
+function renderJornadaFixtures(){
+  const jornada = +document.getElementById('jornadaSel').value || 0;
+  const fixturesEl = document.getElementById('jornadaFixtures');
+  if(!DATA.schedule){ fixturesEl.innerHTML = '<p class="empty">Genera el calendario primero en Configuración.</p>'; return; }
+  const round = DATA.schedule[jornada];
+  let html = '';
+  round.forEach(([a,b], mIdx)=>{
+    const result = computeMatchResult(jornada, a, b);
+    html += `<div class="matchup-card expanded" data-a="${a}" data-b="${b}" data-midx="${mIdx}">
+      <div class="matchup">
+        <div class="side">${escapeHtml(DATA.managers[a])}</div>
+        <div>
+          <div class="score">${result.subA} - ${result.subB}</div>
+          <div class="cats">${result.leaguePtsA} - ${result.leaguePtsB} pts liga</div>
+        </div>
+        <div class="side right">${escapeHtml(DATA.managers[b])}</div>
+        <div class="chevron">▼</div>
+      </div>
+      <div class="scoreboard-body">${renderScoreboardHtml(jornada, a, b)}</div>
+    </div>`;
+  });
+  fixturesEl.innerHTML = html;
+  document.querySelectorAll('.matchup-card').forEach(card=>{
+    card.querySelector('.matchup').addEventListener('click', ()=>{
+      const a = +card.dataset.a, b = +card.dataset.b;
+      const body = card.querySelector('.scoreboard-body');
+      const isOpen = body.style.display !== 'none';
+      if(isOpen){
+        body.style.display = 'none';
+        card.classList.remove('expanded');
+      }else{
+        body.innerHTML = renderScoreboardHtml(jornada, a, b);
+        body.style.display = 'block';
+        card.classList.add('expanded');
+        wireEditLink(card, jornada, a, b);
+      }
+    });
+    wireEditLink(card, jornada, +card.dataset.a, +card.dataset.b);
+  });
+}
+
+function wireEditLink(card, jornada, a, b){
+  const link = card.querySelector('.editStatsLink');
+  if(!link) return;
+  link.onclick = (e)=>{
+    e.stopPropagation();
+    renderJornadaDetail(jornada, a, b);
+    document.getElementById('jornadaDetail').scrollIntoView({behavior:'smooth', block:'start'});
+  };
+}
+
+function renderScoreboardHtml(jornada, a, b){
+  const lineupA = DATA.lineups[`${jornada}_${a}`];
+  const lineupB = DATA.lineups[`${jornada}_${b}`];
+  if(!lineupA || !lineupB){
+    return `<div class="scoreboard"><p class="empty">Faltan alineaciones para ver el detalle. <button class="editStatsLink">Ir a completarlas →</button></p></div>`;
+  }
+  const result = computeMatchResult(jornada, a, b);
+  const nameA = DATA.managers[a], nameB = DATA.managers[b];
+  const rows = result.catResults.map(c=>{
+    const total = c.va + c.vb;
+    const pctA = total>0 ? Math.max(8, Math.round((c.va/total)*100)) : 50;
+    const pctB = 100 - pctA;
+    const scoreClassA = c.winner==='a' ? 'win' : (c.winner==='tie' ? 'tiev' : 'lose');
+    const scoreClassB = c.winner==='b' ? 'win' : (c.winner==='tie' ? 'tiev' : 'lose');
+    const ptBadge = c.winner==='tie' ? '1 - 1' : (c.winner==='a' ? '1 - 0' : '0 - 1');
+    return `
+      <div class="scoreboard-cat">
+        <div class="sc-head">
+          <span class="sc-label"><span class="sc-icon">${CATEGORY_ICONS[c.key]}</span>${c.label}</span>
+          <span class="sc-score"><span class="${scoreClassA}">${c.va.toFixed(0)}</span> — <span class="${scoreClassB}">${c.vb.toFixed(0)}</span><span class="sc-pt-badge">${ptBadge}</span></span>
+        </div>
+        <div class="sc-bar"><div class="fillA" style="width:${pctA}%;"></div><div class="fillB" style="width:${pctB}%;"></div></div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="scoreboard">
+      <div class="scoreboard-summary">
+        <div>${escapeHtml(nameA)}</div>
+        <div class="total">${result.subA} - ${result.subB}</div>
+        <div>${escapeHtml(nameB)}</div>
+      </div>
+      ${rows}
+      <div style="text-align:right;margin-top:10px;">
+        <button class="editStatsLink">Editar estadísticas de este partido →</button>
+      </div>
+    </div>`;
+}
+
+function getPlayerStats(jornada, managerIdx, slotIdx){
+  const key = `${jornada}_${managerIdx}_${slotIdx}`;
+  if(!DATA.playerStats[key]){
+    DATA.playerStats[key] = {goals:0, assists:0, yellow:0, secondYellow:0, red:0, fouls:0, shots:0};
+  }
+  return DATA.playerStats[key];
+}
+function getTeamStats(jornada, team){
+  if(!team) return {teamPoints:0, corners:0, cleanSheet:false, played:true};
+  const key = `${jornada}_${team}`;
+  if(!DATA.matchStats[key]){
+    DATA.matchStats[key] = {teamPoints:0, corners:0, cleanSheet:false, played:true};
+  }
+  return DATA.matchStats[key];
+}
+
+const GOAL_WEIGHT = {FW:1, MF:1, DF:2, GK:2};
+const CLEANSHEET_WEIGHT = {GK:3, DF:2, MF:1, FW:1};
+const SHOTS_WEIGHT = {GK:3, DF:3, MF:2, FW:1};
+
+function computeCategoryTotals(jornada, managerIdx){
+  const lineup = DATA.lineups[`${jornada}_${managerIdx}`];
+  const totals = {goles:0, asistencias:0, tarjetas:0, ptsEquipo:0, porteria0:0, faltas:0, corners:0, tiros:0};
+  if(!lineup) return totals;
+  lineup.players.forEach((p, slotIdx)=>{
+    const team = getTeamStats(jornada, p.team);
+    if(p.team && team.played === false) return; // suspended/not played -> doesn't score
+    const ps = getPlayerStats(jornada, managerIdx, slotIdx);
+    totals.goles += ps.goals * GOAL_WEIGHT[p.pos];
+    totals.asistencias += ps.assists * 1;
+    totals.tarjetas += ps.yellow*1 + ps.secondYellow*3 + ps.red*5;
+    totals.faltas += ps.fouls;
+    totals.tiros += ps.shots * SHOTS_WEIGHT[p.pos];
+    if(p.team){
+      totals.ptsEquipo += team.teamPoints;
+      totals.corners += team.corners;
+      if(team.cleanSheet) totals.porteria0 += CLEANSHEET_WEIGHT[p.pos];
+    }
+  });
+  return totals;
+}
+
+function computeMatchResult(jornada, a, b){
+  const totA = computeCategoryTotals(jornada, a);
+  const totB = computeCategoryTotals(jornada, b);
+  let subA=0, subB=0;
+  const catResults = CATEGORY_DEFS.map(cat=>{
+    const va = totA[cat.key], vb = totB[cat.key];
+    let winner = 'tie';
+    if(va>vb){ winner='a'; subA+=1; }
+    else if(vb>va){ winner='b'; subB+=1; }
+    else { subA+=1; subB+=1; }
+    return {key:cat.key, label:cat.label, va, vb, winner};
+  });
+  let leaguePtsA=0, leaguePtsB=0;
+  if(subA>subB){ leaguePtsA=3; leaguePtsB=0; }
+  else if(subB>subA){ leaguePtsB=3; leaguePtsA=0; }
+  else { leaguePtsA=1; leaguePtsB=1; }
+  return { subA, subB, leaguePtsA, leaguePtsB, catResults, totA, totB };
+}
+
+function renderJornadaDetail(jornada, a, b){
+  const el = document.getElementById('jornadaDetail');
+  const lineupA = DATA.lineups[`${jornada}_${a}`];
+  const lineupB = DATA.lineups[`${jornada}_${b}`];
+
+  if(!lineupA || !lineupB){
+    el.innerHTML = `<div class="card"><p class="empty">Faltan alineaciones. Ve a la pestaña Plantillas y crea la de ${!lineupA?escapeHtml(DATA.managers[a]):escapeHtml(DATA.managers[b])} para la jornada ${jornada+1}.</p></div>`;
+    return;
+  }
+
+  const result = computeMatchResult(jornada, a, b);
+
+  const teamsInMatch = new Set();
+  [...lineupA.players, ...lineupB.players].forEach(p=>{ if(p.team) teamsInMatch.add(p.team); });
+
+  let teamStatsHtml = '';
+  [...teamsInMatch].forEach(team=>{
+    const ts = getTeamStats(jornada, team);
+    teamStatsHtml += `
+      <div class="grid cols-4" data-team="${escapeHtml(team)}" style="align-items:end;margin-bottom:8px;">
+        <div><label>${escapeHtml(team)}</label><span class="club-tag">Datos del equipo real</span></div>
+        <div><label>Pts. equipo</label><input type="number" class="teamPoints" value="${ts.teamPoints}" min="0" max="3"></div>
+        <div><label>Córners</label><input type="number" class="teamCorners" value="${ts.corners}" min="0"></div>
+        <div><label>Portería a 0 / Jugó</label>
+          <select class="teamCleanSheet"><option value="0" ${!ts.cleanSheet?'selected':''}>No</option><option value="1" ${ts.cleanSheet?'selected':''}>Sí</option></select>
+          <select class="teamPlayed" style="margin-top:4px;"><option value="1" ${ts.played!==false?'selected':''}>Jugó</option><option value="0" ${ts.played===false?'selected':''}>No jugó (suspendido)</option></select>
+        </div>
+      </div>`;
+  });
+
+  function playerRows(lineup, managerIdx){
+    return lineup.players.map((p, slotIdx)=>{
+      const ps = getPlayerStats(jornada, managerIdx, slotIdx);
+      return `<tr data-manager="${managerIdx}" data-slot="${slotIdx}">
+        <td><span class="pos-tag pos-${p.pos}">${p.pos}</span> ${escapeHtml(p.name||'—')}<br><span class="club-tag">${escapeHtml(p.team||'sin equipo')}</span></td>
+        <td><input type="number" class="pGoals" value="${ps.goals}" min="0"></td>
+        <td><input type="number" class="pAssists" value="${ps.assists}" min="0"></td>
+        <td><input type="number" class="pYellow" value="${ps.yellow}" min="0" max="1"></td>
+        <td><input type="number" class="pSecondYellow" value="${ps.secondYellow}" min="0" max="1"></td>
+        <td><input type="number" class="pRed" value="${ps.red}" min="0" max="1"></td>
+        <td><input type="number" class="pFouls" value="${ps.fouls}" min="0"></td>
+        <td><input type="number" class="pShots" value="${ps.shots}" min="0"></td>
+      </tr>`;
+    }).join('');
+  }
+
+  el.innerHTML = `
+    <div class="card">
+      <h2>Datos de los equipos reales — Jornada ${jornada+1}</h2>
+      ${teamStatsHtml || '<p class="empty">Sin equipos asignados todavía.</p>'}
+      <button class="btn small" id="saveTeamStatsBtn">Guardar datos de equipos</button>
+    </div>
+
+    <div class="card">
+      <h2>${escapeHtml(DATA.managers[a])} — plantilla</h2>
+      <table>
+        <tr><th>Jugador</th><th>Goles</th><th>Asist.</th><th>Am.</th><th>2ª Am.</th><th>Roja</th><th>Faltas</th><th>Tiros</th></tr>
+        ${playerRows(lineupA, a)}
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>${escapeHtml(DATA.managers[b])} — plantilla</h2>
+      <table>
+        <tr><th>Jugador</th><th>Goles</th><th>Asist.</th><th>Am.</th><th>2ª Am.</th><th>Roja</th><th>Faltas</th><th>Tiros</th></tr>
+        ${playerRows(lineupB, b)}
+      </table>
+    </div>
+
+    <div style="margin-bottom:14px;"><button class="btn" id="savePlayerStatsBtn">Guardar estadísticas de jugadores</button></div>
+
+    <div class="card">
+      <h2>Resultado del cruce</h2>
+      <div class="flex-between" style="margin-bottom:10px;">
+        <strong>${escapeHtml(DATA.managers[a])}</strong>
+        <span style="font-size:24px;color:var(--gold);font-weight:bold;">${result.subA} - ${result.subB}</span>
+        <strong>${escapeHtml(DATA.managers[b])}</strong>
+      </div>
+      ${result.catResults.map(c=>`
+        <div class="cat-row">
+          <div class="label">${c.label}</div>
+          <div class="val ${c.winner==='a'?'mine':c.winner==='tie'?'tied':''}">${c.va.toFixed(0)}</div>
+          <div class="pt">${c.winner==='tie'?'1 - 1':(c.winner==='a'?'1 - 0':'0 - 1')}</div>
+          <div class="val ${c.winner==='b'?'mine':c.winner==='tie'?'tied':''}">${c.vb.toFixed(0)}</div>
+        </div>
+      `).join('')}
+      <div style="margin-top:14px;text-align:center;font-size:15px;">
+        <strong>Puntos de liga:</strong> ${escapeHtml(DATA.managers[a])} ${result.leaguePtsA} — ${result.leaguePtsB} ${escapeHtml(DATA.managers[b])}
+      </div>
+    </div>
+  `;
+
+  document.getElementById('saveTeamStatsBtn').addEventListener('click', ()=>{
+    document.querySelectorAll('#jornadaDetail [data-team]').forEach(row=>{
+      const team = row.dataset.team;
+      const ts = getTeamStats(jornada, team);
+      ts.teamPoints = +row.querySelector('.teamPoints').value || 0;
+      ts.corners = +row.querySelector('.teamCorners').value || 0;
+      ts.cleanSheet = row.querySelector('.teamCleanSheet').value === '1';
+      ts.played = row.querySelector('.teamPlayed').value === '1';
+    });
+    saveData();
+    renderJornadaDetail(jornada, a, b);
+    renderJornadaFixtures();
+  });
+
+  document.getElementById('savePlayerStatsBtn').addEventListener('click', ()=>{
+    document.querySelectorAll('#jornadaDetail tr[data-manager]').forEach(row=>{
+      const mIdx = +row.dataset.manager, slotIdx = +row.dataset.slot;
+      const ps = getPlayerStats(jornada, mIdx, slotIdx);
+      ps.goals = +row.querySelector('.pGoals').value || 0;
+      ps.assists = +row.querySelector('.pAssists').value || 0;
+      ps.yellow = +row.querySelector('.pYellow').value || 0;
+      ps.secondYellow = +row.querySelector('.pSecondYellow').value || 0;
+      ps.red = +row.querySelector('.pRed').value || 0;
+      ps.fouls = +row.querySelector('.pFouls').value || 0;
+      ps.shots = +row.querySelector('.pShots').value || 0;
+    });
+    saveData();
+    renderJornadaDetail(jornada, a, b);
+    renderJornadaFixtures();
+  });
+}
+
+document.getElementById('jornadaSel').addEventListener('change', ()=>{
+  renderJornadaFixtures();
+  document.getElementById('jornadaDetail').innerHTML = '';
+});
+
+/* ============================================================
+   CLASIFICACION VIEW
+   ============================================================ */
+function computeStandings(){
+  const stats = DATA.managers.map((name,i)=>({idx:i, name, pts:0, pj:0, subF:0, subC:0}));
+  if(DATA.schedule){
+    DATA.schedule.forEach((round, jornada)=>{
+      round.forEach(([a,b])=>{
+        const lineupA = DATA.lineups[`${jornada}_${a}`];
+        const lineupB = DATA.lineups[`${jornada}_${b}`];
+        if(!lineupA || !lineupB) return;
+        const result = computeMatchResult(jornada, a, b);
+        stats[a].pts += result.leaguePtsA;
+        stats[b].pts += result.leaguePtsB;
+        stats[a].pj += 1; stats[b].pj += 1;
+        stats[a].subF += result.subA; stats[a].subC += result.subB;
+        stats[b].subF += result.subB; stats[b].subC += result.subA;
+      });
+    });
+  }
+  stats.sort((x,y)=> y.pts-x.pts || (y.subF-y.subC)-(x.subF-x.subC) || y.subF-x.subF);
+  return stats;
+}
+
+function renderClasificacion(){
+  const stats = computeStandings();
+  let html = '<table><tr><th>#</th><th>Manager</th><th>PJ</th><th>Subpts F</th><th>Subpts C</th><th>Dif.</th><th>Pts</th></tr>';
+  stats.forEach((s,rank)=>{
+    html += `<tr><td>${rank+1}</td><td>${escapeHtml(s.name)}</td><td>${s.pj}</td><td>${s.subF}</td><td>${s.subC}</td><td>${s.subF-s.subC}</td><td><strong style="color:var(--gold);">${s.pts}</strong></td></tr>`;
+  });
+  html += '</table>';
+  document.getElementById('tablaClasificacion').innerHTML = html;
+}
+
+/* ============================================================
+   PLAYOFFS VIEW
+   ============================================================ */
+function buildBracket(seeds){
+  // seeds: array of 8 manager indices in order [1st..8th] (or 4 for consolation)
+  const n = seeds.length;
+  const pairs = [];
+  for(let i=0;i<n/2;i++) pairs.push([seeds[i], seeds[n-1-i]]);
+  return pairs.map(([hi,lo])=>({
+    higherSeedIdx: hi, lowerSeedIdx: lo,
+    games: [
+      {homeIdx:hi, awayIdx:lo, played:false, result:null},
+      {homeIdx:lo, awayIdx:hi, played:false, result:null},
+      {homeIdx:hi, awayIdx:lo, played:false, result:null},
+    ],
+    winnerIdx: null
+  }));
+}
+
+document.getElementById('generateBracketBtn').addEventListener('click', ()=>{
+  const stats = computeStandings();
+  if(stats.length<12){ alert('Faltan managers.'); return; }
+  const top8 = stats.slice(0,8).map(s=>s.idx);
+  DATA.playoffs.top = { seeds: top8, matches: buildBracket(top8) };
+  saveData(); renderPlayoffs();
+});
+document.getElementById('generateBracketBtnB').addEventListener('click', ()=>{
+  const stats = computeStandings();
+  if(stats.length<12){ alert('Faltan managers.'); return; }
+  const bottom4 = stats.slice(8,12).map(s=>s.idx);
+  DATA.playoffs.bottom = { seeds: bottom4, matches: buildBracket(bottom4) };
+  saveData(); renderPlayoffs();
+});
+
+function renderBracketWrap(elId, bracketData, label){
+  const el = document.getElementById(elId);
+  if(!bracketData){ el.innerHTML = `<p class="empty">Aún no generado.</p>`; return; }
+  el.innerHTML = bracketData.matches.map((m, mi)=>{
+    const winsHi = m.games.filter(g=>g.result==='home_win' && g.homeIdx===m.higherSeedIdx || g.result==='away_win' && g.awayIdx===m.higherSeedIdx).length;
+    const winsLo = m.games.filter(g=>g.result==='home_win' && g.homeIdx===m.lowerSeedIdx || g.result==='away_win' && g.awayIdx===m.lowerSeedIdx).length;
+    return `<div class="bracket-match" data-bracket="${label}" data-match="${mi}">
+      <div class="p ${m.winnerIdx===m.higherSeedIdx?'winner':''}">${escapeHtml(DATA.managers[m.higherSeedIdx])} <span>${winsHi}</span></div>
+      <div class="p ${m.winnerIdx===m.lowerSeedIdx?'winner':''}">${escapeHtml(DATA.managers[m.lowerSeedIdx])} <span>${winsLo}</span></div>
+      <div style="font-size:10px;color:var(--chalk-dim);margin-top:6px;">Click para editar la serie</div>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.bracket-match').forEach(card=>{
+    card.addEventListener('click', ()=> renderSeriesEditor(label, +card.dataset.match));
+  });
+}
+
+function renderPlayoffs(){
+  renderBracketWrap('bracketTop', DATA.playoffs.top, 'top');
+  renderBracketWrap('bracketBottom', DATA.playoffs.bottom, 'bottom');
+}
+
+function renderSeriesEditor(label, matchIdx){
+  const bracketData = label==='top' ? DATA.playoffs.top : DATA.playoffs.bottom;
+  const m = bracketData.matches[matchIdx];
+  const el = document.getElementById('playoffSeriesEditor');
+
+  function gameRow(g, gi){
+    const homeName = DATA.managers[g.homeIdx], awayName = DATA.managers[g.awayIdx];
+    return `<div class="grid cols-3" style="align-items:end;margin-bottom:10px;" data-game="${gi}">
+      <div><label>Partido ${gi+1} — Local (factor cancha)</label><strong>${escapeHtml(homeName)}</strong> <span style="color:var(--chalk-dim);">vs</span> ${escapeHtml(awayName)}</div>
+      <div><label>Subpuntos local</label><input type="number" class="gHomeSub" value="${g.homeSub ?? ''}" min="0" max="8" placeholder="ej. 5"></div>
+      <div><label>Subpuntos visitante</label><input type="number" class="gAwaySub" value="${g.awaySub ?? ''}" min="0" max="8" placeholder="ej. 3"></div>
+    </div>`;
+  }
+
+  el.innerHTML = `
+    <h2>${escapeHtml(DATA.managers[m.higherSeedIdx])} vs ${escapeHtml(DATA.managers[m.lowerSeedIdx])} — serie al mejor de 3</h2>
+    <p style="font-size:12px;color:var(--chalk-dim);">Introduce los subpuntos de cada partido (calculados aparte, sumando ya el plus de factor cancha del local: +1 gol, +1 asist, +2 tarjetas, +3 pts equipo, +2 portería a 0, +3 faltas, +5 córners, +2 tiros). Si un lado llega a 2 victorias, la serie ya tiene ganador, pero el 3er partido puede jugarse igualmente.</p>
+    ${m.games.map(gameRow).join('')}
+    <button class="btn" id="saveSeriesBtn">Guardar serie</button>
+    <div id="seriesResult" style="margin-top:12px;"></div>
+  `;
+
+  document.getElementById('saveSeriesBtn').addEventListener('click', ()=>{
+    document.querySelectorAll('#playoffSeriesEditor [data-game]').forEach(row=>{
+      const gi = +row.dataset.game;
+      const hs = row.querySelector('.gHomeSub').value;
+      const as = row.querySelector('.gAwaySub').value;
+      if(hs==='' || as===''){ m.games[gi].result=null; return; }
+      const homeSub = +hs, awaySub = +as;
+      m.games[gi].homeSub = homeSub; m.games[gi].awaySub = awaySub;
+      m.games[gi].result = homeSub>awaySub ? 'home_win' : (awaySub>homeSub ? 'away_win' : 'draw');
+      m.games[gi].played = true;
+    });
+    // determine series winner
+    let hiWins=0, loWins=0;
+    m.games.forEach(g=>{
+      if(!g.played) return;
+      const hiIsHome = g.homeIdx===m.higherSeedIdx;
+      if(g.result==='home_win'){ hiIsHome? hiWins++ : loWins++; }
+      else if(g.result==='away_win'){ hiIsHome? loWins++ : hiWins++; }
+    });
+    m.winnerIdx = hiWins>=2 ? m.higherSeedIdx : (loWins>=2 ? m.lowerSeedIdx : null);
+    saveData();
+    document.getElementById('seriesResult').innerHTML = m.winnerIdx
+      ? `<span class="ok">Gana la serie: ${escapeHtml(DATA.managers[m.winnerIdx])} (${hiWins===2||hiWins===3?hiWins:loWins}-${hiWins===2||hiWins===3?loWins:hiWins})</span>`
+      : `<span class="warn">Serie aún sin decidir.</span>`;
+    renderPlayoffs();
+  });
+}
+
+/* ============================================================
+   IMPORT / EXPORT
+   ============================================================ */
+document.getElementById('exportBtn').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify(DATA,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'liga-fantasy-datos.json'; a.click();
+  URL.revokeObjectURL(url);
+});
+document.getElementById('importBtn').addEventListener('click', ()=> document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    try{
+      const imported = JSON.parse(ev.target.result);
+      DATA = Object.assign(defaultData(), imported);
+      saveData();
+      renderAll();
+      alert('Datos importados correctamente.');
+    }catch(err){ alert('Archivo inválido.'); }
+  };
+  reader.readAsText(file);
+});
+
+/* ============================================================
+   UTIL & INIT
+   ============================================================ */
+function escapeHtml(str){
+  if(str===undefined || str===null) return '';
+  return String(str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderAll(){
+  renderInicio();
+  renderConfig();
+  renderJugadores();
+  populateJornadaSelects();
+  renderPlantillaEditor();
+  renderJornadaFixtures();
+  renderClasificacion();
+  renderPlayoffs();
+}
+
+if(!DATA.schedule){ DATA.schedule = generateSchedule(12); saveData(); }
+DEFAULT_TEAMS.forEach(t=>{
+  if(!DATA.teams.includes(t)) DATA.teams.push(t);
+});
+function normalizeTeamName(s){
+  const abbr = '(rcd|rc|cd|ud|cf|sd|ca|ad|afc|sad)';
+  return s
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase()
+    .replace(new RegExp('^'+abbr+'\\s+'),'')
+    .replace(new RegExp('\\s+'+abbr+'$'),'')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+function findSeedFor(teamName){
+  const norm = normalizeTeamName(teamName);
+  for(const key of Object.keys(SEED_PLAYERS)){
+    if(normalizeTeamName(key) === norm) return SEED_PLAYERS[key];
+  }
+  return null;
+}
+DATA.teams.forEach(team=>{
+  if(!DATA.players[team] || DATA.players[team].length===0){
+    const seed = findSeedFor(team);
+    if(seed) DATA.players[team] = seed.slice();
+  }
+});
+saveData();
+renderAll();
+</script>
+</body>
+</html>
