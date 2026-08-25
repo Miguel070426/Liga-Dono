@@ -10,8 +10,10 @@ GitHub Pages. La liga es compartida: los datos viven en Supabase y todos ven lo
 mismo.
 
 Cada manager entra con un **código** que hace de credencial, así que sirve igual
-en el ordenador y en el móvil. No hay emails ni contraseñas. Quien organiza
-activa el panel de dirección con un código aparte.
+en el ordenador y en el móvil. No hay emails ni contraseñas. Para fichar plaza
+hace falta además el código de la liga, que es lo que evita que un desconocido
+que encuentre la URL ocupe un sitio. Quien organiza activa el panel de dirección
+con un tercer código.
 
 El reparto de permisos lo decide Postgres, no el navegador: cada uno solo puede
 escribir su alineación y solo con la jornada abierta, y las estadísticas solo la

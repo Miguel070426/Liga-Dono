@@ -55,7 +55,7 @@ export const DB = {
   },
 
   // Crea la cuenta (el código es la contraseña) y ata esa cuenta a la plaza.
-  async claim(slot, club, owner){
+  async claim(slot, club, owner, joinCode){
     const code = generateCode();
     const { error: upErr } = await sb.auth.signUp({
       email: emailForCode(code), password: code
@@ -70,7 +70,7 @@ export const DB = {
     }
 
     const { error: claimErr } = await sb.rpc('claim_slot', {
-      p_slot: slot, p_club: club, p_owner: owner
+      p_slot: slot, p_club: club, p_owner: owner, p_join_code: joinCode
     });
     if(claimErr){
       // La cuenta queda huérfana pero sirve: se puede reclamar otra plaza con

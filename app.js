@@ -128,12 +128,14 @@ function wireAuth(){
     const slot  = +$('claimSlot').value;
     const owner = $('claimOwner').value.trim();
     const club  = $('claimClub').value.trim();
+    const join  = $('claimJoin').value.trim();
     stepErr('claimErr','');
     if(!slot){ stepErr('claimErr','Elige una plaza.'); return; }
     if(!owner || !club){ stepErr('claimErr','Hacen falta tu nombre y el de tu club.'); return; }
+    if(!join){ stepErr('claimErr','Falta el código de la liga. Pídeselo a la organización.'); return; }
     $('doClaim').disabled = true;
     try{
-      const code = await DB.claim(slot, club, owner);
+      const code = await DB.claim(slot, club, owner, join);
       $('codeValue').textContent = code;
       showStep('stepCode');
     }catch(err){

@@ -26,11 +26,12 @@
     <div class="auth-step hidden" id="stepClaim">
       <div class="kick">Alta de manager</div>
       <h2>Ficha tu plaza</h2>
-      <p class="lead">Elige plaza, ponle nombre a tu club y te daremos tu código de acceso.</p>
+      <p class="lead">Elige plaza, ponle nombre a tu club y mete el código de la liga. Te daremos tu código de acceso personal.</p>
       <div class="err hidden" id="claimErr"></div>
       <div class="field"><label>Plaza libre</label><select id="claimSlot"></select></div>
       <div class="field"><label>Tu nombre</label><input type="text" id="claimOwner" placeholder="Ej. Miguel" autocomplete="off"></div>
       <div class="field"><label>Nombre de tu club</label><input type="text" id="claimClub" placeholder="Ej. Deportivo Siuuu FC" autocomplete="off"></div>
+      <div class="field"><label>Código de la liga</label><input type="text" id="claimJoin" placeholder="El que te haya dado la organización" autocomplete="off" spellcheck="false"></div>
       <button class="btn big wide" id="doClaim">Fichar y entrar</button>
       <div class="switch"><button class="backWelcome">Volver</button></div>
     </div>

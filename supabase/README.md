@@ -13,9 +13,18 @@ El código **es** la credencial. Al reclamar plaza, la web genera un código
 enseña una vez. Para entrar desde otro dispositivo se mete solo el código: no
 hay email, ni contraseña aparte, ni plaza que recordar.
 
-Quien organiza usa además el **código de dirección**, que convierte su cuenta en
-administradora de la liga. El de esta liga es `LD-DIR-4Q7M-2X9` y conviene
-cambiarlo (`update leagues set admin_claim_code = '...'`).
+Para fichar hace falta además el **código de la liga**, que es la puerta de
+entrada: sin él, cualquiera que encontrase la URL pública podría ocupar una
+plaza libre. Es `DONO-2026` y se reparte entre los 12.
+
+Quien organiza usa el **código de dirección**, que convierte su cuenta en
+administradora. Es `LD-DIR-4Q7M-2X9`.
+
+Los dos conviene cambiarlos:
+
+```sql
+update leagues set join_code = 'TU-CODIGO', admin_claim_code = 'TU-CODIGO-DIR';
+```
 
 ## Quién puede hacer qué
 
@@ -78,19 +87,19 @@ el esquema `app`, que PostgREST no publica.
 | Función | Quién |
 |---|---|
 | `public_slots()` | sin sesión: lo único que se puede consultar, para pintar las plazas libres |
-| `claim_slot(slot, club, nombre)` | con sesión |
+| `claim_slot(slot, club, nombre, codigo_liga)` | con sesión y con el código de la liga |
 | `claim_admin(codigo)` | con sesión |
 | `generate_brackets()` | organización |
 
 ## Lo que queda por hacer a mano
 
-1. **Desactivar la confirmación por email** en el panel de Supabase
-   (Authentication → Sign In / Providers → Email → *Confirm email* en `off`).
-   Sin eso, crear la cuenta al reclamar plaza se queda a medias esperando un
-   correo que nadie va a recibir, porque los emails son internos.
+1. ~~Desactivar la confirmación por email~~ · hecho (Authentication → Sign In /
+   Providers → sección *User Signups* → *Confirm email* en `off`). Sin eso, crear
+   la cuenta al fichar se quedaba a medias esperando un correo que nadie iba a
+   recibir, porque las direcciones son internas.
 2. **Activar GitHub Pages** en los ajustes del repo, para que todos entren por
    un enlace en lugar de repartir el archivo.
-3. **Cambiar el código de dirección** por uno tuyo.
+3. **Cambiar los dos códigos** por unos tuyos (SQL de más arriba).
 4. **Cargar las plantillas** de los 20 clubes desde el panel de dirección: los
    clubes están creados pero vacíos, y hasta que tengan jugadores nadie puede
    alinear.
@@ -102,6 +111,8 @@ Comprobado ejecutando SQL con la identidad de un jugador y de la organización:
 - Un jugador no puede cargar estadísticas, mover la jornada, hacerse
   administrador, renombrar el club de otro ni alinear en una jornada que no está
   en juego.
+- Fichar plaza con un código de liga equivocado se rechaza, y la versión de
+  `claim_slot` sin código ya no existe.
 - Con la jornada abierta, un jugador solo ve su propia alineación; al cerrarla,
   ve las de todos.
 - Los pesos por posición y la regla del club que no jugó dan los valores
