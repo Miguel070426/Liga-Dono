@@ -144,9 +144,29 @@ export const DB = {
   async lineups(jornada){
     const { data, error } = await sb.from('lineups')
       .select('id,jornada,manager_id,formation,confirmed,'
-            + 'lineup_slots(id,slot,pos,club_id,player_name,player_stats(*))')
+            + 'lineup_slots(id,slot,pos,club_id,club_player_id,player_name)')
       .eq('jornada', jornada);
     if(error) throw fail(error, 'No se han podido cargar las alineaciones');
+    return data || [];
+  },
+
+  // Lo que hizo cada jugador real en la jornada. Una fila por jugador, no por
+  // hueco: si cinco managers eligieron al mismo, esta fila vale para los cinco.
+  async playerStats(jornada){
+    const { data, error } = await sb.from('player_jornada_stats')
+      .select('club_player_id,goals,assists,yellow,second_yellow,red,fouls,shots')
+      .eq('jornada', jornada);
+    if(error) throw fail(error, 'No se han podido cargar las estadísticas');
+    return data || [];
+  },
+
+  // La lista de trabajo de la organización: a quién han elegido esta jornada.
+  async pickedPlayers(jornada){
+    const { data, error } = await sb.from('picked_players')
+      .select('club_player_id,player_name,pos,club_id,club_name,elegido_por')
+      .eq('jornada', jornada)
+      .order('club_name').order('player_name');
+    if(error) throw fail(error, 'No se ha podido cargar quién ha sido elegido');
     return data || [];
   },
 
@@ -197,7 +217,9 @@ export const DB = {
 
     const rows = slots.map((s, i) => ({
       lineup_id: lineupId, slot: i + 1, pos: s.pos,
-      club_id: s.club_id || null, player_name: s.player_name || ''
+      club_id: s.club_id || null,
+      club_player_id: s.club_player_id || null,
+      player_name: s.player_name || ''
     }));
     const insSlots = await sb.from('lineup_slots').insert(rows).select('id');
     if(insSlots.error) throw fail(insSlots.error, 'No se ha podido guardar tu once');
@@ -233,8 +255,8 @@ export const DB = {
   },
 
   async upsertPlayerStats(rows){
-    const { error } = await sb.from('player_stats')
-      .upsert(rows, { onConflict: 'lineup_slot_id' });
+    const { error } = await sb.from('player_jornada_stats')
+      .upsert(rows, { onConflict: 'league_id,jornada,club_player_id' });
     if(error) throw fail(error, 'No se han podido guardar las estadísticas');
   },
 

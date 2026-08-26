@@ -49,6 +49,20 @@ jornada cerrada, RLS no devuelve error, devuelve **cero filas afectadas**. Hay
 que comprobar las filas y avisar, en vez de dar por bueno un guardado que no
 ocurrió.
 
+## Cómo se cargan las estadísticas
+
+Por **jugador y jornada** (`player_jornada_stats`), no por hueco de alineación:
+los goles de un jugador son una propiedad del jugador, no de quién lo eligió. Se
+introducen una vez y cuentan para todos los managers que lo tengan. Antes se
+guardaban por hueco, lo que multiplicaba el trabajo y permitía que un dedazo
+diera números distintos para el mismo jugador en cruces distintos.
+
+La vista `picked_players` da la lista de trabajo de cada jornada: a quién han
+elegido y por cuántos managers.
+
+Es además el requisito para automatizar la carga desde una API de datos, porque
+las APIs devuelven estadísticas por jugador.
+
 ## Puntuación
 
 Los pesos del reglamento viven en SQL (`slot_contrib`), así que no se pueden
@@ -75,6 +89,7 @@ Más subpuntos = 3 puntos de liga; empate a subpuntos = 1 para cada uno.
 | `standings` | clasificación con PJ, G/E/P, subpuntos y puesto |
 | `manager_form` | racha, para los últimos resultados |
 | `playoff_series_state` | victorias de cada serie al mejor de 3 |
+| `picked_players` | a qué jugadores ha elegido alguien en una jornada, y cuántos |
 
 Todas se crean con `security_invoker = true`. Sin eso se ejecutarían con los
 permisos del propietario y se saltarían las políticas RLS.

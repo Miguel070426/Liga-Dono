@@ -208,10 +208,13 @@ async function boot(){
 
 async function jornadaData(j){
   if(S.cache[j]) return S.cache[j];
-  const [results, lineups, clubStats] = await Promise.all([
-    DB.results(j), DB.lineups(j), DB.clubStats(j)
+  const [results, lineups, clubStats, playerStats] = await Promise.all([
+    DB.results(j), DB.lineups(j), DB.clubStats(j), DB.playerStats(j)
   ]);
-  S.cache[j] = { results, lineups, clubStats };
+  // por ficha de jugador: una sola entrada aunque lo hayan elegido varios
+  const byPlayer = {};
+  playerStats.forEach(r => { byPlayer[r.club_player_id] = r; });
+  S.cache[j] = { results, lineups, clubStats, playerStats, byPlayer };
   return S.cache[j];
 }
 function invalidate(j){ if(j === undefined) S.cache = {}; else delete S.cache[j]; }
@@ -346,7 +349,7 @@ function lineupsHtml(fr, lineups){
     }
     const slots = [...(lu.lineup_slots || [])].sort((a,b) => a.slot - b.slot);
     const rows = slots.map(s => {
-      const ps = (s.player_stats && (Array.isArray(s.player_stats) ? s.player_stats[0] : s.player_stats)) || {};
+      const ps = (S.cache[fr.jornada]?.byPlayer || {})[s.club_player_id] || {};
       const cs = (S.cache[fr.jornada]?.clubStats || []).find(c => c.club_id === s.club_id);
       const out = s.club_id && cs && cs.played === false;
       const bits = [];
@@ -399,7 +402,7 @@ async function renderInicio(){
   if(stale(seq)) return;
     const fr = data.results.find(r => r.home_id === S.me.id || r.away_id === S.me.id);
     const myLu = data.lineups.find(l => l.manager_id === S.me.id);
-    const filled = myLu && (myLu.lineup_slots || []).some(s => s.club_id || s.player_name);
+    const filled = myLu && (myLu.lineup_slots || []).some(s => s.club_player_id);
 
     const form = (S.form[S.me.id] || []).slice(-5);
     const dots = form.map(f => `<span class="dot ${f}">${f}</span>`).join('')
@@ -495,14 +498,14 @@ function buildSlots(formation){
   for(let i=0;i<f.DF;i++) list.push('DF');
   for(let i=0;i<f.MF;i++) list.push('MF');
   for(let i=0;i<f.FW;i++) list.push('FW');
-  return list.map(pos => ({pos, club_id:null, player_name:''}));
+  return list.map(pos => ({pos, club_id:null, club_player_id:null, player_name:''}));
 }
 function validate(slots){
   const errors = [], used = {};
   let noClub = 0, noName = 0;
   slots.forEach(s => {
     if(!s.club_id) noClub++;
-    if(!s.player_name) noName++;
+    if(!s.club_player_id) noName++;
     if(s.club_id) used[s.club_id] = (used[s.club_id]||0) + 1;
   });
   if(noClub) errors.push(`Faltan ${noClub} club(es) por asignar.`);
@@ -519,7 +522,7 @@ async function ensureDraft(){
   const lu = d.lineups.find(l => l.manager_id === S.me.id);
   if(lu){
     const slots = [...(lu.lineup_slots || [])].sort((a,b) => a.slot - b.slot)
-      .map(s => ({pos:s.pos, club_id:s.club_id, player_name:s.player_name}));
+      .map(s => ({pos:s.pos, club_id:s.club_id, club_player_id:s.club_player_id, player_name:s.player_name}));
     S.draft = { jornada:j, formation:lu.formation, slots: slots.length ? slots : buildSlots(lu.formation),
                 lineupId:lu.id, confirmed:lu.confirmed, dirty:false };
   }else{
@@ -546,7 +549,7 @@ async function renderPlantilla(){
   const v = validate(d.slots);
 
   const badge = d.confirmed ? '<span class="badge win">Confirmada</span>'
-    : (d.slots.some(s => s.club_id) ? '<span class="badge draw">Sin confirmar</span>' : '<span class="badge soft">Vacía</span>');
+    : (d.slots.some(s => s.club_player_id) ? '<span class="badge draw">Sin confirmar</span>' : '<span class="badge soft">Vacía</span>');
   head.innerHTML = `<div class="card" style="padding:16px 18px;">
     <div class="flex-between" style="flex-wrap:wrap;">
       <div style="display:flex;align-items:center;gap:14px;min-width:0;">
@@ -565,7 +568,7 @@ async function renderPlantilla(){
   $('pPrev').addEventListener('click', () => { S.plantillaJornada = clamp(j-1); S.draft = null; renderPlantilla(); });
   $('pNext').addEventListener('click', () => { S.plantillaJornada = clamp(j+1); S.draft = null; renderPlantilla(); });
 
-  if(!editable && !d.slots.some(s => s.club_id)){
+  if(!editable && !d.slots.some(s => s.club_player_id)){
     el.innerHTML = `<p class="empty">No alineaste en esta jornada.</p>`;
     return;
   }
@@ -577,11 +580,14 @@ async function renderPlantilla(){
     const clash = used[c.id] && c.id !== sel;
     return `<option value="${c.id}" ${c.id===sel?'selected':''}${clash?' disabled':''}>${esc(c.name)}${clash?' · ya usado':''}</option>`;
   }).join('');
-  const playerOpts = (clubId, pos, sel) => {
+  const playerOpts = (clubId, pos, selId, selName) => {
     const list = playersOf(clubId, pos);
     let o = `<option value="">— jugador —</option>`
-      + list.map(p => `<option value="${esc(p.name)}" ${p.name===sel?'selected':''}>${esc(p.name)}</option>`).join('');
-    if(sel && !list.some(p => p.name === sel)) o += `<option value="${esc(sel)}" selected>${esc(sel)}</option>`;
+      + list.map(p => `<option value="${p.id}" ${p.id===selId?'selected':''}>${esc(p.name)}</option>`).join('');
+    // si la ficha ya no existe (la borró la organización) se conserva el nombre
+    if(selName && !list.some(p => p.id === selId)){
+      o += `<option value="" selected>${esc(selName)} · ficha ya no disponible</option>`;
+    }
     return o;
   };
 
@@ -597,7 +603,7 @@ async function renderPlantilla(){
       <div class="slot-num">${i+1}</div>
       <span class="pos-tag pos-${s.pos}">${s.pos}</span>
       <select class="slotClub" data-i="${i}" ${editable?'':'disabled'}>${clubOpts(s.club_id)}</select>
-      <select class="slotPlayer pn" data-i="${i}" ${(!s.club_id || !editable)?'disabled':''}>${playerOpts(s.club_id, s.pos, s.player_name)}</select>
+      <select class="slotPlayer pn" data-i="${i}" ${(!s.club_id || !editable)?'disabled':''}>${playerOpts(s.club_id, s.pos, s.club_player_id, s.player_name)}</select>
     </div>${empty ? `<div class="club-tag" style="margin:-4px 0 6px 84px;">No hay ${s.pos} cargados para ${esc(clubName(s.club_id))}. La organización tiene que subir esa plantilla.</div>` : ''}`;
   });
   if(lastPos !== null) blocks += '</div>';
@@ -637,12 +643,16 @@ async function renderPlantilla(){
   el.querySelectorAll('.slotClub').forEach(sel => sel.addEventListener('change', () => {
     const i = +sel.dataset.i;
     d.slots[i].club_id = sel.value || null;
+    d.slots[i].club_player_id = null;
     d.slots[i].player_name = '';
     d.dirty = true;
     renderPlantilla();
   }));
   el.querySelectorAll('.slotPlayer').forEach(sel => sel.addEventListener('change', () => {
-    d.slots[+sel.dataset.i].player_name = sel.value;
+    const i = +sel.dataset.i;
+    const p = S.players.find(x => x.id === sel.value);
+    d.slots[i].club_player_id = p ? p.id : null;
+    d.slots[i].player_name    = p ? p.name : '';
     d.dirty = true;
     renderPlantilla();
   }));
@@ -795,7 +805,7 @@ async function renderPlayoffs(){
    PANEL DE DIRECCIÓN
    ============================================================ */
 let panelSec = 'jornada';
-let statsJornada = null, statsFixture = 0;
+let statsJornada = null;
 
 async function renderPanel(){
   const seq = newRender();
@@ -845,7 +855,7 @@ async function panelJornada(body, seq){
       <table><tr><th>#</th><th>Club</th><th>Manager</th><th>Formación</th><th>Estado</th></tr>
       ${S.managers.map(m => {
         const lu = d.lineups.find(l => l.manager_id === m.id);
-        const filled = lu && (lu.lineup_slots||[]).some(s => s.club_id || s.player_name);
+        const filled = lu && (lu.lineup_slots||[]).some(s => s.club_player_id);
         const state = !filled ? '<span class="badge lose">Sin alinear</span>'
           : (lu.confirmed ? '<span class="badge win">Confirmada</span>' : '<span class="badge draw">Sin confirmar</span>');
         return `<tr><td>${m.slot}</td><td>${esc(m.club_name)}</td>
@@ -867,92 +877,96 @@ async function panelJornada(body, seq){
 
 async function panelStats(body, seq){
   if(statsJornada === null) statsJornada = clamp(S.league.current_jornada);
-  const d = await jornadaData(statsJornada);
+  const j = statsJornada;
+  const [d, picked] = await Promise.all([jornadaData(j), DB.pickedPlayers(j)]);
   if(stale(seq)) return;
-  const fr = d.results[Math.min(statsFixture, Math.max(0, d.results.length-1))];
+
   const jOpts = Array.from({length:N_JORNADAS},(_,i)=>i+1)
-    .map(n => `<option value="${n}" ${n===statsJornada?'selected':''}>Jornada ${n}</option>`).join('');
-  const fOpts = d.results.map((r,i) =>
-    `<option value="${i}" ${i===statsFixture?'selected':''}>${esc(mgr(r.home_id).club_name)} vs ${esc(mgr(r.away_id).club_name)}</option>`).join('');
+    .map(n => `<option value="${n}" ${n===j?'selected':''}>Jornada ${n}</option>`).join('');
 
-  let inner = '';
-  if(!fr){ inner = '<div class="card"><p class="empty">Sin cruces en esta jornada.</p></div>'; }
-  else{
-    const luH = d.lineups.find(l => l.manager_id === fr.home_id);
-    const luA = d.lineups.find(l => l.manager_id === fr.away_id);
-    if(!luH || !luA){
-      inner = `<div class="card"><p class="empty">Falta la alineación de ${
-        esc(mgr(!luH ? fr.home_id : fr.away_id).club_name)}.</p></div>`;
-    }else{
-      const slots = [...(luH.lineup_slots||[]), ...(luA.lineup_slots||[])];
-      const clubIds = [...new Set(slots.map(s => s.club_id).filter(Boolean))];
-      const csRows = clubIds.map(id => {
-        const cs = d.clubStats.find(c => c.club_id === id) || {team_points:0, corners:0, clean_sheet:false, played:true};
-        return `<div class="grid cols-4" data-club="${id}" style="align-items:end;margin-bottom:10px;">
-          <div><label>Club</label><strong style="font-size:13px;">${esc(clubName(id))}</strong></div>
-          <div><label>Pts. de liga</label><input type="number" class="cTp" value="${cs.team_points}" min="0" max="3"></div>
-          <div><label>Córners</label><input type="number" class="cCo" value="${cs.corners}" min="0"></div>
-          <div><label>Portería a 0 / ¿jugó?</label>
-            <select class="cCs"><option value="0" ${!cs.clean_sheet?'selected':''}>Sin portería a 0</option><option value="1" ${cs.clean_sheet?'selected':''}>Portería a 0</option></select>
-            <select class="cPl" style="margin-top:4px;"><option value="1" ${cs.played!==false?'selected':''}>Jugó</option><option value="0" ${cs.played===false?'selected':''}>No jugó</option></select>
-          </div></div>`;
-      }).join('');
-      const rows = lu => [...(lu.lineup_slots||[])].sort((a,b)=>a.slot-b.slot).map(s => {
-        const ps = (Array.isArray(s.player_stats) ? s.player_stats[0] : s.player_stats) || {};
-        const n = k => ps[k] || 0;
-        return `<tr data-slot="${s.id}">
-          <td style="min-width:150px;"><span class="pos-tag pos-${s.pos}">${s.pos}</span> ${esc(s.player_name||'—')}
-            <br><span class="club-tag">${esc(clubName(s.club_id)||'sin club')}</span></td>
-          <td><input type="number" class="pG"  value="${n('goals')}" min="0"></td>
-          <td><input type="number" class="pA"  value="${n('assists')}" min="0"></td>
-          <td><input type="number" class="pY"  value="${n('yellow')}" min="0" max="1"></td>
-          <td><input type="number" class="pY2" value="${n('second_yellow')}" min="0" max="1"></td>
-          <td><input type="number" class="pR"  value="${n('red')}" min="0" max="1"></td>
-          <td><input type="number" class="pF"  value="${n('fouls')}" min="0"></td>
-          <td><input type="number" class="pS"  value="${n('shots')}" min="0"></td></tr>`;
-      }).join('');
-      const head = '<tr><th>Jugador</th><th>Gol</th><th>Asist</th><th>Am</th><th>2ªAm</th><th>Roja</th><th>Faltas</th><th>Tiros</th></tr>';
-      inner = `
-        <div class="card"><h2>Datos de los clubes reales · jornada ${statsJornada}</h2>${csRows}
-          <button class="btn small" id="saveClubStats">Guardar datos de clubes</button></div>
-        <div class="card"><h2>${esc(mgr(fr.home_id).club_name)}</h2>
-          <div style="overflow-x:auto;"><table>${head}${rows(luH)}</table></div></div>
-        <div class="card"><h2>${esc(mgr(fr.away_id).club_name)}</h2>
-          <div style="overflow-x:auto;"><table>${head}${rows(luA)}</table></div></div>
-        <div style="margin-bottom:16px;"><button class="btn" id="savePlayerStats">Guardar estadísticas de jugadores</button></div>
-        <div class="card" style="padding:0;overflow:hidden;">${bigScoreHtml(fr)}${catboxHtml(fr)}</div>`;
-    }
-  }
+  // clubes que aparecen en alguna alineación de la jornada
+  const clubIds = [...new Set(d.lineups.flatMap(l => (l.lineup_slots||[]).map(s => s.club_id)).filter(Boolean))]
+    .sort((a,b) => clubName(a).localeCompare(clubName(b)));
 
-  body.innerHTML = `<div class="admin-note">Primero los datos del club real, después las estadísticas de cada jugador.
-      El marcador de abajo se recalcula solo.</div>
+  const csRows = clubIds.map(id => {
+    const cs = d.clubStats.find(c => c.club_id === id) || {team_points:0, corners:0, clean_sheet:false, played:true};
+    return `<div class="grid cols-4" data-club="${id}" style="align-items:end;margin-bottom:10px;">
+      <div><label>Club</label><strong style="font-size:13px;">${esc(clubName(id))}</strong></div>
+      <div><label>Pts. de liga</label><input type="number" class="cTp" value="${cs.team_points}" min="0" max="3"></div>
+      <div><label>Córners</label><input type="number" class="cCo" value="${cs.corners}" min="0"></div>
+      <div><label>Portería a 0 / ¿jugó?</label>
+        <select class="cCs"><option value="0" ${!cs.clean_sheet?'selected':''}>Sin portería a 0</option><option value="1" ${cs.clean_sheet?'selected':''}>Portería a 0</option></select>
+        <select class="cPl" style="margin-top:4px;"><option value="1" ${cs.played!==false?'selected':''}>Jugó</option><option value="0" ${cs.played===false?'selected':''}>No jugó</option></select>
+      </div></div>`;
+  }).join('');
+
+  const pRows = picked.map(p => {
+    const ps = d.byPlayer[p.club_player_id] || {};
+    const n = k => ps[k] || 0;
+    return `<tr data-player="${p.club_player_id}">
+      <td style="min-width:170px;"><span class="pos-tag pos-${p.pos}">${p.pos}</span> ${esc(p.player_name)}
+        <br><span class="club-tag">${esc(p.club_name)}${p.elegido_por > 1 ? ' · lo tienen '+p.elegido_por : ''}</span></td>
+      <td><input type="number" class="pG"  value="${n('goals')}" min="0"></td>
+      <td><input type="number" class="pA"  value="${n('assists')}" min="0"></td>
+      <td><input type="number" class="pY"  value="${n('yellow')}" min="0" max="1"></td>
+      <td><input type="number" class="pY2" value="${n('second_yellow')}" min="0" max="1"></td>
+      <td><input type="number" class="pR"  value="${n('red')}" min="0" max="1"></td>
+      <td><input type="number" class="pF"  value="${n('fouls')}" min="0"></td>
+      <td><input type="number" class="pS"  value="${n('shots')}" min="0"></td></tr>`;
+  }).join('');
+
+  const cruces = d.results.map(fr => {
+    const live = fr.has_data;
+    return `<tr><td>${esc(mgr(fr.home_id).club_name)}</td>
+      <td style="text-align:center;font-weight:bold;white-space:nowrap;">${live ? fr.sub_home+' - '+fr.sub_away : '– · –'}</td>
+      <td>${esc(mgr(fr.away_id).club_name)}</td>
+      <td style="text-align:center;" class="club-tag">${live ? fr.pts_home+' - '+fr.pts_away : 'pendiente'}</td></tr>`;
+  }).join('');
+
+  const repes = picked.filter(p => p.elegido_por > 1).length;
+
+  body.innerHTML = `
+    <div class="admin-note">Cada jugador se introduce <strong>una sola vez</strong> y cuenta para todos los managers
+      que lo eligieron.${repes ? ` Esta jornada hay ${repes} jugador(es) elegido(s) por más de uno.` : ''}
+      Primero los datos del club, después los jugadores.</div>
     <div class="card"><div class="toolbar">
       <label style="margin:0;">Jornada</label><select id="stJ" style="max-width:150px;">${jOpts}</select>
-      <label style="margin:0 0 0 12px;">Cruce</label><select id="stF" style="max-width:340px;">${fOpts}</select>
-    </div></div>${inner}`;
+      <span class="pill">${clubIds.length} club(es)</span>
+      <span class="pill">${picked.length} jugador(es) elegido(s)</span>
+    </div></div>
+    ${picked.length === 0 ? '<div class="card"><p class="empty">Nadie ha alineado todavía en esta jornada.</p></div>' : `
+    <div class="card"><h2>Datos de los clubes reales</h2>${csRows}
+      <button class="btn small" id="saveClubStats">Guardar datos de clubes</button></div>
+    <div class="card"><h2>Jugadores elegidos · jornada ${j}</h2>
+      <div style="overflow-x:auto;"><table>
+        <tr><th>Jugador</th><th>Gol</th><th>Asist</th><th>Am</th><th>2ªAm</th><th>Roja</th><th>Faltas</th><th>Tiros</th></tr>
+        ${pRows}</table></div>
+      <div style="margin-top:14px;"><button class="btn" id="savePlayerStats">Guardar estadísticas</button></div></div>
+    <div class="card"><h2>Cómo quedan los cruces</h2>
+      <table><tr><th>Local</th><th style="text-align:center;">Subpuntos</th><th>Visitante</th><th style="text-align:center;">Pts liga</th></tr>
+      ${cruces}</table></div>`}`;
 
-  $('stJ').addEventListener('change', e => { statsJornada = +e.target.value; statsFixture = 0; renderPanel(); });
-  $('stF').addEventListener('change', e => { statsFixture = +e.target.value; renderPanel(); });
+  $('stJ').addEventListener('change', e => { statsJornada = +e.target.value; renderPanel(); });
 
   const scb = $('saveClubStats');
   if(scb) scb.addEventListener('click', () => guard(async () => {
     const rows = [...body.querySelectorAll('[data-club]')].map(r => ({
-      league_id: S.league.id, jornada: statsJornada, club_id: r.dataset.club,
+      league_id: S.league.id, jornada: j, club_id: r.dataset.club,
       team_points: +r.querySelector('.cTp').value || 0,
       corners:     +r.querySelector('.cCo').value || 0,
       clean_sheet: r.querySelector('.cCs').value === '1',
       played:      r.querySelector('.cPl').value === '1'
     }));
     await DB.upsertClubStats(rows);
-    invalidate(statsJornada);
+    invalidate(j);
     toast('Datos de clubes guardados', 'good');
     await boot(); switchView('panel');
   }));
 
   const spb = $('savePlayerStats');
   if(spb) spb.addEventListener('click', () => guard(async () => {
-    const rows = [...body.querySelectorAll('tr[data-slot]')].map(r => ({
-      lineup_slot_id: r.dataset.slot,
+    const rows = [...body.querySelectorAll('tr[data-player]')].map(r => ({
+      league_id: S.league.id, jornada: j, club_player_id: r.dataset.player,
       goals:         +r.querySelector('.pG').value || 0,
       assists:       +r.querySelector('.pA').value || 0,
       yellow:        +r.querySelector('.pY').value || 0,
@@ -962,7 +976,7 @@ async function panelStats(body, seq){
       shots:         +r.querySelector('.pS').value || 0
     }));
     await DB.upsertPlayerStats(rows);
-    invalidate(statsJornada);
+    invalidate(j);
     toast('Estadísticas guardadas', 'good');
     await boot(); switchView('panel');
   }));
