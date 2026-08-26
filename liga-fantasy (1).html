@@ -753,14 +753,68 @@ const POS_ORDER         = {GK:0, DF:1, MF:2, FW:3};
 const POS_LABEL         = {GK:'Portero', DF:'Defensas', MF:'Centro del campo', FW:'Delanteros'};
 
 const SPANISH_POS_MAP = {
-  'portero':'GK', 'guardameta':'GK',
-  'defensa central':'DF', 'central':'DF', 'lateral izquierdo':'DF', 'lateral derecho':'DF',
-  'carrilero izquierdo':'DF', 'carrilero derecho':'DF', 'lateral':'DF',
-  'pivote':'MF', 'mediocentro':'MF', 'mediocentro defensivo':'MF', 'mediocentro ofensivo':'MF',
-  'interior derecho':'MF', 'interior izquierdo':'MF', 'centrocampista':'MF',
-  'extremo izquierdo':'FW', 'extremo derecho':'FW', 'segundo delantero':'FW',
-  'delantero centro':'FW', 'delantero':'FW'
+  'portero':'GK','guardameta':'GK','arquero':'GK',
+  'defensa':'DF','defensa central':'DF','central':'DF','lateral':'DF',
+  'lateral izquierdo':'DF','lateral derecho':'DF',
+  'carrilero izquierdo':'DF','carrilero derecho':'DF','carrilero':'DF',
+  'medio':'MF','medio centro':'MF','mediocampista':'MF','centrocampista':'MF',
+  'pivote':'MF','mediocentro':'MF','mediocentro defensivo':'MF','mediocentro ofensivo':'MF',
+  'mediapunta':'MF','interior derecho':'MF','interior izquierdo':'MF','interior':'MF',
+  'extremo':'FW','extremo izquierdo':'FW','extremo derecho':'FW',
+  'delantero':'FW','delantero centro':'FW','segundo delantero':'FW','ariete':'FW'
 };
+
+// Reconoce tres formatos de pegado:
+//   A · "Nombre - GK"                            (posicion ya en clave)
+//   B · "Nombre<tab>Portero" o "Nombre Portero"  (posicion al final de la linea)
+//   C · la posicion en su propia linea y el nombre unas lineas mas arriba
+const POS_PHRASES = Object.keys(SPANISH_POS_MAP).sort((a,b) => b.length - a.length);
+
+function trailingPos(line){
+  const low = line.toLowerCase();
+  for(const p of POS_PHRASES){
+    if(low === p) return {name:'', pos:SPANISH_POS_MAP[p]};
+    if(low.endsWith(p) && /[\s\t,;\u00b7|-]/.test(low[low.length - p.length - 1] || '')){
+      const name = line.slice(0, line.length - p.length).replace(/[\t\s,;\u00b7|\u2013-]+$/,'').trim();
+      if(name) return {name, pos:SPANISH_POS_MAP[p]};
+    }
+  }
+  return null;
+}
+
+function parseBulkPlayers(text){
+  const lines = text.replace(/\u00a0/g,' ').split('\n').map(l=>l.trim()).filter(Boolean);
+  const results = [];
+  const seen = new Set();
+  function add(name, pos){
+    name = name.replace(/\s{2,}/g,' ').trim();
+    if(!name || name.length < 2) return;
+    const k = name.toLowerCase();
+    if(seen.has(k)) return;
+    seen.add(k);
+    results.push({name, pos});
+  }
+  const soloPos = [];
+  lines.forEach((line, i)=>{
+    const m = line.match(/^(.+?)[-\u2013,]\s*(GK|DF|MF|FW)\s*$/i);
+    if(m){ add(m[1].trim(), m[2].toUpperCase()); return; }
+    const t = trailingPos(line);
+    if(t && t.name){ add(t.name, t.pos); return; }
+    if(t) soloPos.push(i);
+  });
+  soloPos.forEach(i=>{
+    const pos = SPANISH_POS_MAP[lines[i].toLowerCase()];
+    for(let j=i-1;j>=0 && j>=i-4;j--){
+      const cand = lines[j];
+      if(/^\d+(\s|$)/.test(cand)) continue;
+      if(/mill\.|\u20ac|\d{1,2}\/\d{1,2}\/\d{4}/.test(cand)) continue;
+      if(SPANISH_POS_MAP[cand.toLowerCase()]) continue;
+      const candName = cand.split('\t')[0].trim();
+      if(candName.length>1){ add(candName, pos); break; }
+    }
+  });
+  return results;
+}
 
 const SEED_PLAYERS = {
   "Real Madrid": [

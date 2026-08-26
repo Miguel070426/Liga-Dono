@@ -1001,30 +1001,61 @@ function panelManagers(body){
 }
 
 const SPANISH_POS = {
-  'portero':'GK','guardameta':'GK','defensa central':'DF','central':'DF','lateral izquierdo':'DF',
-  'lateral derecho':'DF','carrilero izquierdo':'DF','carrilero derecho':'DF','lateral':'DF',
+  'portero':'GK','guardameta':'GK','arquero':'GK',
+  'defensa':'DF','defensa central':'DF','central':'DF','lateral':'DF',
+  'lateral izquierdo':'DF','lateral derecho':'DF',
+  'carrilero izquierdo':'DF','carrilero derecho':'DF','carrilero':'DF',
+  'medio':'MF','medio centro':'MF','mediocampista':'MF','centrocampista':'MF',
   'pivote':'MF','mediocentro':'MF','mediocentro defensivo':'MF','mediocentro ofensivo':'MF',
-  'interior derecho':'MF','interior izquierdo':'MF','centrocampista':'MF','extremo izquierdo':'FW',
-  'extremo derecho':'FW','segundo delantero':'FW','delantero centro':'FW','delantero':'FW'
+  'mediapunta':'MF','interior derecho':'MF','interior izquierdo':'MF','interior':'MF',
+  'extremo':'FW','extremo izquierdo':'FW','extremo derecho':'FW',
+  'delantero':'FW','delantero centro':'FW','segundo delantero':'FW','ariete':'FW'
 };
+
+// Reconoce tres formatos de pegado:
+//   A · "Nombre - GK"                            (posición ya en clave)
+//   B · "Nombre<tab>Portero" o "Nombre Portero"  (posición al final de la línea)
+//   C · la posición en su propia línea y el nombre unas líneas más arriba
+//       (así lo suelta el bloque de Transfermarkt)
+const POS_PHRASES = Object.keys(SPANISH_POS).sort((a, b) => b.length - a.length);
+
+// Devuelve {name, pos} si la línea termina en una posición en español. Se prueban
+// las frases largas primero, para que "defensa central" gane a "defensa".
+function trailingPos(line){
+  const low = line.toLowerCase();
+  for(const p of POS_PHRASES){
+    if(low === p) return { name:'', pos:SPANISH_POS[p] };
+    if(low.endsWith(p) && /[\s\t,;·|-]/.test(low[low.length - p.length - 1] || '')){
+      const name = line.slice(0, line.length - p.length).replace(/[\t\s,;·|–-]+$/,'').trim();
+      if(name) return { name, pos:SPANISH_POS[p] };
+    }
+  }
+  return null;
+}
+
 function parseBulk(text){
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const lines = text.replace(/\u00a0/g, ' ').split('\n').map(l => l.trim()).filter(Boolean);
   const out = [], seen = new Set();
   const add = (name, pos) => {
-    name = name.replace(/\s{2,}/g,' ').trim();
-    if(!name) return;
+    name = name.replace(/\s{2,}/g, ' ').trim();
+    if(!name || name.length < 2) return;
     const k = name.toLowerCase();
     if(seen.has(k)) return;
-    seen.add(k); out.push({name, pos});
+    seen.add(k); out.push({ name, pos });
   };
-  lines.forEach(l => {
+  const soloPos = [];   // líneas que son solo una posición, para el formato C
+
+  lines.forEach((l, i) => {
     const m = l.match(/^(.+?)[-–,]\s*(GK|DF|MF|FW)\s*$/i);
-    if(m) add(m[1].trim(), m[2].toUpperCase());
+    if(m){ add(m[1].trim(), m[2].toUpperCase()); return; }
+    const t = trailingPos(l);
+    if(t && t.name){ add(t.name, t.pos); return; }
+    if(t) soloPos.push(i);
   });
-  for(let i=0;i<lines.length;i++){
+
+  soloPos.forEach(i => {
     const pos = SPANISH_POS[lines[i].toLowerCase()];
-    if(!pos) continue;
-    for(let j=i-1;j>=0 && j>=i-4;j--){
+    for(let j = i - 1; j >= 0 && j >= i - 4; j--){
       const c = lines[j];
       if(/^\d+(\s|$)/.test(c)) continue;
       if(/mill\.|€|\d{1,2}\/\d{1,2}\/\d{4}/.test(c)) continue;
@@ -1032,7 +1063,7 @@ function parseBulk(text){
       const n = c.split('\t')[0].trim();
       if(n.length > 1){ add(n, pos); break; }
     }
-  }
+  });
   return out;
 }
 
