@@ -23,6 +23,10 @@ se destapan al cerrarla.
 El esquema, las políticas y lo que queda por hacer a mano están en
 [`supabase/README.md`](supabase/README.md).
 
+Los códigos de acceso no se guardan en el repositorio: es público, y su historial
+también. Viven solo en la base de datos (`select join_code, admin_claim_code from
+leagues`).
+
 ### Estructura
 
 | Archivo | Qué es |

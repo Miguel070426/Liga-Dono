@@ -15,16 +15,24 @@ hay email, ni contraseña aparte, ni plaza que recordar.
 
 Para fichar hace falta además el **código de la liga**, que es la puerta de
 entrada: sin él, cualquiera que encontrase la URL pública podría ocupar una
-plaza libre. Es `DONO-2026` y se reparte entre los 12.
+plaza libre. Se reparte entre los 12.
 
 Quien organiza usa el **código de dirección**, que convierte su cuenta en
-administradora. Es `LD-DIR-4Q7M-2X9`.
+administradora.
 
-Los dos conviene cambiarlos:
+> **Los códigos no se escriben aquí.** Este repositorio es público, y el
+> historial de Git también, así que un código escrito en el README queda
+> expuesto para siempre aunque se borre después. Viven solo en la base de datos.
+
+Para consultarlos o cambiarlos, desde el editor SQL de Supabase:
 
 ```sql
-update leagues set join_code = 'TU-CODIGO', admin_claim_code = 'TU-CODIGO-DIR';
+select join_code, admin_claim_code from leagues;
+update leagues set join_code = '...', admin_claim_code = '...';
 ```
+
+El código de dirección solo funciona mientras la liga no tenga administrador
+asignado, o para quien ya lo sea. Una vez reclamado, no le sirve a nadie más.
 
 ## Quién puede hacer qué
 
@@ -114,7 +122,8 @@ el esquema `app`, que PostgREST no publica.
    recibir, porque las direcciones son internas.
 2. **Activar GitHub Pages** en los ajustes del repo, para que todos entren por
    un enlace en lugar de repartir el archivo.
-3. **Cambiar los dos códigos** por unos tuyos (SQL de más arriba).
+3. ~~Cambiar los dos códigos~~ · hecho. Estuvieron un tiempo escritos en este
+   README, que es público: se han cambiado y ya no se documentan aquí.
 4. **Cargar las plantillas** de los 20 clubes desde el panel de dirección: los
    clubes están creados pero vacíos, y hasta que tengan jugadores nadie puede
    alinear.

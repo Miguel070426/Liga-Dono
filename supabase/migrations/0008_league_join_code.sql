@@ -1,3 +1,7 @@
+-- NOTA: los códigos que aparecen abajo fueron solo los valores iniciales de la
+-- siembra. Se cambiaron después, porque este repositorio es público. Los códigos
+-- vivos están en la base de datos: select join_code, admin_claim_code from leagues;
+
 -- La web va en una URL pública, así que fichar plaza necesita una puerta:
 -- sin código de liga, cualquiera que encuentre el enlace podía ocupar una
 -- plaza libre. Leer y escribir datos ya estaba cerrado; esto cierra el alta.

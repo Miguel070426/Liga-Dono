@@ -1,3 +1,7 @@
+-- NOTA: los códigos que aparecen abajo fueron solo los valores iniciales de la
+-- siembra. Se cambiaron después, porque este repositorio es público. Los códigos
+-- vivos están en la base de datos: select join_code, admin_claim_code from leagues;
+
 -- Liga Fantasy · funciones de acceso y siembra de la liga
 
 -- Lo único que puede consultar alguien sin sesión: qué plazas quedan libres.
