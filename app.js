@@ -56,8 +56,10 @@ const clamp     = j => Math.max(1, Math.min(N_JORNADAS, j|0));
 const isMine    = id => S.me && id === S.me.id;
 const jornadaOpen = () => S.league && !S.league.lineups_locked;
 
+// Quien ya no está en el club no se ofrece para alinear. Sigue existiendo:
+// el panel lo ve y una alineación vieja conserva su nombre.
 function playersOf(clubId, pos){
-  return S.players.filter(p => p.club_id === clubId && p.pos === pos)
+  return S.players.filter(p => p.club_id === clubId && p.pos === pos && p.activo !== false)
                   .sort((a,b) => a.name.localeCompare(b.name));
 }
 
@@ -584,9 +586,13 @@ async function renderPlantilla(){
     const list = playersOf(clubId, pos);
     let o = `<option value="">— jugador —</option>`
       + list.map(p => `<option value="${p.id}" ${p.id===selId?'selected':''}>${esc(p.name)}</option>`).join('');
-    // si la ficha ya no existe (la borró la organización) se conserva el nombre
-    if(selName && !list.some(p => p.id === selId)){
-      o += `<option value="" selected>${esc(selName)} · ficha ya no disponible</option>`;
+    // Un elegido que ya no se ofrece sigue viéndose, con el motivo: si no,
+    // la alineación guardada aparecería vacía sin que nadie la haya tocado.
+    if(selId && !list.some(p => p.id === selId)){
+      const baja = S.players.find(p => p.id === selId);
+      o += baja
+        ? `<option value="${baja.id}" selected>${esc(baja.name)} · ya no está en el club</option>`
+        : `<option value="" selected>${esc(selName || '—')} · ficha ya no disponible</option>`;
     }
     return o;
   };
@@ -1079,13 +1085,46 @@ function parseBulk(text){
   return out;
 }
 
+// Lo que la organización necesita saber de un jugador de un vistazo: si está,
+// si se le ha dado de baja, o si la API lo pone en un club que no reconocemos
+// y hace falta que alguien lo mire.
+function estadoJugador(p){
+  if(p.activo === false) return `<span class="pill warn">baja</span>`;
+  if(p.revisar) return `<span class="pill warn" title="La API lo pone en «${esc(p.club_segun_api || '?')}»">a revisar</span>`;
+  return '<span class="club-tag">en plantilla</span>';
+}
+
 let equiposClub = null;
 function panelEquipos(body){
   if(!equiposClub && S.clubs.length) equiposClub = S.clubs[0].id;
   const list = S.players.filter(p => p.club_id === equiposClub)
     .sort((a,b) => POS_ORDER[a.pos]-POS_ORDER[b.pos] || a.name.localeCompare(b.name));
+  const revisar = S.players.filter(p => p.revisar)
+    .sort((a,b) => clubName(a.club_id).localeCompare(clubName(b.club_id)) || a.name.localeCompare(b.name));
+  const bajas = S.players.filter(p => p.activo === false)
+    .sort((a,b) => clubName(a.club_id).localeCompare(clubName(b.club_id)) || a.name.localeCompare(b.name));
+
   body.innerHTML = `<div class="admin-note">Esta es la base de la que los managers eligen sus jugadores. Ellos no la
       ven: solo ven los desplegables ya rellenos. Un club sin jugadores no se puede elegir.</div>
+    ${revisar.length ? `<div class="card"><h2>Fichas por revisar · ${revisar.length}</h2>
+      <p style="font-size:12px;color:var(--chalk-dim);margin-top:0;">La API pone a esta gente en un club que no
+        reconocemos. Puede ser una baja de verdad o el mismo club escrito de otra forma, así que no se toca nada
+        hasta que lo mires tú. Mientras tanto siguen disponibles para alinear.</p>
+      <table><tr><th>Jugador</th><th>Club nuestro</th><th>Club según la API</th><th></th></tr>${revisar.map(p =>
+        `<tr><td>${esc(p.name)}</td><td>${esc(clubName(p.club_id))}</td>
+         <td>${esc(p.club_segun_api || '—')}</td>
+         <td style="text-align:right;white-space:nowrap;">
+           <button class="btn ghost small pKeep" data-p="${p.id}">Sigue aquí</button>
+           <button class="btn danger small pDrop" data-p="${p.id}">Darlo de baja</button></td></tr>`).join('')}</table>
+    </div>` : ''}
+    ${bajas.length ? `<div class="card"><h2>De baja · ${bajas.length}</h2>
+      <p style="font-size:12px;color:var(--chalk-dim);margin-top:0;">Ya no se pueden elegir, pero la ficha sigue ahí
+        para que las jornadas ya jugadas se sigan viendo bien.</p>
+      <table><tr><th>Jugador</th><th>Club</th><th>Motivo</th><th></th></tr>${bajas.map(p =>
+        `<tr><td>${esc(p.name)}</td><td>${esc(clubName(p.club_id))}</td>
+         <td>${esc(p.motivo_baja || '—')}</td>
+         <td style="text-align:right;"><button class="btn ghost small pKeep" data-p="${p.id}">Volver a darlo de alta</button></td></tr>`).join('')}</table>
+    </div>` : ''}
     <div class="card"><h2>Clubes de Primera</h2>
       <div class="grid cols-4">${S.clubs.map(c => `<div style="display:flex;gap:4px;align-items:center;" data-c="${c.id}">
         <input type="text" class="cName" value="${esc(c.name)}" style="flex:1;">
@@ -1097,7 +1136,8 @@ function panelEquipos(body){
       <div class="toolbar"><label style="margin:0;">Club</label>
         <select id="clubSel" style="max-width:250px;">${S.clubs.map(c =>
           `<option value="${c.id}" ${c.id===equiposClub?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
-        <span class="pill">${list.length} jugador(es)</span></div>
+        <span class="pill">${list.filter(p => p.activo !== false).length} en plantilla${
+          list.some(p => p.activo === false) ? ` · ${list.filter(p => p.activo === false).length} de baja` : ''}</span></div>
       <div class="grid cols-3" style="align-items:end;">
         <div><label>Nombre</label><input type="text" id="npName" placeholder="Ej. Vinícius Jr."></div>
         <div><label>Posición</label><select id="npPos">
@@ -1110,8 +1150,9 @@ function panelEquipos(body){
       <textarea id="bulk" rows="6" placeholder="Pega aquí…"></textarea>
       <div style="margin-top:10px;"><button class="btn ghost" id="addBulk">Añadir todos</button></div>
       <h3 style="margin-top:20px;">Plantilla cargada</h3>
-      ${list.length ? `<table><tr><th>Jugador</th><th>Posición</th><th></th></tr>${list.map(p =>
+      ${list.length ? `<table><tr><th>Jugador</th><th>Posición</th><th>Estado</th><th></th></tr>${list.map(p =>
         `<tr><td>${esc(p.name)}</td><td><span class="pos-tag pos-${p.pos}">${p.pos}</span></td>
+         <td>${estadoJugador(p)}</td>
          <td style="text-align:right;"><button class="btn danger small pDel" data-p="${p.id}">✕</button></td></tr>`).join('')}</table>`
         : '<p class="empty">Sin jugadores. Hasta que cargues alguno, nadie puede elegir de este club.</p>'}
     </div>`;
@@ -1152,6 +1193,14 @@ function panelEquipos(body){
     await DB.deletePlayer(b.dataset.p);
     await boot(); switchView('panel');
   })));
+  const marcar = (sel, patch, aviso) => body.querySelectorAll(sel).forEach(b =>
+    b.addEventListener('click', () => guard(async () => {
+      const { blocked } = await DB.setPlayerStatus(b.dataset.p, patch);
+      if(blocked){ toast('No se ha guardado: hace falta ser de la organización', 'bad'); return; }
+      toast(aviso, 'good'); await boot(); switchView('panel');
+    })));
+  marcar('.pKeep', { activo:true, revisar:false, motivo_revision:null, motivo_baja:null }, 'Sigue en plantilla');
+  marcar('.pDrop', { activo:false, revisar:false, motivo_baja:'baja confirmada por la organización', motivo_revision:null }, 'Dado de baja');
 }
 
 async function panelPlayoffs(body, seq){

@@ -125,7 +125,7 @@ export const DB = {
       sb.from('leagues').select('id,name,current_jornada,lineups_locked,admin_user_id').limit(1).single(),
       sb.from('managers').select('id,slot,club_name,owner_name,user_id,is_admin').order('slot'),
       sb.from('clubs').select('id,name').order('name'),
-      sb.from('club_players').select('id,club_id,name,pos')
+      sb.from('club_players').select('id,club_id,name,pos,activo,revisar,club_segun_api,motivo_baja')
     ]);
     for(const r of [lg, mgrs, cls, pls]){
       if(r.error) throw fail(r.error, 'No se han podido cargar los datos de la liga');
@@ -302,6 +302,15 @@ export const DB = {
       .upsert(rows, { onConflict: 'club_id,name', ignoreDuplicates: true }).select('id');
     if(error) throw fail(error, 'No se han podido añadir los jugadores');
     return (data || []).length;
+  },
+  // La organización marca a un jugador como en plantilla o de baja. Se guarda
+  // el estado en vez de borrar la ficha: borrarla dejaría cojas las
+  // alineaciones de jornadas ya jugadas.
+  async setPlayerStatus(id, patch){
+    const { data, error } = await sb.from('club_players')
+      .update(patch).eq('id', id).select('id');
+    if(error) throw fail(error, 'No se ha podido cambiar el estado del jugador');
+    return { blocked: !(data || []).length };
   },
   async deletePlayer(id){
     const { error } = await sb.from('club_players').delete().eq('id', id);

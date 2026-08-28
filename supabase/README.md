@@ -145,6 +145,46 @@ score, así que no hay con qué casarlo. Se enlazan solos según vayan aparecien
 **Identificadores de la liga real:** `leagueId=119924` es Primera; la temporada
 en curso es 2026.
 
+## Cómo se mantienen las plantillas
+
+Las plantillas se mueven durante la temporada. El catálogo se mantiene solo a
+partir de dos sitios:
+
+- **Los box score de cada jornada**, que traen las dos plantillas enteras.
+  `app.sincronizar_box_score(match_id)` enlaza al que aún no lo estaba, mueve al
+  que ha cambiado de club dentro de la liga, da de alta al que no teníamos y
+  apunta la fecha en que se le vio jugar. Ver jugar a alguien es prueba de que
+  está.
+- **El resumen de jugador** (`/players/{id}`), que dice en `profile.club.current`
+  a qué club pertenece hoy. `app.verificar_jugador(id)` lo consulta y
+  `app.verificar_plantillas(limite, pausa)` lo hace por tandas, con pausa entre
+  llamadas porque el plan gratuito limita también por segundo.
+
+**Nadie se da de baja solo.** La primera versión sí lo hacía, y los cuatro
+primeros casos fueron cuatro falsos positivos: el resumen de jugador usa nombres
+distintos de los de la clasificación —«Deportivo A Coruña» frente a «Deportivo de
+La Coruña», «Athletic Bilbao» frente a «Athletic Club»— y el comparador los daba
+por clubes ajenos. Borrar a un jugador que sí está tiene mucho peor arreglo que
+dejar uno de más, así que ahora:
+
+1. `app.club_por_nombre(liga, nombre)` empareja por nombre normalizado, por
+   `clubs.aliases`, y en último término por parecido de trigramas, exigiendo
+   0.45 de parecido y 0.15 de ventaja sobre el segundo. Los 20 clubes no se
+   parecen entre sí más de 0.33, así que un ganador con esa ventaja es
+   inequívoco. Probado: los 19 nombres que la API ya nos había dado cuadran
+   todos, y ninguno de los clubes de fuera (Girona, Cádiz, Real Valladolid,
+   Sporting, Como, Bayern…) cuadra con nada.
+2. Si aun así no cuadra, el jugador se marca `revisar` y **sigue disponible para
+   alinear**. Sale en la vista `jugadores_a_revisar` y en el panel de dirección,
+   con el club que dice la API, para que una persona decida.
+
+`app.norm_club` descarta las partículas y sufijos de club (`fc`, `cf`, `cd`,
+`ud`, `de`, `la`, `a`…), que es lo que hace que «Deportivo A Coruña» y
+«Deportivo de La Coruña» acaben en el mismo sitio.
+
+Un jugador de baja deja de ofrecerse en los desplegables, pero su ficha no se
+borra: las alineaciones de jornadas ya jugadas siguen enseñándolo, con el motivo.
+
 ## Vistas
 
 | Vista | Para qué |
@@ -156,6 +196,8 @@ en curso es 2026.
 | `manager_form` | racha, para los últimos resultados |
 | `playoff_series_state` | victorias de cada serie al mejor de 3 |
 | `picked_players` | a qué jugadores ha elegido alguien en una jornada, y cuántos |
+| `jugadores_a_revisar` | fichas cuyo club según la API no cuadra con ninguno de la liga |
+| `jugadores_sin_aparecer` | fichas que no han salido en ningún box score todavía |
 
 Todas se crean con `security_invoker = true`. Sin eso se ejecutarían con los
 permisos del propietario y se saltarían las políticas RLS.

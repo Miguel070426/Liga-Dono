@@ -137,6 +137,7 @@
   .toolbar{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
   .pill{ background:var(--panel-2); border-radius:20px; padding:6px 14px; font-size:12px; }
   .warn{ color:var(--red-card); font-size:12px; margin-top:6px; }
+  .pill.warn{ margin-top:0; padding:3px 10px; font-size:11px; background:rgba(193,68,58,0.16); }
   .ok{ color:var(--win); font-size:12px; margin-top:6px; }
   .empty{ text-align:center; color:var(--chalk-dim); padding:30px; font-size:13px; }
   .flex-between{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
