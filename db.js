@@ -28,10 +28,23 @@ export function generateCode(){
   return 'LD-' + chars.slice(0,4).join('') + '-' + chars.slice(4).join('');
 }
 
+// Forma canónica del código: mayúsculas y sin guiones ni espacios. La gente
+// teclea el código en minúsculas, sin guiones o con espacios de más, y todas
+// esas formas tienen que llevar a la misma cuenta.
+export function canonicalCode(code){
+  return String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
 // El código es a la vez usuario y contraseña, así que el correo se deriva de él.
 export function emailForCode(code){
-  const clean = String(code).toUpperCase().replace(/[^A-Z0-9]/g, '');
-  return 'm' + clean.toLowerCase() + '@' + CFG.mailDomain;
+  return 'm' + canonicalCode(code).toLowerCase() + '@' + CFG.mailDomain;
+}
+
+// Cómo se le enseña el código a la gente: LD-XXXX-XXXX
+function displayCode(canon){
+  return canon.length === 10
+    ? canon.slice(0,2) + '-' + canon.slice(2,6) + '-' + canon.slice(6)
+    : canon;
 }
 
 function fail(error, fallback){
@@ -58,7 +71,7 @@ export const DB = {
   async claim(slot, club, owner, joinCode){
     const code = generateCode();
     const { error: upErr } = await sb.auth.signUp({
-      email: emailForCode(code), password: code
+      email: emailForCode(code), password: canonicalCode(code)
     });
     if(upErr) throw fail(upErr, 'No se ha podido crear la cuenta');
 
@@ -81,10 +94,21 @@ export const DB = {
   },
 
   async signIn(code){
-    const { error } = await sb.auth.signInWithPassword({
-      email: emailForCode(code), password: String(code).trim()
-    });
-    if(error) throw new Error('Ese código no es válido');
+    const canon = canonicalCode(code);
+    if(canon.length < 6){
+      throw new Error('Ese código parece incompleto. Míralo otra vez.');
+    }
+    const email = emailForCode(canon);
+    // Se prueba la forma canónica primero. Las otras son por las cuentas
+    // creadas antes de normalizar la contraseña.
+    const intentos = [...new Set([canon, displayCode(canon), String(code).trim()])];
+    for(const password of intentos){
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if(!error) return;
+    }
+    throw new Error('Ese código no sirve para entrar. Si todavía no has fichado '
+      + 'tu plaza, vuelve atrás y pulsa "Es mi primera vez": el código que te dio '
+      + 'la organización sirve para fichar, no para entrar.');
   },
 
   async signOut(){ await sb.auth.signOut(); },

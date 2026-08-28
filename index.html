@@ -16,9 +16,13 @@
     <div class="auth-step" id="stepWelcome">
       <div class="kick">Liga Fantasy · 12 Managers</div>
       <h2>Bienvenido</h2>
-      <p class="lead">Ficha una plaza y compite las 11 jornadas. Si ya tienes tu código, entra con él.</p>
-      <button class="btn big wide" id="goClaim">Fichar mi plaza</button>
-      <button class="btn ghost wide" id="goSignIn" style="margin-top:9px;">Ya tengo mi código</button>
+      <p class="lead">Once titulares de toda Primera, 11 jornadas y playoffs.</p>
+      <button class="btn big wide" id="goClaim">Es mi primera vez · fichar plaza</button>
+      <button class="btn ghost wide" id="goSignIn" style="margin-top:9px;">Ya fiché · entrar con mi código</button>
+      <p class="lead" style="margin:16px 0 0;font-size:12px;">
+        Si es tu primera vez, pulsa arriba: el código que te ha dado la organización
+        sirve para <strong>fichar</strong>, no para entrar. Tu código de entrada te lo
+        damos después, y empieza por <code>LD-</code>.</p>
       <div class="switch"><button id="goAdmin">Soy la organización</button></div>
     </div>
 
@@ -31,7 +35,11 @@
       <div class="field"><label>Plaza libre</label><select id="claimSlot"></select></div>
       <div class="field"><label>Tu nombre</label><input type="text" id="claimOwner" placeholder="Ej. Miguel" autocomplete="off"></div>
       <div class="field"><label>Nombre de tu club</label><input type="text" id="claimClub" placeholder="Ej. Deportivo Siuuu FC" autocomplete="off"></div>
-      <div class="field"><label>Código de la liga</label><input type="text" id="claimJoin" placeholder="El que te haya dado la organización" autocomplete="off" spellcheck="false"></div>
+      <div class="field">
+        <label>Código de la liga</label>
+        <input type="text" id="claimJoin" placeholder="El que te ha dado la organización" autocomplete="off" spellcheck="false">
+        <div class="club-tag" style="margin-top:5px;">Es el mismo para los 12. No es un código personal.</div>
+      </div>
       <button class="btn big wide" id="doClaim">Fichar y entrar</button>
       <div class="switch"><button class="backWelcome">Volver</button></div>
     </div>
@@ -40,7 +48,7 @@
     <div class="auth-step hidden" id="stepCode">
       <div class="kick">Guarda esto</div>
       <h2>Tu código de acceso</h2>
-      <p class="lead">Con este código entras desde el ordenador y desde el móvil. Es lo único que necesitas.</p>
+      <p class="lead">Este es tu código personal de entrada, distinto del de la liga. Con él entras desde el ordenador y desde el móvil.</p>
       <div class="code-box">
         <div class="lbl">Tu código</div>
         <div class="code" id="codeValue">—</div>
@@ -57,11 +65,12 @@
     <div class="auth-step hidden" id="stepSignIn">
       <div class="kick">Acceso</div>
       <h2>Entra con tu código</h2>
-      <p class="lead">El mismo que te dimos al fichar. Sirve en cualquier dispositivo.</p>
+      <p class="lead">Tu código personal, el que te dimos al fichar. Sirve en el ordenador y en el móvil.</p>
       <div class="err hidden" id="signInErr"></div>
       <div class="field">
-        <label>Tu código</label>
-        <input type="text" id="signInCode" placeholder="LD-XXXX-XXXX" autocomplete="off" spellcheck="false">
+        <label>Tu código personal</label>
+        <input type="text" id="signInCode" placeholder="LD-XXXX-XXXX" autocomplete="off" spellcheck="false" autocapitalize="characters">
+        <div class="club-tag" style="margin-top:5px;">Da igual mayúsculas, minúsculas o si te comes los guiones.</div>
       </div>
       <button class="btn big wide" id="doSignIn">Entrar</button>
       <div class="switch"><button class="backWelcome">Volver</button></div>
