@@ -356,7 +356,6 @@ function lineupsHtml(fr, lineups){
       if(ps.goals)         bits.push(`${ps.goals}⚽`);
       if(ps.assists)       bits.push(`${ps.assists}🎯`);
       if(ps.yellow)        bits.push('🟨');
-      if(ps.second_yellow) bits.push('🟨🟥');
       if(ps.red)           bits.push('🟥');
       if(ps.shots)         bits.push(`${ps.shots}🥅`);
       if(ps.minutes)       bits.push(`${ps.minutes}'`);
@@ -909,7 +908,6 @@ async function panelStats(body, seq){
       <td><input type="number" class="pG"  value="${n('goals')}" min="0"></td>
       <td><input type="number" class="pA"  value="${n('assists')}" min="0"></td>
       <td><input type="number" class="pY"  value="${n('yellow')}" min="0" max="1"></td>
-      <td><input type="number" class="pY2" value="${n('second_yellow')}" min="0" max="1"></td>
       <td><input type="number" class="pR"  value="${n('red')}" min="0" max="1"></td>
       <td><input type="number" class="pF"  value="${n('fouls')}" min="0"></td>
       <td><input type="number" class="pS"  value="${n('shots')}" min="0"></td>
@@ -940,7 +938,7 @@ async function panelStats(body, seq){
       <button class="btn small" id="saveClubStats">Guardar datos de clubes</button></div>
     <div class="card"><h2>Jugadores elegidos · jornada ${j}</h2>
       <div style="overflow-x:auto;"><table>
-        <tr><th>Jugador</th><th>Gol</th><th>Asist</th><th>Am</th><th>2ªAm</th><th>Roja</th><th>Faltas</th><th>Tiros</th><th>Min</th></tr>
+        <tr><th>Jugador</th><th>Gol</th><th>Asist</th><th>Am</th><th>Roja</th><th>Faltas</th><th>Tiros</th><th>Min</th></tr>
         ${pRows}</table></div>
       <div style="margin-top:14px;"><button class="btn" id="savePlayerStats">Guardar estadísticas</button></div></div>
     <div class="card"><h2>Cómo quedan los cruces</h2>
@@ -970,7 +968,6 @@ async function panelStats(body, seq){
       goals:         +r.querySelector('.pG').value || 0,
       assists:       +r.querySelector('.pA').value || 0,
       yellow:        +r.querySelector('.pY').value || 0,
-      second_yellow: +r.querySelector('.pY2').value || 0,
       red:           +r.querySelector('.pR').value || 0,
       fouls:         +r.querySelector('.pF').value || 0,
       shots:         +r.querySelector('.pS').value || 0,

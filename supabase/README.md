@@ -79,7 +79,7 @@ tocar desde el navegador:
 - Goles: portero y defensa 2, medio y delantero 1
 - Tiros: portero y defensa 3, medio 2, delantero 1
 - Portería a 0: portero 3, defensa 2, medio y delantero 1
-- Tarjetas: amarilla 1, doble amarilla 3, roja 5
+- Tarjetas: amarilla 1, roja 3. La doble amarilla cuenta como roja
 - Minutos jugados: 1 por minuto, todas las posiciones
 - Asistencias, faltas y puntos de club: tal cual
 - Si el club real de un jugador no jugó esa jornada, ese jugador no puntúa en nada
@@ -92,6 +92,25 @@ manager. Los minutos son un dato del jugador y premian acertar con los titulares
 Un subpunto por categoría, y empate reparte uno a cada uno. Los subpuntos de un
 lado son, por tanto, el número de categorías en las que va igual o por delante.
 Más subpuntos = 3 puntos de liga; empate a subpuntos = 1 para cada uno.
+
+## De dónde pueden salir los datos
+
+Investigado y probado contra las APIs reales, no leído de su publicidad:
+
+| Fuente | Veredicto |
+|---|---|
+| **Highlightly** (RapidAPI) | Sirve. Plan gratis 100/día, temporada en curso disponible, `/box-score/{matchId}` da minutos, goles, asistencias, faltas (`fouledOthers`), tiros a puerta y tarjetas por jugador |
+| API-Football | Free solo llega a las temporadas 2022-2024. La actual la rechaza. Los datos por jugador sí están, pero del año que no nos sirve |
+| FBref | 403 con desafío de Cloudflare: bloquean el acceso automático |
+| Understat | `robots.txt` con `Disallow: /`: prohíben el rastreo |
+| football-data.org | Sin datos por jugador en el plan gratuito |
+| TheSportsDB | Temporada en curso gratis, pero estadísticas por equipo. Por jugador solo goles, asistencias y tarjetas vía timeline |
+
+**Cuidado con `cardsSecondYellow` de Highlightly:** es una copia de `cardsYellow`, no
+un dato real. En el Sevilla 2-1 Rayo de la jornada 1 daba 8 amarillas y 8 dobles
+amarillas, con cero casos en los que los dos campos difirieran. Por eso el
+reglamento funde la doble amarilla con la roja: ninguna fuente gratuita la
+distingue de forma fiable.
 
 ## Vistas
 
