@@ -112,6 +112,39 @@ amarillas, con cero casos en los que los dos campos difirieran. Por eso el
 reglamento funde la doble amarilla con la roja: ninguna fuente gratuita la
 distingue de forma fiable.
 
+## Enlace con Highlightly
+
+Las estadísticas vienen de Highlightly, así que cada club y cada jugador nuestro
+necesita saber su identificador allí (`clubs.highlightly_id`,
+`club_players.highlightly_id`).
+
+La clave de la API vive en el **baúl cifrado de Supabase**, nunca en el
+repositorio. `app.highlightly(ruta)` la lee de ahí y hace la llamada.
+
+```sql
+select vault.create_secret('LA-CLAVE', 'highlightly_key', 'RapidAPI');
+select app.highlightly('/standings?leagueId=119924&season=2026');
+```
+
+Highlightly no tiene endpoint de plantilla por equipo: `/players` solo busca por
+nombre y `/teams/{id}` devuelve el escudo y poco más. Los jugadores se cosechan
+de los box score de los partidos, que traen las dos plantillas enteras:
+`app.refrescar_calendario()` baja el calendario y `app.cosechar_box_score(id)`
+guarda los jugadores de un partido en `hl_players`.
+
+El casado de nombres se hace en dos pasadas. Primero coincidencia exacta del
+nombre normalizado dentro del mismo club, que resuelve la gran mayoría. Después
+tres reglas para el resto: un nombre contenido en el otro (*Pathé Ciss* dentro de
+*Pathé Ismaël Ciss*), mismo apellido con el nombre de pila abreviado (*Javi* y
+*Javier*), o parecido de trigramas por encima de 0.55. Solo se aplica cuando hay
+un único candidato y nadie más lo reclama.
+
+Lo que quede sin enlazar suele ser gente que aún no ha jugado: no está en los box
+score, así que no hay con qué casarlo. Se enlazan solos según vayan apareciendo.
+
+**Identificadores de la liga real:** `leagueId=119924` es Primera; la temporada
+en curso es 2026.
+
 ## Vistas
 
 | Vista | Para qué |
