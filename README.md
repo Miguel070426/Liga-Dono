@@ -1,13 +1,20 @@
 # Liga Dono · Liga Fantasy de 12 managers
 
 Once titulares de toda la Primera División, 8 categorías por jornada, 11
-jornadas y playoffs. Hay dos versiones del juego.
+jornadas y playoffs. La liga es compartida: los datos viven en Supabase y todos
+ven lo mismo.
 
-## Versión en red (la buena)
+En marcha en **https://miguel070426.github.io/Liga-Dono/**
 
-`index.html` + `app.css` + `app.js` + `db.js`, pensada para publicarse en
-GitHub Pages. La liga es compartida: los datos viven en Supabase y todos ven lo
-mismo.
+## Cómo está montado
+
+Una web estática (`index.html` + `app.css` + `app.js` + `db.js`) publicada en
+GitHub Pages, que habla con Supabase.
+
+Hubo antes una versión de un solo archivo que guardaba los datos en el propio
+navegador. Se retiró al quedarse con un reglamento distinto: cada persona tenía
+su copia y sus datos, así que no servía para jugar una liga entre varios. Sigue
+en el historial de Git si alguna vez hace falta.
 
 Cada manager entra con un **código** que hace de credencial, así que sirve igual
 en el ordenador y en el móvil. No hay emails ni contraseñas. Para fichar plaza
@@ -40,10 +47,3 @@ leagues`).
 `app.js` no sabe que Supabase existe: todo pasa por `db.js`, que se puede
 sustituir por una capa falsa (`window.__LIGA_FAKE_DB__`) para probar el juego
 entero sin red.
-
-## Versión local
-
-`liga-fantasy (1).html`, un único archivo que funciona sin conexión guardando en
-el navegador. Cada persona tiene su propia copia y sus propios datos, así que no
-sirve para jugar una liga entre varios, pero se manda por WhatsApp y funciona sin
-montar nada. Se mantiene tal cual.
