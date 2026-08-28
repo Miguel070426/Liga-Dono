@@ -178,7 +178,7 @@ export const DB = {
   // hueco: si cinco managers eligieron al mismo, esta fila vale para los cinco.
   async playerStats(jornada){
     const { data, error } = await sb.from('player_jornada_stats')
-      .select('club_player_id,goals,assists,yellow,second_yellow,red,fouls,shots')
+      .select('club_player_id,goals,assists,yellow,second_yellow,red,fouls,shots,minutes')
       .eq('jornada', jornada);
     if(error) throw fail(error, 'No se han podido cargar las estadísticas');
     return data || [];

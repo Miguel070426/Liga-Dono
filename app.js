@@ -22,7 +22,7 @@ const CATS = [
   {key:'ptsEquipo',   label:'Puntos por equipo', icon:'🏆', h:'hp', a:'ap'},
   {key:'porteria0',   label:'Portería a 0',      icon:'🧤', h:'h0', a:'a0'},
   {key:'faltas',      label:'Faltas',            icon:'⚠️', h:'hf', a:'af'},
-  {key:'corners',     label:'Córners',           icon:'🚩', h:'hc', a:'ac'},
+  {key:'minutos',     label:'Minutos jugados',   icon:'⏱️', h:'hmi', a:'ami'},
   {key:'tiros',       label:'Tiros a puerta',    icon:'🥅', h:'hs', a:'as2'}
 ];
 const POS_LABEL = {GK:'Portero', DF:'Defensas', MF:'Centro del campo', FW:'Delanteros'};
@@ -359,6 +359,7 @@ function lineupsHtml(fr, lineups){
       if(ps.second_yellow) bits.push('🟨🟥');
       if(ps.red)           bits.push('🟥');
       if(ps.shots)         bits.push(`${ps.shots}🥅`);
+      if(ps.minutes)       bits.push(`${ps.minutes}'`);
       return `<tr${out ? ' style="opacity:.45;"' : ''}>
         <td><span class="pos-tag pos-${s.pos}">${s.pos}</span></td>
         <td>${esc(s.player_name || '—')}<br><span class="club-tag">${esc(clubName(s.club_id) || 'sin club')}${out ? ' · no jugó' : ''}</span></td>
@@ -889,11 +890,10 @@ async function panelStats(body, seq){
     .sort((a,b) => clubName(a).localeCompare(clubName(b)));
 
   const csRows = clubIds.map(id => {
-    const cs = d.clubStats.find(c => c.club_id === id) || {team_points:0, corners:0, clean_sheet:false, played:true};
-    return `<div class="grid cols-4" data-club="${id}" style="align-items:end;margin-bottom:10px;">
+    const cs = d.clubStats.find(c => c.club_id === id) || {team_points:0, clean_sheet:false, played:true};
+    return `<div class="grid cols-3" data-club="${id}" style="align-items:end;margin-bottom:10px;">
       <div><label>Club</label><strong style="font-size:13px;">${esc(clubName(id))}</strong></div>
       <div><label>Pts. de liga</label><input type="number" class="cTp" value="${cs.team_points}" min="0" max="3"></div>
-      <div><label>Córners</label><input type="number" class="cCo" value="${cs.corners}" min="0"></div>
       <div><label>Portería a 0 / ¿jugó?</label>
         <select class="cCs"><option value="0" ${!cs.clean_sheet?'selected':''}>Sin portería a 0</option><option value="1" ${cs.clean_sheet?'selected':''}>Portería a 0</option></select>
         <select class="cPl" style="margin-top:4px;"><option value="1" ${cs.played!==false?'selected':''}>Jugó</option><option value="0" ${cs.played===false?'selected':''}>No jugó</option></select>
@@ -912,7 +912,8 @@ async function panelStats(body, seq){
       <td><input type="number" class="pY2" value="${n('second_yellow')}" min="0" max="1"></td>
       <td><input type="number" class="pR"  value="${n('red')}" min="0" max="1"></td>
       <td><input type="number" class="pF"  value="${n('fouls')}" min="0"></td>
-      <td><input type="number" class="pS"  value="${n('shots')}" min="0"></td></tr>`;
+      <td><input type="number" class="pS"  value="${n('shots')}" min="0"></td>
+      <td><input type="number" class="pM"  value="${n('minutes')}" min="0" max="120"></td></tr>`;
   }).join('');
 
   const cruces = d.results.map(fr => {
@@ -939,7 +940,7 @@ async function panelStats(body, seq){
       <button class="btn small" id="saveClubStats">Guardar datos de clubes</button></div>
     <div class="card"><h2>Jugadores elegidos · jornada ${j}</h2>
       <div style="overflow-x:auto;"><table>
-        <tr><th>Jugador</th><th>Gol</th><th>Asist</th><th>Am</th><th>2ªAm</th><th>Roja</th><th>Faltas</th><th>Tiros</th></tr>
+        <tr><th>Jugador</th><th>Gol</th><th>Asist</th><th>Am</th><th>2ªAm</th><th>Roja</th><th>Faltas</th><th>Tiros</th><th>Min</th></tr>
         ${pRows}</table></div>
       <div style="margin-top:14px;"><button class="btn" id="savePlayerStats">Guardar estadísticas</button></div></div>
     <div class="card"><h2>Cómo quedan los cruces</h2>
@@ -953,7 +954,6 @@ async function panelStats(body, seq){
     const rows = [...body.querySelectorAll('[data-club]')].map(r => ({
       league_id: S.league.id, jornada: j, club_id: r.dataset.club,
       team_points: +r.querySelector('.cTp').value || 0,
-      corners:     +r.querySelector('.cCo').value || 0,
       clean_sheet: r.querySelector('.cCs').value === '1',
       played:      r.querySelector('.cPl').value === '1'
     }));
@@ -973,7 +973,8 @@ async function panelStats(body, seq){
       second_yellow: +r.querySelector('.pY2').value || 0,
       red:           +r.querySelector('.pR').value || 0,
       fouls:         +r.querySelector('.pF').value || 0,
-      shots:         +r.querySelector('.pS').value || 0
+      shots:         +r.querySelector('.pS').value || 0,
+      minutes:       +r.querySelector('.pM').value || 0
     }));
     await DB.upsertPlayerStats(rows);
     invalidate(j);

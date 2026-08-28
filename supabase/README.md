@@ -80,8 +80,14 @@ tocar desde el navegador:
 - Tiros: portero y defensa 3, medio 2, delantero 1
 - Portería a 0: portero 3, defensa 2, medio y delantero 1
 - Tarjetas: amarilla 1, doble amarilla 3, roja 5
-- Asistencias, faltas, córners y puntos de club: tal cual
+- Minutos jugados: 1 por minuto, todas las posiciones
+- Asistencias, faltas y puntos de club: tal cual
 - Si el club real de un jugador no jugó esa jornada, ese jugador no puntúa en nada
+
+La octava categoría fue córners hasta la migración 0010. Los córners eran un dato
+del club, así que los 11 jugadores de una alineación aportaban los de sus clubes
+y la categoría medía más la suerte del sorteo de clubes que las decisiones del
+manager. Los minutos son un dato del jugador y premian acertar con los titulares.
 
 Un subpunto por categoría, y empate reparte uno a cada uno. Los subpuntos de un
 lado son, por tanto, el número de categorías en las que va igual o por delante.
