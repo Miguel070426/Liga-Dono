@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Liga Fantasy · 12 Managers</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<!-- =================== PANTALLAS DE ACCESO =================== -->
+<div class="overlay hidden" id="authOverlay">
+  <div class="gate">
+
+    <!-- bienvenida -->
+    <div class="auth-step" id="stepWelcome">
+      <div class="kick">Liga Fantasy · 12 Managers</div>
+      <h2>Bienvenido</h2>
+      <p class="lead">Once titulares de toda Primera, 11 jornadas y playoffs.</p>
+      <button class="btn big wide" id="goClaim">Es mi primera vez · fichar plaza</button>
+      <button class="btn ghost wide" id="goSignIn" style="margin-top:9px;">Ya fiché · entrar con mi código</button>
+      <p class="lead" style="margin:16px 0 0;font-size:12px;">
+        Si es tu primera vez, pulsa arriba: el código que te ha dado la organización
+        sirve para <strong>fichar</strong>, no para entrar. Tu código de entrada te lo
+        damos después, y empieza por <code>LD-</code>.</p>
+      <div class="switch"><button id="goAdmin">Soy la organización</button></div>
+    </div>
+
+    <!-- fichar plaza -->
+    <div class="auth-step hidden" id="stepClaim">
+      <div class="kick">Alta de manager</div>
+      <h2>Ficha tu plaza</h2>
+      <p class="lead">Elige plaza, ponle nombre a tu club y mete el código de la liga. Te daremos tu código de acceso personal.</p>
+      <div class="err hidden" id="claimErr"></div>
+      <div class="field"><label>Plaza libre</label><select id="claimSlot"></select></div>
+      <div class="field"><label>Tu nombre</label><input type="text" id="claimOwner" placeholder="Ej. Miguel" autocomplete="off"></div>
+      <div class="field"><label>Nombre de tu club</label><input type="text" id="claimClub" placeholder="Ej. Deportivo Siuuu FC" autocomplete="off"></div>
+      <div class="field">
+        <label>Código de la liga</label>
+        <input type="text" id="claimJoin" placeholder="El que te ha dado la organización" autocomplete="off" spellcheck="false">
+        <div class="club-tag" style="margin-top:5px;">Es el mismo para los 12. No es un código personal.</div>
+      </div>
+      <button class="btn big wide" id="doClaim">Fichar y entrar</button>
+      <div class="switch"><button class="backWelcome">Volver</button></div>
+    </div>
+
+    <!-- código recién generado -->
+    <div class="auth-step hidden" id="stepCode">
+      <div class="kick">Guarda esto</div>
+      <h2>Tu código de acceso</h2>
+      <p class="lead">Este es tu código personal de entrada, distinto del de la liga. Con él entras desde el ordenador y desde el móvil.</p>
+      <div class="code-box">
+        <div class="lbl">Tu código</div>
+        <div class="code" id="codeValue">—</div>
+        <button class="btn ghost small copy" id="copyCode">Copiar</button>
+      </div>
+      <div class="code-warn">
+        No se vuelve a mostrar. Apúntalo o mándatelo por WhatsApp antes de seguir.
+        Si lo pierdes, la organización tendrá que darte uno nuevo.
+      </div>
+      <button class="btn big wide" id="codeDone" style="margin-top:14px;">Ya lo he guardado, entrar</button>
+    </div>
+
+    <!-- entrar con código -->
+    <div class="auth-step hidden" id="stepSignIn">
+      <div class="kick">Acceso</div>
+      <h2>Entra con tu código</h2>
+      <p class="lead">Tu código personal, el que te dimos al fichar. Sirve en el ordenador y en el móvil.</p>
+      <div class="err hidden" id="signInErr"></div>
+      <div class="field">
+        <label>Tu código personal</label>
+        <input type="text" id="signInCode" placeholder="LD-XXXX-XXXX" autocomplete="off" spellcheck="false" autocapitalize="characters">
+        <div class="club-tag" style="margin-top:5px;">Da igual mayúsculas, minúsculas o si te comes los guiones.</div>
+      </div>
+      <button class="btn big wide" id="doSignIn">Entrar</button>
+      <div class="switch"><button class="backWelcome">Volver</button></div>
+    </div>
+
+    <!-- código de dirección -->
+    <div class="auth-step hidden" id="stepAdmin">
+      <div class="kick">Organización</div>
+      <h2>Código de dirección</h2>
+      <p class="lead">Entra primero con tu código de manager. Después, este código te abre el panel de dirección.</p>
+      <div class="err hidden" id="adminErr"></div>
+      <div class="field"><label>Código de dirección</label><input type="text" id="adminCode" placeholder="LD-DIR-…" autocomplete="off" spellcheck="false"></div>
+      <button class="btn big wide" id="doAdmin">Activar dirección</button>
+      <div class="switch"><button class="backWelcome">Volver</button></div>
+    </div>
+
+  </div>
+</div>
+
+<header class="top">
+  <div class="brand">
+    <div class="crest">⚽</div>
+    <div style="min-width:0;">
+      <h1>Liga Fantasy</h1>
+      <div class="sub" id="hdrSub">Conectando…</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <span class="jornada-pill" id="hdrJornada">—</span>
+    <button class="gear" id="gearBtn" title="Panel de dirección">⚙</button>
+  </div>
+</header>
+
+<nav class="tabs" id="mainTabs">
+  <button data-view="inicio" class="active">Inicio</button>
+  <button data-view="plantilla">Mi Plantilla</button>
+  <button data-view="jornada">Jornada</button>
+  <button data-view="clasificacion">Clasificación</button>
+  <button data-view="playoffs">Playoffs</button>
+  <button data-view="reglas">Reglamento</button>
+  <button data-view="panel" class="admin-tab hidden" id="panelTab">⚙ Dirección</button>
+</nav>
+
+<main>
+  <div id="globalBanner"></div>
+
+  <div class="view active" id="view-inicio">
+    <div id="inicioHero"></div>
+    <div class="grid cols-2">
+      <div class="card" style="margin-bottom:0;"><h2>Tu último cruce</h2><div id="inicioLast"></div></div>
+      <div class="card" style="margin-bottom:0;"><h2>Cabeza de la tabla</h2><div id="inicioTop"></div></div>
+    </div>
+  </div>
+
+  <div class="view" id="view-plantilla">
+    <div id="plantillaHead"></div>
+    <div class="card" id="plantillaEditor"></div>
+  </div>
+
+  <div class="view" id="view-jornada">
+    <div class="card" style="padding:14px 18px;">
+      <div class="flex-between">
+        <div class="jnav">
+          <button id="jPrev">‹</button>
+          <span class="lbl" id="jLabel">—</span>
+          <button id="jNext">›</button>
+        </div>
+        <button class="btn ghost small" id="jNow">Ir a la actual</button>
+      </div>
+    </div>
+    <div id="jornadaFeatured"></div>
+    <div class="card"><h2 id="restTitle">Resto de la jornada</h2><div id="jornadaRest"></div></div>
+  </div>
+
+  <div class="view" id="view-clasificacion">
+    <div class="card">
+      <h2>Clasificación — Liga regular</h2>
+      <div id="tablaClasificacion"></div>
+      <div class="legend">
+        <span><span class="zone zone-top"></span> 1º-8º · Playoff por el título</span>
+        <span><span class="zone zone-low"></span> 9º-12º · Playoff de consolación</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="view" id="view-playoffs">
+    <div class="card">
+      <h2>Playoffs — Puestos 1º a 8º</h2>
+      <p style="font-size:12px;color:var(--chalk-dim);margin-top:0;">Cuartos: 1º-8º · 2º-7º · 3º-6º · 4º-5º. Series al mejor de 3. Factor cancha: P1 y P3 en casa del mejor clasificado, P2 en casa del peor.</p>
+      <div id="bracketTop" class="bracket-wrap"></div>
+    </div>
+    <div class="card">
+      <h2>Consolación — Puestos 9º a 12º</h2>
+      <div id="bracketBottom" class="bracket-wrap"></div>
+    </div>
+    <div class="card" id="playoffSeriesEditor" style="display:none;"></div>
+  </div>
+
+  <div class="view" id="view-reglas">
+    <div class="card">
+      <h2>Reglamento</h2>
+      <h3>Plantillas</h3>
+      <p style="font-size:13px;line-height:1.6;">11 titulares de toda la Primera División, máximo 1 jugador por club real. Formación libre. Si el club real de un jugador no juega esa jornada, ese jugador no puntúa en ninguna categoría.</p>
+      <h3>Cómo va una jornada</h3>
+      <p style="font-size:13px;line-height:1.6;">Mientras la jornada está abierta cada uno alinea a ciegas: no puedes ver el once de tu rival. Cuando la organización la cierra se destapan todas las alineaciones y se cargan los resultados.</p>
+      <h3>8 categorías por jornada</h3>
+      <table>
+        <tr><th>Categoría</th><th>Reparto de puntos</th></tr>
+        <tr><td>⚽ Goles</td><td>Delantero/Centrocampista: 1 · Defensa/Portero: 2</td></tr>
+        <tr><td>🎯 Asistencias</td><td>Todas las posiciones: 1</td></tr>
+        <tr><td>🟨 Tarjetas</td><td>Amarilla: 1 · Roja: 3. La doble amarilla cuenta como roja. Gana quien MÁS acumule</td></tr>
+        <tr><td>🏆 Puntos por equipo</td><td>Puntos reales de liga del club de cada jugador</td></tr>
+        <tr><td>🧤 Portería a 0</td><td>Portero: 3 · Defensa: 2 · Centrocampista: 1 · Delantero: 1</td></tr>
+        <tr><td>⚠️ Faltas</td><td>1 cada una (gana quien MÁS haga)</td></tr>
+        <tr><td>⏱️ Minutos jugados</td><td>1 por minuto. Premia acertar con quién es titular</td></tr>
+        <tr><td>🥅 Tiros a puerta</td><td>Portero/Defensa: 3 · Centrocampista: 2 · Delantero: 1</td></tr>
+      </table>
+      <h3 style="margin-top:14px;">Resultado del cruce</h3>
+      <p style="font-size:13px;line-height:1.6;">Cada categoría reparte 1 subpunto, o 1 a cada uno si hay empate. Quien sume más subpuntos gana el cruce y se lleva 3 puntos de liga; si los subpuntos quedan igualados, 1 punto para cada uno.</p>
+      <h3 style="margin-top:14px;">Playoffs</h3>
+      <p style="font-size:13px;line-height:1.6;">Los 8 primeros al playoff por el título; los 4 últimos, a consolación por las plazas 9ª a 12ª. Series al mejor de 3. El local de cada partido recibe el plus: +1 gol, +1 asist, +2 tarjetas, +3 pts equipo, +2 portería a 0, +3 faltas, +45 minutos, +2 tiros.</p>
+    </div>
+  </div>
+
+  <div class="view" id="view-panel"><div id="panelRoot"></div></div>
+</main>
+
+<footer class="foot" id="footNote">Liga Fantasy</footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
