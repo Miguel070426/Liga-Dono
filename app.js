@@ -930,16 +930,60 @@ async function panelStats(body, seq){
 
   const repes = picked.filter(p => p.elegido_por > 1).length;
 
+  // los partidos de Primera de esa jornada, para poder cargarlos de la API
+  let partidos = [];
+  try { partidos = await DB.matchesOfJornada(j); }
+  catch(e){ partidos = null; }
+  if(stale(seq)) return;
+  const jugados    = (partidos || []).filter(p => p.estado === 'Finished');
+  const porCargar  = jugados.filter(p => !p.cargado);
+  const sinJugar   = (partidos || []).length - jugados.length;
+
+  const mRows = (partidos || []).map(p => {
+    const marcador = p.goles_local === null ? '–' : `${p.goles_local}-${p.goles_visitante}`;
+    const estado = p.estado !== 'Finished'
+      ? '<span class="club-tag">sin jugar</span>'
+      : (p.cargado ? '<span class="badge win">cargado</span>' : '<span class="pill warn">pendiente</span>');
+    return `<tr data-match="${p.match_id}">
+      <td class="club-tag" style="white-space:nowrap;">${esc(p.fecha || '')}</td>
+      <td>${esc(p.local)}</td>
+      <td style="text-align:center;font-weight:bold;white-space:nowrap;">${marcador}</td>
+      <td>${esc(p.visitante)}</td>
+      <td style="text-align:right;" class="mEstado">${estado}</td></tr>`;
+  }).join('');
+
   body.innerHTML = `
     <div class="admin-note">Cada jugador se introduce <strong>una sola vez</strong> y cuenta para todos los managers
       que lo eligieron.${repes ? ` Esta jornada hay ${repes} jugador(es) elegido(s) por más de uno.` : ''}
-      Primero los datos del club, después los jugadores.</div>
+      Lo normal es cargarlo todo de la API; los formularios de abajo son para corregir a mano si hace falta.</div>
     <div class="card"><div class="toolbar">
       <label style="margin:0;">Jornada</label><select id="stJ" style="max-width:150px;">${jOpts}</select>
       <span class="pill">${clubIds.length} club(es)</span>
       <span class="pill">${picked.length} jugador(es) elegido(s)</span>
     </div></div>
-    ${picked.length === 0 ? '<div class="card"><p class="empty">Nadie ha alineado todavía en esta jornada.</p></div>' : `
+    <div class="card"><h2>Cargar de la API · jornada ${j}</h2>
+      ${partidos === null
+        ? '<p class="warn">No se ha podido leer el calendario real. Prueba a refrescarlo.</p>'
+        : `<p style="font-size:12px;color:var(--chalk-dim);margin-top:0;">
+            Baja de Highlightly los goles, asistencias, minutos, faltas, tiros y tarjetas de los 22 jugadores
+            de cada partido, y saca del marcador los puntos de equipo y la portería a cero. Va de partido en
+            partido: son unos segundos cada uno.</p>
+          <div class="toolbar">
+            <span class="pill">${jugados.length} jugado(s)</span>
+            ${porCargar.length ? `<span class="pill warn">${porCargar.length} por cargar</span>`
+                               : '<span class="pill">todos cargados</span>'}
+            ${sinJugar ? `<span class="pill">${sinJugar} sin jugar</span>` : ''}
+          </div>
+          ${mRows ? `<div style="overflow-x:auto;"><table id="mTabla">${mRows}</table></div>` : '<p class="empty">Esta jornada no tiene partidos en el calendario real.</p>'}
+          <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <button class="btn" id="loadJornada" ${porCargar.length ? '' : 'disabled'}>
+              ${porCargar.length ? `Cargar ${porCargar.length} partido(s)` : 'Nada por cargar'}</button>
+            <button class="btn ghost small" id="reloadJornada">Volver a cargar todos</button>
+            <button class="btn ghost small" id="refreshFixtures">Refrescar calendario</button>
+            <span id="loadProgress" class="club-tag"></span>
+          </div>`}
+    </div>
+    ${picked.length === 0 ? '<div class="card"><p class="empty">Nadie ha alineado todavía en esta jornada. Los datos ya cargados se aplicarán en cuanto alineen.</p></div>' : `
     <div class="card"><h2>Datos de los clubes reales</h2>${csRows}
       <button class="btn small" id="saveClubStats">Guardar datos de clubes</button></div>
     <div class="card"><h2>Jugadores elegidos · jornada ${j}</h2>
@@ -952,6 +996,58 @@ async function panelStats(body, seq){
       ${cruces}</table></div>`}`;
 
   $('stJ').addEventListener('change', e => { statsJornada = +e.target.value; renderPanel(); });
+
+  // La carga va partido a partido y va contando en pantalla. Si uno falla, los
+  // demás siguen: lo cargado queda cargado y el fallo se dice al final.
+  const cargarPartidos = async lista => {
+    const prog = $('loadProgress');
+    const btns = [$('loadJornada'), $('reloadJornada'), $('refreshFixtures')].filter(Boolean);
+    btns.forEach(b => b.disabled = true);
+    let ok = 0, fallos = [], fichas = 0, altas = 0;
+    for(const [i, p] of lista.entries()){
+      if(prog) prog.textContent = `${i+1} de ${lista.length} · ${p.local} - ${p.visitante}…`;
+      const celda = body.querySelector(`tr[data-match="${p.match_id}"] .mEstado`);
+      if(celda) celda.innerHTML = '<span class="club-tag">cargando…</span>';
+      try{
+        const r = await DB.loadMatch(p.match_id);
+        ok++; fichas += r.guardados || 0; altas += r.nuevos || 0;
+        if(celda) celda.innerHTML = '<span class="badge win">cargado</span>';
+      }catch(e){
+        fallos.push(`${p.local} - ${p.visitante}: ${e.message}`);
+        if(celda) celda.innerHTML = '<span class="pill warn">falló</span>';
+      }
+    }
+    if(ok){
+      try{ await DB.closeClubData(j); }
+      catch(e){ fallos.push('datos de club: ' + e.message); }
+    }
+    if(prog) prog.textContent = '';
+    invalidate(j);
+    if(fallos.length){
+      toast(`${ok} de ${lista.length} cargados. Falló: ${fallos[0]}`, 'bad');
+    }else{
+      toast(`${ok} partido(s) · ${fichas} fichas${altas ? ` · ${altas} jugador(es) nuevo(s)` : ''}`, 'good');
+    }
+    await boot(); switchView('panel');
+  };
+
+  const lj = $('loadJornada');
+  if(lj) lj.addEventListener('click', () => guard(() => cargarPartidos(porCargar)));
+
+  const rj = $('reloadJornada');
+  if(rj) rj.addEventListener('click', () => guard(async () => {
+    if(!jugados.length){ toast('No hay partidos jugados en esta jornada', 'bad'); return; }
+    if(!confirm(`¿Volver a cargar los ${jugados.length} partidos? Gasta ${jugados.length} llamadas de las 100 del día.`)) return;
+    await cargarPartidos(jugados);
+  }));
+
+  const rf = $('refreshFixtures');
+  if(rf) rf.addEventListener('click', () => guard(async () => {
+    const n = await DB.refreshFixtures();
+    toast(`Calendario refrescado · ${n} partido(s)`, 'good');
+    invalidate(j);
+    await boot(); switchView('panel');
+  }));
 
   const scb = $('saveClubStats');
   if(scb) scb.addEventListener('click', () => guard(async () => {

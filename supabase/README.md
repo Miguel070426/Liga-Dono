@@ -57,6 +57,54 @@ jornada cerrada, RLS no devuelve error, devuelve **cero filas afectadas**. Hay
 que comprobar las filas y avisar, en vez de dar por bueno un guardado que no
 ocurrió.
 
+## Cómo se carga una jornada
+
+Se aprieta un botón en el panel y baja todo de Highlightly. De dónde sale cada
+categoría del reglamento:
+
+| Categoría | Campo del box score |
+|---|---|
+| Goles | `statistics.goalsScored` |
+| Asistencias | `statistics.assists` |
+| Amarillas | `statistics.cardsYellow` |
+| Rojas | `statistics.cardsRed` |
+| Faltas | `statistics.fouledOthers` (las que comete, no las que recibe) |
+| Tiros a puerta | `statistics.shotsOnTarget` |
+| Minutos | `minutesPlayed` — **fuera** de `statistics`, al nivel del jugador |
+
+Los puntos por equipo y la portería a cero no vienen por jugador: se sacan del
+marcador, que ya está en `hl_matches`.
+
+`app.cargar_partido(match_id)` hace las dos cosas de una sola llamada a la API:
+guarda las estadísticas y mantiene las dos plantillas (enlaza, mueve, da de
+alta, apunta que se le ha visto jugar). Separarlas costaría el doble de cuota.
+`app.cargar_jornada(jornada, pausa)` recorre los 10 partidos desde SQL.
+
+Desde el navegador la carga va **partido a partido**, no de golpe: una jornada
+entera es un minuto largo entre llamadas y pausas, y PostgREST corta mucho
+antes. Partido a partido cada uno son un par de segundos, y el panel puede ir
+contando por dónde va.
+
+Qué ronda real alimenta cada jornada nuestra lo dice `jornada_rondas`: nuestra
+liga son 11 jornadas y la de verdad 38. Por defecto la 1 con la 1, pero se
+puede cambiar si la liga arranca a mitad de temporada.
+
+**Comprobado contra los datos reales.** Jornada 1: 453 fichas, 28 goles por
+jugador y 28 en los marcadores, 19.749 minutos (≈20 equipos × 990), 20 filas de
+club y 28 puntos repartidos, que es lo que dan 8 partidos decididos y 2
+empates. Jornada 2: 455 fichas y 22 goles por los dos lados. En el Sevilla 2-1
+Rayo, los totales por club salen clavados a los del JSON crudo.
+
+`cardsSecondYellow` no se lee: en ese mismo partido da 4 amarillas y 4 dobles
+amarillas por equipo, sin un solo caso en que difieran. Es una copia, no un
+dato, y por eso el reglamento funde la doble amarilla con la roja.
+
+`hl_matches` lleva dos marcas y no una: `cosechado` es "de aquí hemos sacado
+los jugadores" y `stats_cargadas` es "de aquí tenemos las estadísticas". Al
+principio compartían una, y la jornada 2 aparecía como cargada porque sus
+partidos se habían cosechado en su día para montar las plantillas, cuando no
+tenía ni un dato de jugador.
+
 ## Cómo se cargan las estadísticas
 
 Por **jugador y jornada** (`player_jornada_stats`), no por hueco de alineación:
@@ -198,6 +246,18 @@ borra: las alineaciones de jornadas ya jugadas siguen enseñándolo, con el moti
 | `picked_players` | a qué jugadores ha elegido alguien en una jornada, y cuántos |
 | `jugadores_a_revisar` | fichas cuyo club según la API no cuadra con ninguno de la liga |
 | `jugadores_sin_aparecer` | fichas que no han salido en ningún box score todavía |
+
+## Funciones del panel
+
+| Función | Para qué |
+|---|---|
+| `jornada_partidos(jornada)` | los partidos reales de esa jornada y si están cargados |
+| `cargar_resultado_partido(match_id)` | un partido: estadísticas y mantenimiento de plantillas |
+| `cerrar_datos_de_club(jornada)` | puntos de liga y portería a cero, del marcador |
+| `refrescar_calendario_real()` | volver a bajar el calendario para que aparezcan los marcadores nuevos |
+
+Las cuatro comprueban `app.is_admin()`. Verificado ejecutándolas con la
+identidad de un jugador: las tres de escritura le rechazan.
 
 Todas se crean con `security_invoker = true`. Sin eso se ejecutarían con los
 permisos del propietario y se saltarían las políticas RLS.

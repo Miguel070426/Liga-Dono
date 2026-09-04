@@ -200,6 +200,33 @@ export const DB = {
     return data || [];
   },
 
+  // ----------------------------------------------- CARGA DESDE LA API REAL
+  // Qué partidos de Primera alimentan una jornada nuestra, y cuáles están ya
+  // cargados. Se carga de uno en uno: una jornada entera son 10 llamadas a la
+  // API con su pausa, y eso no cabe en una sola petición.
+  async matchesOfJornada(jornada){
+    const { data, error } = await sb.rpc('jornada_partidos', { p_jornada: jornada });
+    if(error) throw fail(error, 'No se han podido leer los partidos de la jornada');
+    return data || [];
+  },
+  async loadMatch(matchId){
+    const { data, error } = await sb.rpc('cargar_resultado_partido', { p_match_id: matchId });
+    if(error) throw fail(error, 'No se ha podido cargar ese partido');
+    return (data && data[0]) || {};
+  },
+  // Los puntos de liga del club y la portería a cero salen del marcador, no
+  // del box score, así que se hacen una vez al terminar.
+  async closeClubData(jornada){
+    const { data, error } = await sb.rpc('cerrar_datos_de_club', { p_jornada: jornada });
+    if(error) throw fail(error, 'No se han podido cerrar los datos de los clubes');
+    return data;
+  },
+  async refreshFixtures(){
+    const { data, error } = await sb.rpc('refrescar_calendario_real');
+    if(error) throw fail(error, 'No se ha podido refrescar el calendario');
+    return data;
+  },
+
   async playoffs(){
     const [st, gm] = await Promise.all([
       sb.from('playoff_series_state').select('*').order('bracket').order('position'),
