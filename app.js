@@ -206,6 +206,99 @@ async function boot(){
   $('panelTab').classList.toggle('hidden', !S.isAdmin);
   $('gearBtn').classList.toggle('on', S.isAdmin);
   renderAll();
+  escucharCambios();
+}
+
+/* ------------------------------------------------------- AVISO EN VIVO
+   Doce personas mirando la misma jornada tienen que verla moverse sin darle a
+   recargar. Llega un aviso que solo dice «algo ha cambiado» y se vuelve a
+   pedir todo por los caminos normales, que respetan los permisos: así la
+   alineación a ciegas sigue a ciegas.
+
+   Con dos cuidados, porque refrescar a destiempo es peor que no refrescar:
+
+     · Si estás escribiendo —el foco en un campo— o estás en el panel de
+       dirección metiendo datos, no se toca nada. Sale un aviso que pulsas
+       cuando te venga bien.
+     · Tu alineación a medio hacer se conserva, y la jornada que estabas
+       mirando también: refrescar no te devuelve a la jornada actual.          */
+let avisoPend = null, avisoTimer = null, canalVivo = null;
+
+function escucharCambios(){
+  if(canalVivo || !DB.onChange) return;
+  canalVivo = DB.onChange(motivo => {
+    clearTimeout(avisoTimer);
+    avisoPend = motivo;
+    avisoTimer = setTimeout(aplicarAviso, 900);
+  });
+}
+
+function escribiendoAhora(){
+  const el = document.activeElement;
+  return !!(el && /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName));
+}
+
+async function aplicarAviso(){
+  if(!avisoPend) return;
+  if(escribiendoAhora() || S.view === 'panel'){ pintarAvisoPendiente(); return; }
+  const motivo = avisoPend;
+  avisoPend = null;
+  try{ await refrescarEnVivo(); }
+  catch(e){ return; }
+  destellar(motivo);
+}
+
+// Como boot(), pero sin llevarse por delante lo que estabas haciendo.
+async function refrescarEnVivo(){
+  const seq = newRender();
+  const vj = S.viewJornada, pj = S.plantillaJornada, draft = S.draft;
+  const abiertaAntes = jornadaOpen();
+
+  const snap = await DB.bootstrap();
+  if(stale(seq)) return;
+  Object.assign(S, snap);
+  S.cache = {};
+  S.viewJornada = clamp(vj);
+  S.plantillaJornada = clamp(pj);
+  S.draft = draft && draft.jornada === S.plantillaJornada ? draft : null;
+
+  const [st, fm] = await Promise.all([DB.standings(), DB.form()]);
+  if(stale(seq)) return;
+  S.standings = st;
+  S.form = {};
+  fm.forEach(r => { (S.form[r.manager_id] = S.form[r.manager_id] || []).push(r.res); });
+
+  $('panelTab').classList.toggle('hidden', !S.isAdmin);
+  $('gearBtn').classList.toggle('on', S.isAdmin);
+  renderAll();
+
+  // Si te cierran la jornada con cambios sin guardar, mejor decirlo que
+  // dejarte pulsar Guardar contra una puerta cerrada.
+  if(abiertaAntes && !jornadaOpen() && draft && draft.dirty){
+    toast('La organización ha cerrado la jornada. Tus últimos cambios no se han guardado.', 'bad');
+  }
+}
+
+function pintarAvisoPendiente(){
+  if($('avisoVivo')) return;
+  const b = document.createElement('button');
+  b.id = 'avisoVivo';
+  b.className = 'aviso-vivo';
+  b.textContent = 'Hay datos nuevos · actualizar';
+  b.addEventListener('click', () => guard(async () => {
+    b.remove();
+    avisoPend = null;
+    await refrescarEnVivo();
+  }));
+  document.body.appendChild(b);
+}
+
+function destellar(motivo){
+  const pill = $('hdrJornada');
+  if(!pill) return;
+  pill.classList.add('late');
+  pill.title = 'Actualizado: ' + motivo;
+  setTimeout(() => pill.classList.remove('late'), 1200);
 }
 
 async function jornadaData(j){
@@ -230,6 +323,11 @@ function switchView(name){
   if(el) el.classList.add('active');
   window.scrollTo({top:0, behavior:'smooth'});
   renderAll();
+  // Si el aviso se quedó esperando porque estabas en el panel, ahora ya cabe.
+  if(avisoPend && name !== 'panel'){
+    const b = $('avisoVivo'); if(b) b.remove();
+    aplicarAviso();
+  }
 }
 
 function renderHeader(){

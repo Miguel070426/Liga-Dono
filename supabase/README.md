@@ -247,6 +247,64 @@ borra: las alineaciones de jornadas ya jugadas siguen enseñándolo, con el moti
 | `jugadores_a_revisar` | fichas cuyo club según la API no cuadra con ninguno de la liga |
 | `jugadores_sin_aparecer` | fichas que no han salido en ningún box score todavía |
 
+## Los códigos ya no se pueden leer desde el navegador
+
+Estaban a la vista. La política de lectura de `leagues` es `using (true)`
+porque todo el mundo necesita saber en qué jornada va la liga, y los códigos
+viven en esa misma tabla, así que cualquiera con sesión podía pedir:
+
+```sql
+select join_code, admin_claim_code from leagues
+```
+
+Comprobado con la identidad de un jugador real: los veía los dos. Con el código
+de la liga, un jugador lo reparte y un desconocido ocupa una plaza libre, que es
+justo lo que ese código existe para evitar.
+
+RLS decide filas, no columnas, así que se arregla con permisos de columna:
+`leagues` solo deja leer `id`, `name`, `current_jornada`, `lineups_locked`,
+`admin_user_id` y `created_at`. `claim_slot` y `claim_admin` son SECURITY
+DEFINER y siguen viendo los códigos. Y ya que estábamos, la organización puede
+mover la jornada y cerrarla desde el navegador pero no cambiar los códigos:
+para eso está el editor SQL.
+
+Verificado después del cambio, con la identidad de un jugador y de la
+organización: el jugador no ve ninguno de los dos códigos pero sí la jornada;
+la organización cierra la jornada pero tampoco toca los códigos.
+
+## El aviso en vivo
+
+Doce personas mirando la misma jornada tienen que verla moverse sin darle a
+recargar. Lo evidente sería publicar las tablas por Realtime y escuchar los
+cambios, y es justo lo que no se hace, por dos razones:
+
+1. **Realtime manda la fila entera** a cada suscriptor, y los permisos de
+   columna no aplican ahí. Publicar `leagues` habría repartido los códigos que
+   acabábamos de esconder.
+2. Cargar una jornada escribe 453 filas de estadísticas. Con un trigger por
+   fila serían 453 mensajes a cada cliente para decir una sola cosa.
+
+Así que se publica una tabla que no tiene nada dentro: `latidos`, con la liga,
+una hora y un motivo. Los triggers son **por sentencia**, no por fila, y
+nuestras escrituras son de conjunto, de modo que una jornada entera son 10
+latidos en lugar de 453 mensajes. Medido: una sentencia que toca las 453 filas
+deja un solo latido.
+
+El cliente no lee el contenido del aviso más que para el motivo. Solo se entera
+de que algo cambió y vuelve a pedir los datos por los caminos normales, que
+respetan RLS. Por eso la alineación a ciegas sigue a ciegas: nadie recibe la
+alineación de un rival por el cable.
+
+`latidos` se lee y nada más: los permisos de escritura están revocados, para que
+lo único que separe a un desconocido de un `TRUNCATE` no sea una política que
+falta.
+
+**No verificado:** el websocket de punta a punta. La política de red del entorno
+donde se hizo esto bloquea `*.supabase.co`, así que la configuración del lado de
+la base de datos está comprobada (publicación, política, triggers por sentencia,
+identidad de réplica) pero el viaje real del mensaje se sabrá con dos navegadores
+de verdad.
+
 ## El simulador
 
 Para ver el juego entero funcionando antes de jugarlo de verdad. Alinea al azar

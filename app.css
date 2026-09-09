@@ -403,6 +403,24 @@
 .banner.locked{ background:rgba(232,184,75,0.1); border-left:3px solid var(--gold); color:var(--chalk-dim); }
 .banner.error{ background:rgba(193,68,58,0.12); border-left:3px solid var(--red-card); color:var(--chalk); }
 .banner.warnb{ background:rgba(95,139,199,0.12); border-left:3px solid var(--blue); color:var(--chalk); }
+
+  /* ---------- AVISO EN VIVO ---------- */
+  /* Cuando la liga se mueve, la chapa de la jornada da un destello: se nota
+     sin robar la atención de lo que estabas leyendo. */
+  .jornada-pill.late{ background:var(--gold); color:var(--night); border-color:var(--gold); }
+  @media (prefers-reduced-motion: no-preference){
+    .jornada-pill{ transition:background .35s ease, color .35s ease; }
+  }
+  /* Y si estabas escribiendo, el aviso espera abajo hasta que lo pulses. */
+  .aviso-vivo{
+    position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:60;
+    background:var(--gold); color:var(--night); border:none; cursor:pointer;
+    padding:10px 20px; border-radius:22px; font-family:inherit; font-size:12px;
+    font-weight:bold; text-transform:uppercase; letter-spacing:0.5px;
+    box-shadow:0 6px 20px rgba(0,0,0,0.45);
+  }
+  .aviso-vivo:hover{ background:#f3c862; }
+  .aviso-vivo:focus-visible{ outline:2px solid var(--chalk); outline-offset:2px; }
 .banner strong{ color:var(--gold); }
 
 .save-state{ font-size:11px; color:var(--chalk-dim); }

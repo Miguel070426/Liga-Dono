@@ -386,10 +386,20 @@ export const DB = {
   },
 
   // Avisa cuando otro cambia algo, para no tener que recargar a mano.
+  // Aviso en vivo. No se escucha ninguna tabla con datos: Realtime manda la
+  // fila entera a cada suscriptor, así que escuchar `leagues` repartiría los
+  // códigos y escuchar las estadísticas serían 453 mensajes por jornada. Lo
+  // que se escucha es `latidos`, una tabla sin nada dentro que los triggers
+  // tocan una vez por sentencia. El aviso solo dice «algo ha cambiado»: los
+  // datos se vuelven a pedir por los caminos normales, que respetan RLS, y así
+  // la alineación a ciegas sigue a ciegas.
   onChange(handler){
-    return sb.channel('liga')
-      .on('postgres_changes', { event: '*', schema: 'public' }, handler)
+    const ch = sb.channel('liga-latidos')
+      .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'latidos' },
+          payload => handler(payload?.new?.motivo || 'algo'))
       .subscribe();
+    return { unsubscribe(){ sb.removeChannel(ch); } };
   }
 };
 
