@@ -167,7 +167,7 @@ export const DB = {
   // abierta solo llega la propia.
   async lineups(jornada){
     const { data, error } = await sb.from('lineups')
-      .select('id,jornada,manager_id,formation,confirmed,'
+      .select('id,jornada,manager_id,formation,confirmed,simulada,'
             + 'lineup_slots(id,slot,pos,club_id,club_player_id,player_name)')
       .eq('jornada', jornada);
     if(error) throw fail(error, 'No se han podido cargar las alineaciones');
@@ -227,6 +227,32 @@ export const DB = {
     return data;
   },
 
+  // -------------------------------------------------------------- SIMULADOR
+  // Alinea al azar a quien no tenga once, para ver la jornada entera
+  // funcionando con datos reales. Nunca pisa la alineación de una persona.
+  async simulate(jornada){
+    const { data, error } = await sb.rpc('simular_jornada', { p_jornada: jornada });
+    if(error) throw fail(error, 'No se ha podido simular la jornada');
+    return data || [];
+  },
+  async simulatedCount(jornada){
+    const { count, error } = await sb.from('lineups')
+      .select('id', { count: 'exact', head: true })
+      .eq('jornada', jornada).eq('simulada', true);
+    if(error) throw fail(error, 'No se ha podido leer qué hay simulado');
+    return count || 0;
+  },
+  async checkJornada(jornada){
+    const { data, error } = await sb.rpc('comprobar_jornada', { p_jornada: jornada });
+    if(error) throw fail(error, 'No se ha podido comprobar la jornada');
+    return data || [];
+  },
+  async clearSimulation(jornada){
+    const { data, error } = await sb.rpc('borrar_simulacion', { p_jornada: jornada });
+    if(error) throw fail(error, 'No se ha podido borrar la simulación');
+    return data;
+  },
+
   async playoffs(){
     const [st, gm] = await Promise.all([
       sb.from('playoff_series_state').select('*').order('bracket').order('position'),
@@ -257,7 +283,9 @@ export const DB = {
       if(!ins.data) return { blocked: true };
       lineupId = ins.data.id;
     }else{
-      const upd = await sb.from('lineups').update({ formation, updated_at: new Date().toISOString() })
+      // Al tocarla, deja de ser del simulador y pasa a ser tuya.
+      const upd = await sb.from('lineups')
+        .update({ formation, simulada: false, updated_at: new Date().toISOString() })
         .eq('id', lineupId).select('id');
       if(upd.error) throw fail(upd.error, 'No se ha podido guardar la formación');
       if(!upd.data || upd.data.length === 0) return { blocked: true };

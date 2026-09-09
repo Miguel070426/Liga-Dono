@@ -402,6 +402,7 @@
 }
 .banner.locked{ background:rgba(232,184,75,0.1); border-left:3px solid var(--gold); color:var(--chalk-dim); }
 .banner.error{ background:rgba(193,68,58,0.12); border-left:3px solid var(--red-card); color:var(--chalk); }
+.banner.warnb{ background:rgba(95,139,199,0.12); border-left:3px solid var(--blue); color:var(--chalk); }
 .banner strong{ color:var(--gold); }
 
 .save-state{ font-size:11px; color:var(--chalk-dim); }

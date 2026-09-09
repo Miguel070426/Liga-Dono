@@ -526,10 +526,10 @@ async function ensureDraft(){
     const slots = [...(lu.lineup_slots || [])].sort((a,b) => a.slot - b.slot)
       .map(s => ({pos:s.pos, club_id:s.club_id, club_player_id:s.club_player_id, player_name:s.player_name}));
     S.draft = { jornada:j, formation:lu.formation, slots: slots.length ? slots : buildSlots(lu.formation),
-                lineupId:lu.id, confirmed:lu.confirmed, dirty:false };
+                lineupId:lu.id, confirmed:lu.confirmed, simulada:!!lu.simulada, dirty:false };
   }else{
     S.draft = { jornada:j, formation:'1-4-4-2', slots:buildSlots('1-4-4-2'),
-                lineupId:null, confirmed:false, dirty:false };
+                lineupId:null, confirmed:false, simulada:false, dirty:false };
   }
   return S.draft;
 }
@@ -616,6 +616,8 @@ async function renderPlantilla(){
 
   el.innerHTML = `
     ${editable ? '' : '<div class="banner locked">🔒 Esta jornada no se puede editar. Solo consulta.</div>'}
+    ${d.simulada ? `<div class="banner warnb">🎲 <strong>Este once no lo has puesto tú.</strong> Lo dejó el simulador
+      de la organización para probar el juego. Cámbialo a tu gusto${editable ? ' y al guardar pasa a ser tuyo' : ''}.</div>` : ''}
     <div class="toolbar">
       <label style="margin:0;">Formación</label>
       <select id="formSel" style="max-width:150px;" ${editable?'':'disabled'}>
@@ -818,7 +820,8 @@ async function renderPanel(){
   const root = $('panelRoot');
   if(!S.isAdmin){ root.innerHTML = '<div class="card"><p class="empty">Zona de la organización.</p></div>'; return; }
   const secs = [['jornada','Jornada'],['stats','Cargar resultados'],['managers','Managers'],
-                ['equipos','Equipos y jugadores'],['playoffs','Playoffs'],['cuenta','Cuenta']];
+                ['equipos','Equipos y jugadores'],['playoffs','Playoffs'],
+                ['simulador','Simulador'],['cuenta','Cuenta']];
   root.innerHTML = `<div class="subtabs">${secs.map(([k,l]) =>
       `<button data-sec="${k}" class="${panelSec===k?'active':''}">${l}</button>`).join('')}</div>
     <div id="panelBody">${loadingHtml()}</div>`;
@@ -835,7 +838,79 @@ async function renderPanel(){
   else if(panelSec === 'managers') panelManagers(body);
   else if(panelSec === 'equipos')  panelEquipos(body);
   else if(panelSec === 'playoffs') await panelPlayoffs(body, seq);
+  else if(panelSec === 'simulador') await panelSimulador(body, seq);
   else                             panelCuenta(body);
+}
+
+/* ---------------------------------------------------------- SIMULADOR
+   Para ver el juego entero funcionando antes de jugarlo de verdad: alinea al
+   azar a quien no tenga once y cruza esas alineaciones con las estadísticas
+   reales de una jornada ya cargada. Después comprueba que las cuentas del
+   reglamento salen, que es lo que de verdad interesa.                        */
+let simJornada = null, simPruebas = null;
+
+async function panelSimulador(body, seq){
+  if(simJornada === null) simJornada = clamp(S.league.current_jornada);
+  const j = simJornada;
+  const jOpts = Array.from({length:N_JORNADAS},(_,i)=>i+1)
+    .map(n => `<option value="${n}" ${n===j?'selected':''}>Jornada ${n}</option>`).join('');
+
+  const simuladas = await DB.simulatedCount(j);
+  if(stale(seq)) return;
+
+  const filas = (simPruebas || []).map(p => `<tr>
+      <td>${esc(p.prueba)}</td>
+      <td>${p.veredicto === 'BIEN' ? '<span class="badge win">bien</span>' : '<span class="badge lose">mal</span>'}</td>
+      <td class="club-tag">${esc(p.detalle)}</td></tr>`).join('');
+  const malas = (simPruebas || []).filter(p => p.veredicto !== 'BIEN').length;
+
+  body.innerHTML = `
+    <div class="admin-note">Esto no es parte del juego: es la prueba de que el juego funciona. Alinea al azar a
+      quien no tenga once —<strong>nunca pisa la alineación de una persona</strong>— y cruza esas alineaciones con
+      las estadísticas reales de la jornada. Al terminar puedes borrar solo lo simulado.</div>
+    <div class="card"><div class="toolbar">
+      <label style="margin:0;">Jornada</label><select id="simJ" style="max-width:150px;">${jOpts}</select>
+      ${simuladas ? `<span class="pill warn">${simuladas} once(s) simulado(s)</span>`
+                  : '<span class="pill">sin nada simulado</span>'}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn" id="simRun">Simular la jornada ${j}</button>
+      <button class="btn ghost" id="simCheck">Comprobar las cuentas</button>
+      <button class="btn danger" id="simClear" ${simuladas ? '' : 'disabled'}>Borrar lo simulado</button>
+    </div></div>
+    ${simPruebas ? `<div class="card"><h2>Comprobación del reglamento · jornada ${j}</h2>
+      ${malas ? `<p class="warn">${malas} prueba(s) no cuadran.</p>`
+              : '<p class="ok">Las ocho pruebas cuadran.</p>'}
+      <table><tr><th>Prueba</th><th>Veredicto</th><th>Detalle</th></tr>${filas}</table></div>` : ''}`;
+
+  $('simJ').addEventListener('change', e => {
+    simJornada = +e.target.value; simPruebas = null; renderPanel();
+  });
+
+  $('simRun').addEventListener('click', () => guard(async () => {
+    const r = await DB.simulate(j);
+    const dato = k => (r.find(x => x.concepto === k) || {}).detalle;
+    invalidate(j);
+    simPruebas = await DB.checkJornada(j);
+    toast(`${dato('onces simulados')} once(s) simulado(s) · ${dato('cruces con datos')} cruce(s) con datos`, 'good');
+    await boot(); switchView('panel');
+  }));
+
+  $('simCheck').addEventListener('click', () => guard(async () => {
+    simPruebas = await DB.checkJornada(j);
+    const malas = simPruebas.filter(p => p.veredicto !== 'BIEN');
+    toast(malas.length ? `${malas.length} prueba(s) no cuadran` : 'Las ocho pruebas cuadran', malas.length ? 'bad' : 'good');
+    renderPanel();
+  }));
+
+  $('simClear').addEventListener('click', () => guard(async () => {
+    if(!confirm(`¿Borrar los onces simulados de la jornada ${j}? Las alineaciones de verdad no se tocan.`)) return;
+    const n = await DB.clearSimulation(j);
+    simPruebas = null;
+    invalidate(j);
+    toast(`${n} once(s) simulado(s) borrado(s)`, 'good');
+    await boot(); switchView('panel');
+  }));
 }
 
 async function panelJornada(body, seq){

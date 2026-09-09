@@ -247,6 +247,34 @@ borra: las alineaciones de jornadas ya jugadas siguen enseñándolo, con el moti
 | `jugadores_a_revisar` | fichas cuyo club según la API no cuadra con ninguno de la liga |
 | `jugadores_sin_aparecer` | fichas que no han salido en ningún box score todavía |
 
+## El simulador
+
+Para ver el juego entero funcionando antes de jugarlo de verdad. Alinea al azar
+a los managers que no tengan once —formación al azar de las del reglamento y,
+para cada hueco, un jugador activo de un club que no esté ya usado— y cruza
+esas alineaciones con las estadísticas reales de una jornada ya cargada.
+
+Dos cosas importan más que el simulador en sí:
+
+- **No pisa nada de verdad.** Solo alinea a quien no tiene once, marca lo que
+  crea con `lineups.simulada`, y `app.borrar_simulacion()` borra solo eso. En
+  cuanto una persona toca un once simulado y lo guarda, deja de estar marcado y
+  pasa a ser suyo. Y mientras lo esté, la pantalla de Mi Plantilla lo dice, para
+  que nadie se encuentre un once que no puso sin saber por qué.
+- **Comprueba, no solo pinta.** `app.comprobar_jornada(jornada)` mira ocho
+  invariantes del reglamento: 11 huecos por once, un jugador por club, un
+  portero por once, los subpuntos entre 8 y 16, los puntos de liga solo 3-0 o
+  1-1, que gane quien más subpuntos hace, que quien tenga el club sin jugar no
+  puntúe en nada, y que la clasificación cuadre con los cruces.
+
+Probado con las jornadas 1 y 2 reales: las ocho pruebas en verde, 24 partidos
+jugados frente a 24 y 35 puntos frente a 35.
+
+La prueba del club que no jugó se ejercitó a mano, porque en esas dos jornadas
+jugaron los 20: marcando al Real Madrid como que no jugó, seis managers pierden
+puntos y desaparecen 84 minutos, y la comprobación sigue en verde. Es decir, la
+regla se aplica de verdad y no por casualidad.
+
 ## Funciones del panel
 
 | Función | Para qué |
@@ -255,8 +283,11 @@ borra: las alineaciones de jornadas ya jugadas siguen enseñándolo, con el moti
 | `cargar_resultado_partido(match_id)` | un partido: estadísticas y mantenimiento de plantillas |
 | `cerrar_datos_de_club(jornada)` | puntos de liga y portería a cero, del marcador |
 | `refrescar_calendario_real()` | volver a bajar el calendario para que aparezcan los marcadores nuevos |
+| `simular_jornada(jornada)` | alinear al azar a quien no tenga once |
+| `comprobar_jornada(jornada)` | las ocho invariantes del reglamento |
+| `borrar_simulacion(jornada)` | borrar solo los onces simulados |
 
-Las cuatro comprueban `app.is_admin()`. Verificado ejecutándolas con la
+Todas comprueban `app.is_admin()`. Verificado ejecutándolas con la
 identidad de un jugador: las tres de escritura le rechazan.
 
 Todas se crean con `security_invoker = true`. Sin eso se ejecutarían con los
