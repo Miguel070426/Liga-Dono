@@ -6,6 +6,12 @@ ven lo mismo.
 
 En marcha en **https://miguel070426.github.io/Liga-Dono/**
 
+Los resultados de cada jornada se cargan solos del box score de Highlightly:
+goles, asistencias, minutos, faltas, tiros y tarjetas de los 22 jugadores de
+cada partido, y del marcador los puntos de equipo y la portería a cero. Las
+plantillas también se mantienen solas, con fichajes y canteranos, aunque no dan
+de baja a nadie sin que una persona lo confirme.
+
 ## Cómo está montado
 
 Una web estática (`index.html` + `app.css` + `app.js` + `db.js`) publicada en

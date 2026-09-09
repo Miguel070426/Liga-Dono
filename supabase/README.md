@@ -369,13 +369,19 @@ el esquema `app`, que PostgREST no publica.
    Providers → sección *User Signups* → *Confirm email* en `off`). Sin eso, crear
    la cuenta al fichar se quedaba a medias esperando un correo que nadie iba a
    recibir, porque las direcciones son internas.
-2. **Activar GitHub Pages** en los ajustes del repo, para que todos entren por
-   un enlace en lugar de repartir el archivo.
-3. ~~Cambiar los dos códigos~~ · hecho. Estuvieron un tiempo escritos en este
+2. ~~Activar GitHub Pages~~ · hecho.
+3. **Apuntar GitHub Pages a `main`.** Estuvo sirviendo la rama de trabajo
+   `claude/game-ui-gameplay-focus-k22mhu` mientras `main` iba por detrás.
+   Ahora que está fusionada, el enlace público debe salir de `main`: mientras
+   apunte a una rama de trabajo, cualquier commit a medias se publica en el
+   momento a los doce jugadores. Settings → Pages → *Branch* → `main` → `/`
+   (root).
+4. ~~Cambiar los dos códigos~~ · hecho. Estuvieron un tiempo escritos en este
    README, que es público: se han cambiado y ya no se documentan aquí.
-4. **Cargar las plantillas** de los 20 clubes desde el panel de dirección: los
-   clubes están creados pero vacíos, y hasta que tengan jugadores nadie puede
-   alinear.
+5. ~~Cargar las plantillas~~ · hecho. Los 20 clubes tienen plantilla y se
+   mantienen solas a partir de los box score.
+6. **Faltan 9 managers** por fichar su plaza. Hasta que la fichen, sus cruces
+   salen contra plazas vacías.
 
 ## Estado de la verificación
 
