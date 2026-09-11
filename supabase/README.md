@@ -272,6 +272,52 @@ Verificado después del cambio, con la identidad de un jugador y de la
 organización: el jugador no ve ninguno de los dos códigos pero sí la jornada;
 la organización cierra la jornada pero tampoco toca los códigos.
 
+## Revisión de seguridad
+
+Hecha a propósito, porque la fuga de los códigos salió de rebote y eso no es un
+método. El linter de Supabase dio 25 avisos; esto es lo que resultó ser cada
+cosa.
+
+**Un fallo real, sin consecuencia por suerte.** En Postgres, crear una función
+le da EXECUTE a **PUBLIC**. En las migraciones 0019 y 0021 escribí
+`revoke all ... from anon` creyendo cerrar las funciones de organización, y no
+cerré nada: quitaba el permiso explícito de `anon`, pero `anon` seguía
+entrando por el de PUBLIC. El ACL lo decía —`=X/postgres`, con el hueco
+delante, es PUBLIC— y no lo leí.
+
+Comprobado llamando a las once funciones con la identidad de `anon` y sin
+sesión: **ninguna dejaba hacer nada**. Las seis de organización se rechazan
+solas, y `claim_slot` y `claim_admin` piden sesión incluso con el código
+correcto. Es decir: no hubo agujero, pero por suerte y no por diseño. La
+primera función que alguien añada sin ese control habría quedado abierta a
+internet el día de crearla.
+
+Arreglado donde debía: el permiso quitado de PUBLIC y dado a `authenticated`,
+salvo `public_slots()`, que es lo único que se llama antes de entrar. Y
+`alter default privileges` para que las próximas no nazcan abiertas. Los
+ejecutables sin sesión pasan de once a uno.
+
+El esquema `app` se queda como está, a propósito: las políticas RLS llaman a
+`app.is_admin()` **como el usuario que consulta**, así que tocar los permisos
+ahí rompería la lectura para todos. Lo que lo mantiene fuera de la API es que
+PostgREST no publica ese esquema.
+
+**Lo que el linter marca y no es un problema:**
+
+- *Once funciones ejecutables por usuarios con sesión.* Es el diseño: son la
+  API del juego, y cada una decide por dentro quién puede qué. Verificado con
+  la identidad de un jugador y de la organización.
+- *`hl_matches` y `hl_players` con RLS y sin políticas.* Deliberado: denegar
+  por defecto. Son materia prima interna y el panel las consulta por
+  `jornada_partidos()`, que decide qué se ve.
+- *Protección de contraseñas filtradas desactivada.* Nuestras contraseñas son
+  códigos generados al azar, que nadie elige. Comprobarlos contra
+  HaveIBeenPwned no aporta nada y podría rechazar un código válido.
+- *Los avisos de rendimiento* —once claves ajenas sin índice, tres índices sin
+  usar, políticas permisivas duplicadas— no se tocan. Las tablas tienen entre
+  12 y 900 filas: poner índices ahí es ruido, no optimización. Cuando alguna
+  pase de unas decenas de miles, se mira otra vez.
+
 ## El aviso en vivo
 
 Doce personas mirando la misma jornada tienen que verla moverse sin darle a
