@@ -31,12 +31,12 @@
       <div class="kick">Alta de manager</div>
       <h2>Ficha tu plaza</h2>
       <p class="lead">Elige plaza, ponle nombre a tu club y mete el código de la liga. Te daremos tu código de acceso personal.</p>
-      <div class="err hidden" id="claimErr"></div>
-      <div class="field"><label>Plaza libre</label><select id="claimSlot"></select></div>
-      <div class="field"><label>Tu nombre</label><input type="text" id="claimOwner" placeholder="Ej. Miguel" autocomplete="off"></div>
-      <div class="field"><label>Nombre de tu club</label><input type="text" id="claimClub" placeholder="Ej. Deportivo Siuuu FC" autocomplete="off"></div>
+      <div class="err hidden" id="claimErr" role="alert"></div>
+      <div class="field"><label for="claimSlot">Plaza libre</label><select id="claimSlot"></select></div>
+      <div class="field"><label for="claimOwner">Tu nombre</label><input type="text" id="claimOwner" placeholder="Ej. Miguel" autocomplete="off"></div>
+      <div class="field"><label for="claimClub">Nombre de tu club</label><input type="text" id="claimClub" placeholder="Ej. Deportivo Siuuu FC" autocomplete="off"></div>
       <div class="field">
-        <label>Código de la liga</label>
+        <label for="claimJoin">Código de la liga</label>
         <input type="text" id="claimJoin" placeholder="El que te ha dado la organización" autocomplete="off" spellcheck="false">
         <div class="club-tag" style="margin-top:5px;">Es el mismo para los 12. No es un código personal.</div>
       </div>
@@ -66,10 +66,11 @@
       <div class="kick">Acceso</div>
       <h2>Entra con tu código</h2>
       <p class="lead">Tu código personal, el que te dimos al fichar. Sirve en el ordenador y en el móvil.</p>
-      <div class="err hidden" id="signInErr"></div>
+      <div class="err hidden" id="signInErr" role="alert"></div>
       <div class="field">
-        <label>Tu código personal</label>
-        <input type="text" id="signInCode" placeholder="LD-XXXX-XXXX" autocomplete="off" spellcheck="false" autocapitalize="characters">
+        <label for="signInCode">Tu código personal</label>
+        <input type="text" id="signInCode" placeholder="LD-XXXX-XXXX" name="codigo-liga-dono"
+               autocomplete="username" spellcheck="false" autocapitalize="characters">
         <div class="club-tag" style="margin-top:5px;">Da igual mayúsculas, minúsculas o si te comes los guiones.</div>
       </div>
       <button class="btn big wide" id="doSignIn">Entrar</button>
@@ -81,8 +82,8 @@
       <div class="kick">Organización</div>
       <h2>Código de dirección</h2>
       <p class="lead">Entra primero con tu código de manager. Después, este código te abre el panel de dirección.</p>
-      <div class="err hidden" id="adminErr"></div>
-      <div class="field"><label>Código de dirección</label><input type="text" id="adminCode" placeholder="LD-DIR-…" autocomplete="off" spellcheck="false"></div>
+      <div class="err hidden" id="adminErr" role="alert"></div>
+      <div class="field"><label for="adminCode">Código de dirección</label><input type="text" id="adminCode" placeholder="LD-DIR-…" autocomplete="off" spellcheck="false"></div>
       <button class="btn big wide" id="doAdmin">Activar dirección</button>
       <div class="switch"><button class="backWelcome">Volver</button></div>
     </div>
@@ -92,7 +93,7 @@
 
 <header class="top">
   <div class="brand">
-    <div class="crest">⚽</div>
+    <div class="crest" aria-hidden="true">⚽</div>
     <div style="min-width:0;">
       <h1>Liga Fantasy</h1>
       <div class="sub" id="hdrSub">Conectando…</div>
@@ -100,11 +101,11 @@
   </div>
   <div class="hdr-right">
     <span class="jornada-pill" id="hdrJornada">—</span>
-    <button class="gear" id="gearBtn" title="Panel de dirección">⚙</button>
+    <button class="gear" id="gearBtn" title="Panel de dirección" aria-label="Panel de dirección"><span aria-hidden="true">⚙</span></button>
   </div>
 </header>
 
-<nav class="tabs" id="mainTabs">
+<nav class="tabs" id="mainTabs" aria-label="Secciones del juego">
   <button data-view="inicio" class="active">Inicio</button>
   <button data-view="plantilla">Mi Plantilla</button>
   <button data-view="jornada">Jornada</button>
@@ -116,6 +117,7 @@
 
 <main>
   <div id="globalBanner"></div>
+  <div id="avisos" role="status" aria-live="polite" class="hidden"></div>
 
   <div class="view active" id="view-inicio">
     <div id="inicioHero"></div>
@@ -134,9 +136,9 @@
     <div class="card" style="padding:14px 18px;">
       <div class="flex-between">
         <div class="jnav">
-          <button id="jPrev">‹</button>
+          <button id="jPrev" aria-label="Jornada anterior"><span aria-hidden="true">‹</span></button>
           <span class="lbl" id="jLabel">—</span>
-          <button id="jNext">›</button>
+          <button id="jNext" aria-label="Jornada siguiente"><span aria-hidden="true">›</span></button>
         </div>
         <button class="btn ghost small" id="jNow">Ir a la actual</button>
       </div>

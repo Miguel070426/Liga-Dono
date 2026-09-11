@@ -77,9 +77,27 @@ function toast(msg, kind){
   el.className = 'toast ' + (kind || '');
   el.textContent = msg;
   document.body.appendChild(el);
+  // Además de verse, se dice: un aviso que solo aparece en una esquina no
+  // existe para quien usa lector de pantalla. Un fallo interrumpe; un
+  // «guardado» espera su turno.
+  const vivo = $('avisos');
+  if(vivo){
+    vivo.setAttribute('role', kind === 'bad' ? 'alert' : 'status');
+    vivo.textContent = msg;
+  }
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.remove(), 4200);
+  toastTimer = setTimeout(() => { el.remove(); if(vivo) vivo.textContent = ''; }, 4200);
 }
+
+// Quien tiene «reducir movimiento» activado lo tiene por algo. Aquí ninguna
+// animación aporta información, así que se va directo al estado final.
+const sinMovimiento = () =>
+  window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const desplazar = (el, arriba) => {
+  const suave = sinMovimiento() ? 'auto' : 'smooth';
+  if(el) el.scrollIntoView({ behavior: suave, block: 'nearest' });
+  else window.scrollTo({ top: arriba || 0, behavior: suave });
+};
 function loadingHtml(txt){
   return `<div class="loading"><div class="spinner"></div>${esc(txt || 'Cargando…')}</div>`;
 }
@@ -321,7 +339,7 @@ function switchView(name){
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   const el = $('view-' + name);
   if(el) el.classList.add('active');
-  window.scrollTo({top:0, behavior:'smooth'});
+  desplazar(null, 0);
   renderAll();
   // Si el aviso se quedó esperando porque estabas en el panel, ahora ya cabe.
   if(avisoPend && name !== 'panel'){
@@ -581,7 +599,7 @@ async function renderInicio(){
   top.innerHTML = `<table>
     <tr><th>#</th><th>Club</th><th>PJ</th><th>Pts</th></tr>
     ${shown.map(s => `<tr class="${isMine(s.manager_id) ? 'me' : ''}">
-      <td><span class="zone ${s.rank <= 8 ? 'zone-top' : 'zone-low'}"></span>${s.rank}</td>
+      <td><span class="zone ${s.rank <= 8 ? 'zone-top' : 'zone-low'}" role="img" aria-label="${s.rank <= 8 ? 'Playoff por el título' : 'Playoff de consolación'}"></span>${s.rank}</td>
       <td>${esc(s.club_name)}</td><td>${s.pj}</td>
       <td><strong style="color:var(--gold);">${s.pts}</strong></td></tr>`).join('')}
   </table>
@@ -660,9 +678,9 @@ async function renderPlantilla(){
       </div>
       <div style="display:flex;align-items:center;gap:12px;">${badge}
         <div class="jnav">
-          <button id="pPrev" ${j<=1?'disabled':''}>‹</button>
+          <button id="pPrev" aria-label="Jornada anterior" ${j<=1?'disabled':''}><span aria-hidden="true">‹</span></button>
           <span class="lbl">Jornada ${j}</span>
-          <button id="pNext" ${j>=N_JORNADAS?'disabled':''}>›</button>
+          <button id="pNext" aria-label="Jornada siguiente" ${j>=N_JORNADAS?'disabled':''}><span aria-hidden="true">›</span></button>
         </div></div>
     </div></div>`;
   $('pPrev').addEventListener('click', () => { S.plantillaJornada = clamp(j-1); S.draft = null; renderPlantilla(); });
@@ -706,8 +724,8 @@ async function renderPlantilla(){
     blocks += `<div class="lineup-row">
       <div class="slot-num">${i+1}</div>
       <span class="pos-tag pos-${s.pos}">${s.pos}</span>
-      <select class="slotClub" data-i="${i}" ${editable?'':'disabled'}>${clubOpts(s.club_id)}</select>
-      <select class="slotPlayer pn" data-i="${i}" ${(!s.club_id || !editable)?'disabled':''}>${playerOpts(s.club_id, s.pos, s.club_player_id, s.player_name)}</select>
+      <select class="slotClub" data-i="${i}" aria-label="Hueco ${i+1}, ${POS_LABEL[s.pos]}: club" ${editable?'':'disabled'}>${clubOpts(s.club_id)}</select>
+      <select class="slotPlayer pn" data-i="${i}" aria-label="Hueco ${i+1}, ${POS_LABEL[s.pos]}: jugador" ${(!s.club_id || !editable)?'disabled':''}>${playerOpts(s.club_id, s.pos, s.club_player_id, s.player_name)}</select>
     </div>${empty ? `<div class="club-tag" style="margin:-4px 0 6px 84px;">No hay ${s.pos} cargados para ${esc(clubName(s.club_id))}. La organización tiene que subir esa plantilla.</div>` : ''}`;
   });
   if(lastPos !== null) blocks += '</div>';
@@ -717,7 +735,7 @@ async function renderPlantilla(){
     ${d.simulada ? `<div class="banner warnb">🎲 <strong>Este once no lo has puesto tú.</strong> Lo dejó el simulador
       de la organización para probar el juego. Cámbialo a tu gusto${editable ? ' y al guardar pasa a ser tuyo' : ''}.</div>` : ''}
     <div class="toolbar">
-      <label style="margin:0;">Formación</label>
+      <label style="margin:0;" for="formSel">Formación</label>
       <select id="formSel" style="max-width:150px;" ${editable?'':'disabled'}>
         ${Object.keys(FORMATIONS).map(f => `<option value="${f}" ${f===d.formation?'selected':''}>${f}</option>`).join('')}
       </select>
@@ -856,7 +874,7 @@ function renderClasificacion(){
   $('tablaClasificacion').innerHTML = `<div style="overflow-x:auto;"><table>
     <tr><th>#</th><th>Club</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>SF</th><th>SC</th><th>Dif</th><th>Pts</th><th>Racha</th></tr>
     ${S.standings.map(s => `<tr class="st-row ${isMine(s.manager_id)?'me':''}">
-      <td><span class="zone ${s.rank<=8?'zone-top':'zone-low'}"></span>${s.rank}</td>
+      <td><span class="zone ${s.rank<=8?'zone-top':'zone-low'}" role="img" aria-label="${s.rank<=8?'Playoff por el título':'Playoff de consolación'}"></span>${s.rank}</td>
       <td>${esc(s.club_name)}<br><span class="club-tag">${esc(s.owner_name || '—')}</span></td>
       <td>${s.pj}</td><td>${s.g}</td><td>${s.e}</td><td>${s.p}</td>
       <td>${s.sub_f}</td><td>${s.sub_c}</td><td>${s.sub_dif > 0 ? '+' : ''}${s.sub_dif}</td>
@@ -903,7 +921,7 @@ async function renderPlayoffs(){
           <td>${esc(mgr(away).club_name)}</td>
           <td><strong>${g.home_sub !== null && g.away_sub !== null ? g.home_sub+' - '+g.away_sub : '—'}</strong></td></tr>`;
       }).join('')}</table>`;
-    el.scrollIntoView({behavior:'smooth', block:'nearest'});
+    desplazar(el);
   }
 }
 
@@ -967,7 +985,7 @@ async function panelSimulador(body, seq){
       quien no tenga once —<strong>nunca pisa la alineación de una persona</strong>— y cruza esas alineaciones con
       las estadísticas reales de la jornada. Al terminar puedes borrar solo lo simulado.</div>
     <div class="card"><div class="toolbar">
-      <label style="margin:0;">Jornada</label><select id="simJ" style="max-width:150px;">${jOpts}</select>
+      <label style="margin:0;" for="simJ">Jornada</label><select id="simJ" style="max-width:150px;">${jOpts}</select>
       ${simuladas ? `<span class="pill warn">${simuladas} once(s) simulado(s)</span>`
                   : '<span class="pill">sin nada simulado</span>'}
     </div>
@@ -1071,10 +1089,10 @@ async function panelStats(body, seq){
     const cs = d.clubStats.find(c => c.club_id === id) || {team_points:0, clean_sheet:false, played:true};
     return `<div class="grid cols-3" data-club="${id}" style="align-items:end;margin-bottom:10px;">
       <div><label>Club</label><strong style="font-size:13px;">${esc(clubName(id))}</strong></div>
-      <div><label>Pts. de liga</label><input type="number" class="cTp" value="${cs.team_points}" min="0" max="3"></div>
+      <div><label aria-hidden="true">Pts. de liga</label><input type="number" class="cTp" aria-label="Puntos de liga de ${esc(clubName(id))}" value="${cs.team_points}" min="0" max="3"></div>
       <div><label>Portería a 0 / ¿jugó?</label>
-        <select class="cCs"><option value="0" ${!cs.clean_sheet?'selected':''}>Sin portería a 0</option><option value="1" ${cs.clean_sheet?'selected':''}>Portería a 0</option></select>
-        <select class="cPl" style="margin-top:4px;"><option value="1" ${cs.played!==false?'selected':''}>Jugó</option><option value="0" ${cs.played===false?'selected':''}>No jugó</option></select>
+        <select class="cCs" aria-label="Portería a cero de ${esc(clubName(id))}"><option value="0" ${!cs.clean_sheet?'selected':''}>Sin portería a 0</option><option value="1" ${cs.clean_sheet?'selected':''}>Portería a 0</option></select>
+        <select class="cPl" style="margin-top:4px;" aria-label="¿Jugó el ${esc(clubName(id))}?"><option value="1" ${cs.played!==false?'selected':''}>Jugó</option><option value="0" ${cs.played===false?'selected':''}>No jugó</option></select>
       </div></div>`;
   }).join('');
 
@@ -1130,7 +1148,7 @@ async function panelStats(body, seq){
       que lo eligieron.${repes ? ` Esta jornada hay ${repes} jugador(es) elegido(s) por más de uno.` : ''}
       Lo normal es cargarlo todo de la API; los formularios de abajo son para corregir a mano si hace falta.</div>
     <div class="card"><div class="toolbar">
-      <label style="margin:0;">Jornada</label><select id="stJ" style="max-width:150px;">${jOpts}</select>
+      <label style="margin:0;" for="stJ">Jornada</label><select id="stJ" style="max-width:150px;">${jOpts}</select>
       <span class="pill">${clubIds.length} club(es)</span>
       <span class="pill">${picked.length} jugador(es) elegido(s)</span>
     </div></div>
@@ -1260,8 +1278,8 @@ function panelManagers(body){
       deja libre para que otro la fiche: el código anterior deja de dar acceso a ella.</div>
     <div class="card"><h2>Managers</h2>
     ${S.managers.map(m => `<div class="grid cols-3" style="align-items:end;margin-bottom:10px;" data-m="${m.id}">
-      <div><label>Plaza ${m.slot} — club</label><input type="text" class="mClub" value="${esc(m.club_name)}"></div>
-      <div><label>Manager</label><input type="text" class="mOwner" value="${esc(m.owner_name)}" placeholder="libre"></div>
+      <div><label aria-hidden="true">Plaza ${m.slot} — club</label><input type="text" class="mClub" aria-label="Nombre del club de la plaza ${m.slot}" value="${esc(m.club_name)}"></div>
+      <div><label aria-hidden="true">Manager</label><input type="text" class="mOwner" aria-label="Nombre del manager de la plaza ${m.slot}" value="${esc(m.owner_name)}" placeholder="libre"></div>
       <div style="display:flex;gap:6px;">
         <button class="btn small mSave">Guardar</button>
         <button class="btn ghost small mFree">Liberar</button>
@@ -1397,19 +1415,19 @@ function panelEquipos(body){
     <div class="card"><h2>Clubes de Primera</h2>
       <div class="grid cols-4">${S.clubs.map(c => `<div style="display:flex;gap:4px;align-items:center;" data-c="${c.id}">
         <input type="text" class="cName" value="${esc(c.name)}" style="flex:1;">
-        <button class="btn danger small cDel">✕</button></div>`).join('')}</div>
+        <button class="btn danger small cDel" aria-label="Quitar el club ${esc(c.name)}"><span aria-hidden="true">✕</span></button></div>`).join('')}</div>
       <div style="margin-top:12px;display:flex;gap:8px;">
         <input type="text" id="newClub" placeholder="Añadir club…" style="max-width:220px;">
         <button class="btn ghost small" id="addClub">+ Añadir</button></div></div>
     <div class="card"><h2>Plantillas reales</h2>
-      <div class="toolbar"><label style="margin:0;">Club</label>
+      <div class="toolbar"><label style="margin:0;" for="clubSel">Club</label>
         <select id="clubSel" style="max-width:250px;">${S.clubs.map(c =>
           `<option value="${c.id}" ${c.id===equiposClub?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
         <span class="pill">${list.filter(p => p.activo !== false).length} en plantilla${
           list.some(p => p.activo === false) ? ` · ${list.filter(p => p.activo === false).length} de baja` : ''}</span></div>
       <div class="grid cols-3" style="align-items:end;">
-        <div><label>Nombre</label><input type="text" id="npName" placeholder="Ej. Vinícius Jr."></div>
-        <div><label>Posición</label><select id="npPos">
+        <div><label for="npName">Nombre</label><input type="text" id="npName" placeholder="Ej. Vinícius Jr."></div>
+        <div><label for="npPos">Posición</label><select id="npPos">
           <option value="GK">Portero (GK)</option><option value="DF">Defensa (DF)</option>
           <option value="MF">Centrocampista (MF)</option><option value="FW">Delantero (FW)</option></select></div>
         <div><button class="btn" id="addPlayer">+ Añadir</button></div></div>
@@ -1422,7 +1440,7 @@ function panelEquipos(body){
       ${list.length ? `<table><tr><th>Jugador</th><th>Posición</th><th>Estado</th><th></th></tr>${list.map(p =>
         `<tr><td>${esc(p.name)}</td><td><span class="pos-tag pos-${p.pos}">${p.pos}</span></td>
          <td>${estadoJugador(p)}</td>
-         <td style="text-align:right;"><button class="btn danger small pDel" data-p="${p.id}">✕</button></td></tr>`).join('')}</table>`
+         <td style="text-align:right;"><button class="btn danger small pDel" data-p="${p.id}" aria-label="Borrar la ficha de ${esc(p.name)}"><span aria-hidden="true">✕</span></button></td></tr>`).join('')}</table>`
         : '<p class="empty">Sin jugadores. Hasta que cargues alguno, nadie puede elegir de este club.</p>'}
     </div>`;
 
@@ -1505,8 +1523,8 @@ async function panelPlayoffs(body, seq){
         return `<div class="grid cols-3" style="align-items:end;margin-bottom:10px;" data-g="${g.id}">
           <div><label>P${g.game_no} — local</label><strong>${esc(mgr(g.home_id).club_name)}</strong>
             <span class="club-tag">vs ${esc(mgr(away).club_name)}</span></div>
-          <div><label>Subpuntos local</label><input type="number" class="gH" value="${g.home_sub ?? ''}" min="0" max="16"></div>
-          <div><label>Subpuntos visitante</label><input type="number" class="gA" value="${g.away_sub ?? ''}" min="0" max="16"></div>
+          <div><label aria-hidden="true">Subpuntos local</label><input type="number" class="gH" aria-label="Subpuntos del local en el partido ${g.game_no}" value="${g.home_sub ?? ''}" min="0" max="16"></div>
+          <div><label aria-hidden="true">Subpuntos visitante</label><input type="number" class="gA" aria-label="Subpuntos del visitante en el partido ${g.game_no}" value="${g.away_sub ?? ''}" min="0" max="16"></div>
         </div>`;
       }).join('')}
       <button class="btn" id="saveSeries">Guardar serie</button>`;
