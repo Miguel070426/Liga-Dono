@@ -23,7 +23,13 @@ su copia y sus datos, así que no servía para jugar una liga entre varios. Sigu
 en el historial de Git si alguna vez hace falta.
 
 Cada manager entra con un **código** que hace de credencial, así que sirve igual
-en el ordenador y en el móvil. No hay emails ni contraseñas. Para fichar plaza
+en el ordenador y en el móvil. No hay emails ni contraseñas.
+
+Y como el código es a la vez usuario y contraseña, un carácter mal copiado no se
+distingue de «no te has dado de alta»: cada uno tiene además su **enlace de
+acceso**, `…/Liga-Dono/#c=SU-CODIGO`, que entra sin teclear nada. El código va
+tras la almohadilla a propósito, que es la parte de la URL que no se manda al
+servidor, y se borra de la barra de direcciones en cuanto entra. Para fichar plaza
 hace falta además el código de la liga, que es lo que evita que un desconocido
 que encuentre la URL ocupe un sitio. Quien organiza activa el panel de dirección
 con un tercer código.

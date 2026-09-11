@@ -1563,15 +1563,71 @@ $('jPrev').addEventListener('click', () => { S.viewJornada = clamp(S.viewJornada
 $('jNext').addEventListener('click', () => { S.viewJornada = clamp(S.viewJornada+1); renderJornada(); });
 $('jNow').addEventListener('click',  () => { S.viewJornada = clamp(S.league.current_jornada); renderJornada(); });
 
+// El código lleva V, Z, M, W… y se teclea en un móvil. Un carácter distinto y
+// el juego ni encuentra la cuenta, porque el código es a la vez usuario y
+// contraseña. Así que cada uno tiene además su enlace de acceso y no teclea
+// nada.
+//
+// El código va tras la almohadilla a propósito: ese trozo de la URL no se
+// manda al servidor, así que no queda en ningún registro. Y en cuanto entra se
+// borra de la barra de direcciones, para que no se quede a la vista ni pase al
+// historial con la credencial dentro.
+function codigoDelEnlace(){
+  const h = String(location.hash || '');
+  const m = h.match(/(?:^#|[#&])c=([^&]+)/);
+  if(!m) return null;
+  try{ return decodeURIComponent(m[1]); }catch{ return m[1]; }
+}
+function limpiarElEnlace(){
+  if(!location.hash) return;
+  const limpio = location.pathname + location.search;
+  try{ history.replaceState(null, '', limpio); }
+  catch{ location.hash = ''; }
+}
+
+// Cambiar solo el trozo tras la almohadilla no recarga la página, así que si
+// alguien ya tiene el juego abierto y pulsa su enlace no pasaría nada. Se
+// escucha el cambio y se entra igual.
+window.addEventListener('hashchange', () => {
+  const c = codigoDelEnlace();
+  if(c) entrarPorEnlace(c);
+});
+
+async function entrarPorEnlace(codigo){
+  if(await DB.session()){ limpiarElEnlace(); return; }
+  $('hdrSub').textContent = 'Entrando…';
+  try{
+    await DB.signIn(codigo);
+    limpiarElEnlace();
+    hideAuth();
+    await boot();
+    return true;
+  }catch(err){
+    // El enlace no vale: se dice y se sigue a la puerta normal, sin dejar la
+    // credencial fallida en la barra.
+    limpiarElEnlace();
+    showStep('stepSignIn');
+    stepErr('signInErr', 'El enlace no ha funcionado: ' + err.message);
+    $('hdrSub').textContent = '12 managers · 11 jornadas · playoffs';
+    return false;
+  }
+}
+
 (async function init(){
   wireAuth();
   try{
     if(await DB.session()){
+      limpiarElEnlace();
       await boot();
-    }else{
-      showStep('stepWelcome');
-      $('hdrSub').textContent = '12 managers · 11 jornadas · playoffs';
+      return;
     }
+    const porEnlace = codigoDelEnlace();
+    if(porEnlace){
+      await entrarPorEnlace(porEnlace);
+      return;
+    }
+    showStep('stepWelcome');
+    $('hdrSub').textContent = '12 managers · 11 jornadas · playoffs';
   }catch(err){
     console.error(err);
     $('hdrSub').textContent = 'Error de conexión';

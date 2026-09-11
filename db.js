@@ -99,16 +99,38 @@ export const DB = {
       throw new Error('Ese código parece incompleto. Míralo otra vez.');
     }
     const email = emailForCode(canon);
-    // Se prueba la forma canónica primero. Las otras son por las cuentas
-    // creadas antes de normalizar la contraseña.
-    const intentos = [...new Set([canon, displayCode(canon), String(code).trim()])];
+    // La contraseña de las cuentas que crea este juego es el código con sus
+    // guiones, así que esa forma va primera: en el caso bueno es una sola
+    // petición. Las otras son por si alguna cuenta vieja quedó de otra forma.
+    const intentos = [...new Set([displayCode(canon), canon, String(code).trim()])];
+    let ultimo = null;
     for(const password of intentos){
       const { error } = await sb.auth.signInWithPassword({ email, password });
       if(!error) return;
+      ultimo = error;
+      // Si el fallo no es "credenciales inválidas" —se cayó la red, nos han
+      // limitado por intentar mucho— no tiene sentido seguir probando, y
+      // menos aún echarle la culpa al código.
+      const esCredencial = error.status === 400
+        || /invalid.*credential|credenciales/i.test(error.message || '');
+      if(!esCredencial) break;
     }
-    throw new Error('Ese código no sirve para entrar. Si todavía no has fichado '
-      + 'tu plaza, vuelve atrás y pulsa "Es mi primera vez": el código que te dio '
-      + 'la organización sirve para fichar, no para entrar.');
+    const esCredencial = ultimo && (ultimo.status === 400
+      || /invalid.*credential|credenciales/i.test(ultimo.message || ''));
+    if(!esCredencial){
+      throw new Error('No se ha podido comprobar tu código: ' +
+        (ultimo?.message || 'no hay respuesta del servidor') +
+        '. Vuelve a intentarlo en un momento.');
+    }
+    // Aquí no se sabe si el código está mal escrito o si esa persona no ha
+    // fichado: el código es a la vez usuario y contraseña, así que un carácter
+    // cambiado y la cuenta no existe. Antes esto afirmaba que no habías
+    // fichado, y a quien sí lo había hecho le mandaba a fichar otra vez.
+    throw new Error('Ese código no nos vale. Puede ser un carácter mal '
+      + 'copiado: los códigos no llevan nunca O, I, L, cero ni uno (salvo la L '
+      + 'del "LD-" del principio), así que si te parece ver alguno de esos, '
+      + 'míralo otra vez. Y si todavía no has fichado plaza, vuelve atrás y '
+      + 'pulsa "Es mi primera vez".');
   },
 
   async signOut(){ await sb.auth.signOut(); },
