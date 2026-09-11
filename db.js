@@ -9,8 +9,8 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 export const CFG = Object.assign({
   url: 'https://kcrxekmsltxtavbujmwq.supabase.co',
   key: 'sb_publishable_tSdp7IALjAg3Kl4e9c4Jpw_WBSIEJ6a',
-  // Los correos no se envían nunca: el código es la credencial y este dominio
-  // solo existe para darle a la cuenta un identificador con formato válido.
+  // Los correos no se envían nunca: se derivan del usuario y este dominio solo
+  // existe para darle a la cuenta un identificador con formato válido.
   mailDomain: 'ligadono.app'
 }, window.LIGA_CONFIG || {});
 
@@ -18,33 +18,37 @@ const sb = createClient(CFG.url, CFG.key, {
   auth: { persistSession: true, autoRefreshToken: true, storageKey: 'liga-fantasy-auth' }
 });
 
-// Alfabeto sin caracteres que se confunden al copiar a mano: 0/O, 1/I/L.
-const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-
-export function generateCode(){
-  const bytes = new Uint8Array(8);
-  crypto.getRandomValues(bytes);
-  const chars = [...bytes].map(b => ALPHABET[b % ALPHABET.length]);
-  return 'LD-' + chars.slice(0,4).join('') + '-' + chars.slice(4).join('');
+// Cada uno elige su usuario y su contraseña. Antes había un código generado
+// que hacía de las dos cosas, y falló donde importaba: nadie se acuerda de
+// `LD-VZMW-UWX4`, teclearlo en un móvil se falla, y al ser también el usuario
+// un carácter cambiado no se distingue de «no te has registrado».
+//
+// Sigue sin haber correos de verdad: Supabase Auth necesita uno, así que se
+// deriva del usuario. Lo que cambia es que la parte memorable la elige la
+// persona.
+export function canonicalUser(u){
+  return String(u || '').trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
 }
-
-// Forma canónica del código: mayúsculas y sin guiones ni espacios. La gente
-// teclea el código en minúsculas, sin guiones o con espacios de más, y todas
-// esas formas tienen que llevar a la misma cuenta.
-export function canonicalCode(code){
-  return String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+export function emailForUser(usuario){
+  return 'u' + canonicalUser(usuario) + '@' + CFG.mailDomain;
 }
+export const MIN_USUARIO = 3;
+export const MIN_CLAVE = 8;
 
-// El código es a la vez usuario y contraseña, así que el correo se deriva de él.
-export function emailForCode(code){
-  return 'm' + canonicalCode(code).toLowerCase() + '@' + CFG.mailDomain;
+// Lo que se puede decir de un usuario y una contraseña antes de tocar la red.
+export function revisaUsuario(usuario){
+  const u = canonicalUser(usuario);
+  if(u.length < MIN_USUARIO){
+    return 'El usuario necesita al menos ' + MIN_USUARIO + ' caracteres, y solo '
+      + 'letras, números, puntos, guiones o rayas.';
+  }
+  return null;
 }
-
-// Cómo se le enseña el código a la gente: LD-XXXX-XXXX
-function displayCode(canon){
-  return canon.length === 10
-    ? canon.slice(0,2) + '-' + canon.slice(2,6) + '-' + canon.slice(6)
-    : canon;
+export function revisaClave(clave){
+  if(String(clave || '').length < MIN_CLAVE){
+    return 'La contraseña necesita al menos ' + MIN_CLAVE + ' caracteres.';
+  }
+  return null;
 }
 
 function fail(error, fallback){
@@ -67,13 +71,34 @@ export const DB = {
     return data || [];
   },
 
-  // Crea la cuenta (el código es la contraseña) y ata esa cuenta a la plaza.
-  async claim(slot, club, owner, joinCode){
-    const code = generateCode();
-    const { error: upErr } = await sb.auth.signUp({
-      email: emailForCode(code), password: canonicalCode(code)
+  // Crea la cuenta con el usuario y la contraseña que ha elegido, y ata esa
+  // cuenta a la plaza.
+  async claim(slot, club, owner, usuario, clave, joinCode){
+    const malU = revisaUsuario(usuario), malC = revisaClave(clave);
+    if(malU) throw new Error(malU);
+    if(malC) throw new Error(malC);
+    const u = canonicalUser(usuario);
+
+    // Se pregunta antes de crear la cuenta: si el usuario está cogido y la
+    // cuenta ya existe, queda una cuenta huérfana en Auth y el siguiente
+    // intento con ese mismo usuario choca sin poder explicarse.
+    const { data: libre, error: libreErr } = await sb.rpc('usuario_libre', {
+      p_usuario: u, p_join_code: joinCode
     });
-    if(upErr) throw fail(upErr, 'No se ha podido crear la cuenta');
+    if(libreErr) throw fail(libreErr, 'No se ha podido comprobar el usuario');
+    if(libre === false){
+      throw new Error('El usuario «' + u + '» ya está cogido. Elige otro.');
+    }
+
+    const { error: upErr } = await sb.auth.signUp({
+      email: emailForUser(u), password: clave
+    });
+    if(upErr){
+      if(/already|registrad/i.test(upErr.message || '')){
+        throw new Error('El usuario «' + u + '» ya está cogido. Elige otro.');
+      }
+      throw fail(upErr, 'No se ha podido crear la cuenta');
+    }
 
     const { data: sess } = await sb.auth.getSession();
     if(!sess.session){
@@ -83,54 +108,57 @@ export const DB = {
     }
 
     const { error: claimErr } = await sb.rpc('claim_slot', {
-      p_slot: slot, p_club: club, p_owner: owner, p_join_code: joinCode
+      p_slot: slot, p_club: club, p_owner: owner, p_usuario: u, p_join_code: joinCode
     });
-    if(claimErr){
-      // La cuenta queda huérfana pero sirve: se puede reclamar otra plaza con
-      // el mismo código, así que devolvemos el error sin más.
-      throw fail(claimErr, 'No se ha podido reclamar la plaza');
-    }
-    return code;
+    if(claimErr) throw fail(claimErr, 'No se ha podido reclamar la plaza');
+    return u;
   },
 
-  async signIn(code){
-    const canon = canonicalCode(code);
-    if(canon.length < 6){
-      throw new Error('Ese código parece incompleto. Míralo otra vez.');
-    }
-    const email = emailForCode(canon);
-    // La contraseña de las cuentas que crea este juego es el código con sus
-    // guiones, así que esa forma va primera: en el caso bueno es una sola
-    // petición. Las otras son por si alguna cuenta vieja quedó de otra forma.
-    const intentos = [...new Set([displayCode(canon), canon, String(code).trim()])];
-    let ultimo = null;
-    for(const password of intentos){
-      const { error } = await sb.auth.signInWithPassword({ email, password });
-      if(!error) return;
-      ultimo = error;
-      // Si el fallo no es "credenciales inválidas" —se cayó la red, nos han
-      // limitado por intentar mucho— no tiene sentido seguir probando, y
-      // menos aún echarle la culpa al código.
-      const esCredencial = error.status === 400
-        || /invalid.*credential|credenciales/i.test(error.message || '');
-      if(!esCredencial) break;
-    }
-    const esCredencial = ultimo && (ultimo.status === 400
-      || /invalid.*credential|credenciales/i.test(ultimo.message || ''));
+  async signIn(usuario, clave){
+    const u = canonicalUser(usuario);
+    const mal = revisaUsuario(u);
+    if(mal) throw new Error(mal);
+    if(!String(clave || '')) throw new Error('Escribe tu contraseña.');
+
+    const { error } = await sb.auth.signInWithPassword({
+      email: emailForUser(u), password: String(clave)
+    });
+    if(!error) return;
+
+    // Un fallo que no sea de credenciales —red caída, o que nos limiten por
+    // intentar mucho— no se disfraza de contraseña equivocada.
+    const esCredencial = error.status === 400
+      || /invalid.*credential|credenciales/i.test(error.message || '');
     if(!esCredencial){
-      throw new Error('No se ha podido comprobar tu código: ' +
-        (ultimo?.message || 'no hay respuesta del servidor') +
+      throw new Error('No se ha podido comprobar tu acceso: ' +
+        (error.message || 'no hay respuesta del servidor') +
         '. Vuelve a intentarlo en un momento.');
     }
-    // Aquí no se sabe si el código está mal escrito o si esa persona no ha
-    // fichado: el código es a la vez usuario y contraseña, así que un carácter
-    // cambiado y la cuenta no existe. Antes esto afirmaba que no habías
-    // fichado, y a quien sí lo había hecho le mandaba a fichar otra vez.
-    throw new Error('Ese código no nos vale. Puede ser un carácter mal '
-      + 'copiado: los códigos no llevan nunca O, I, L, cero ni uno (salvo la L '
-      + 'del "LD-" del principio), así que si te parece ver alguno de esos, '
-      + 'míralo otra vez. Y si todavía no has fichado plaza, vuelve atrás y '
-      + 'pulsa "Es mi primera vez".');
+    // A propósito no se dice cuál de las dos falla: si dijéramos «ese usuario
+    // no existe», cualquiera podría ir probando nombres hasta dar con los de
+    // la liga.
+    throw new Error('El usuario o la contraseña no son correctos. Si no te '
+      + 'acuerdas, la organización puede ponerte una contraseña nueva.');
+  },
+
+  // Cambiar la propia contraseña, para no quedarse con la que le puso otro.
+  async changePassword(nueva){
+    const mal = revisaClave(nueva);
+    if(mal) throw new Error(mal);
+    const { error } = await sb.auth.updateUser({ password: String(nueva) });
+    if(error) throw fail(error, 'No se ha podido cambiar la contraseña');
+  },
+
+  // La organización repone la contraseña de quien la ha olvidado. Sin correos
+  // no hay recuperación automática, así que esta es la red de seguridad.
+  async resetPassword(managerId, nueva){
+    const mal = revisaClave(nueva);
+    if(mal) throw new Error(mal);
+    const { data, error } = await sb.rpc('reponer_contrasena', {
+      p_manager: managerId, p_nueva: String(nueva)
+    });
+    if(error) throw fail(error, 'No se ha podido reponer la contraseña');
+    return data;
   },
 
   async signOut(){ await sb.auth.signOut(); },
@@ -145,7 +173,7 @@ export const DB = {
   async bootstrap(){
     const [lg, mgrs, cls, pls] = await Promise.all([
       sb.from('leagues').select('id,name,current_jornada,lineups_locked,admin_user_id').limit(1).single(),
-      sb.from('managers').select('id,slot,club_name,owner_name,user_id,is_admin').order('slot'),
+      sb.from('managers').select('id,slot,club_name,owner_name,usuario,user_id,is_admin').order('slot'),
       sb.from('clubs').select('id,name').order('name'),
       sb.from('club_players').select('id,club_id,name,pos,activo,revisar,club_segun_api,motivo_baja')
     ]);

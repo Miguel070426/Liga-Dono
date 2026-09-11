@@ -22,14 +22,15 @@ navegador. Se retiró al quedarse con un reglamento distinto: cada persona tení
 su copia y sus datos, así que no servía para jugar una liga entre varios. Sigue
 en el historial de Git si alguna vez hace falta.
 
-Cada manager entra con un **código** que hace de credencial, así que sirve igual
-en el ordenador y en el móvil. No hay emails ni contraseñas.
+Cada manager elige su **usuario y su contraseña** al fichar plaza, y con ellos
+entra en el ordenador y en el móvil. No hay emails: el que la cuenta necesita se
+deriva del usuario y no se envía nada nunca.
 
-Y como el código es a la vez usuario y contraseña, un carácter mal copiado no se
-distingue de «no te has dado de alta»: cada uno tiene además su **enlace de
-acceso**, `…/Liga-Dono/#c=SU-CODIGO`, que entra sin teclear nada. El código va
-tras la almohadilla a propósito, que es la parte de la URL que no se manda al
-servidor, y se borra de la barra de direcciones en cuanto entra. Para fichar plaza
+Hubo antes un código generado que hacía de usuario y contraseña a la vez. Se
+retiró porque nadie se acuerda de `LD-VZMW-UWX4`, teclearlo en el móvil falla, y
+al ser también el usuario un carácter cambiado no se distingue de «no te has
+registrado». El precio de cambiarlo es que sin correo no hay recuperación
+automática: la contraseña la repone la organización desde su panel. Para fichar plaza
 hace falta además el código de la liga, que es lo que evita que un desconocido
 que encuentre la URL ocupe un sitio. Quien organiza activa el panel de dirección
 con un tercer código.

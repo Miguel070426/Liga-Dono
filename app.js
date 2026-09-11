@@ -148,42 +148,48 @@ function wireAuth(){
     const slot  = +$('claimSlot').value;
     const owner = $('claimOwner').value.trim();
     const club  = $('claimClub').value.trim();
+    const user  = $('claimUser').value.trim();
+    const pass  = $('claimPass').value;
     const join  = $('claimJoin').value.trim();
     stepErr('claimErr','');
     if(!slot){ stepErr('claimErr','Elige una plaza.'); return; }
     if(!owner || !club){ stepErr('claimErr','Hacen falta tu nombre y el de tu club.'); return; }
+    if(!user){ stepErr('claimErr','Elige un usuario: es con lo que entrarás.'); return; }
+    if(!pass){ stepErr('claimErr','Elige una contraseña.'); return; }
     if(!join){ stepErr('claimErr','Falta el código de la liga. Pídeselo a la organización.'); return; }
     $('doClaim').disabled = true;
     try{
-      const code = await DB.claim(slot, club, owner, join);
-      $('codeValue').textContent = code;
-      showStep('stepCode');
+      // Ya no hay pantalla intermedia con un código que apuntar: la cuenta es
+      // suya desde el primer momento, así que se entra directo.
+      await DB.claim(slot, club, owner, user, pass, join);
+      hideAuth();
+      await boot();
+      toast('Plaza fichada. Ya puedes poner tu once', 'good');
     }catch(err){
       stepErr('claimErr', err.message);
       await fillFreeSlots();
     }finally{ $('doClaim').disabled = false; }
   }));
 
-  $('copyCode').addEventListener('click', async () => {
-    try{
-      await navigator.clipboard.writeText($('codeValue').textContent);
-      toast('Código copiado', 'good');
-    }catch{ toast('Cópialo a mano, el navegador no ha dejado', 'bad'); }
-  });
-
-  $('codeDone').addEventListener('click', () => guard(async () => { hideAuth(); await boot(); }));
-
   $('doSignIn').addEventListener('click', () => guard(async () => {
-    const code = $('signInCode').value.trim();
+    const user = $('signInUser').value.trim();
+    const pass = $('signInPass').value;
     stepErr('signInErr','');
-    if(!code){ stepErr('signInErr','Escribe tu código.'); return; }
+    if(!user){ stepErr('signInErr','Escribe tu usuario.'); return; }
+    if(!pass){ stepErr('signInErr','Escribe tu contraseña.'); return; }
     $('doSignIn').disabled = true;
     try{
-      await DB.signIn(code);
+      await DB.signIn(user, pass);
       hideAuth();
       await boot();
     }catch(err){ stepErr('signInErr', err.message); }
     finally{ $('doSignIn').disabled = false; }
+  }));
+
+  // Entrar con Enter desde cualquiera de los dos campos: en el móvil el teclado
+  // ofrece «ir» y es lo que se pulsa.
+  ['signInUser','signInPass'].forEach(id => $(id).addEventListener('keydown', e => {
+    if(e.key === 'Enter') $('doSignIn').click();
   }));
 
   $('doAdmin').addEventListener('click', () => guard(async () => {
@@ -605,6 +611,34 @@ async function renderInicio(){
   </table>
   <div style="margin-top:12px;"><button class="btn ghost small" id="toStandings">Ver clasificación completa</button></div>`;
   $('toStandings').addEventListener('click', () => switchView('clasificacion'));
+
+  pintarCuenta();
+}
+
+// Cambiar la propia contraseña. Hace falta porque la organización puede poner
+// una para que entres, y nadie debería quedarse con una contraseña que eligió
+// otro.
+function pintarCuenta(){
+  const c = $('inicioCuenta');
+  if(!c) return;
+  if(!S.me){ c.innerHTML = ''; c.style.display = 'none'; return; }
+  c.style.display = '';
+  c.innerHTML = `<h2>Tu cuenta</h2>
+    <p style="font-size:12px;color:var(--chalk-dim);margin-top:0;">
+      Entras como <strong>${esc(S.me.usuario || '—')}</strong>. Si la organización te ha puesto
+      una contraseña para que pudieras entrar, cámbiala aquí por una tuya.</p>
+    <div class="toolbar" style="margin-bottom:0;">
+      <input type="password" id="miClaveNueva" placeholder="Contraseña nueva, mínimo 8"
+             autocomplete="new-password" aria-label="Contraseña nueva" style="max-width:260px;">
+      <button class="btn ghost small" id="miClaveGuardar">Cambiar mi contraseña</button>
+    </div>`;
+  $('miClaveGuardar').addEventListener('click', () => guard(async () => {
+    const v = $('miClaveNueva').value;
+    if(!v){ toast('Escribe la contraseña nueva', 'bad'); return; }
+    await DB.changePassword(v);
+    $('miClaveNueva').value = '';
+    toast('Contraseña cambiada', 'good');
+  }));
 }
 
 /* ============================================================
@@ -1275,15 +1309,28 @@ async function panelStats(body, seq){
 
 function panelManagers(body){
   body.innerHTML = `<div class="admin-note">Puedes corregir el nombre del club o del manager. Liberar una plaza la
-      deja libre para que otro la fiche: el código anterior deja de dar acceso a ella.</div>
+      deja libre para que otro la fiche: quien la tenía pierde el acceso a ese club.
+      <strong>Como no hay correos, tú eres el «he olvidado mi contraseña»</strong>: si alguien no puede entrar,
+      le pones una nueva aquí y se la pasas.</div>
     <div class="card"><h2>Managers</h2>
-    ${S.managers.map(m => `<div class="grid cols-3" style="align-items:end;margin-bottom:10px;" data-m="${m.id}">
-      <div><label aria-hidden="true">Plaza ${m.slot} — club</label><input type="text" class="mClub" aria-label="Nombre del club de la plaza ${m.slot}" value="${esc(m.club_name)}"></div>
-      <div><label aria-hidden="true">Manager</label><input type="text" class="mOwner" aria-label="Nombre del manager de la plaza ${m.slot}" value="${esc(m.owner_name)}" placeholder="libre"></div>
-      <div style="display:flex;gap:6px;">
-        <button class="btn small mSave">Guardar</button>
-        <button class="btn ghost small mFree">Liberar</button>
-      </div></div>`).join('')}</div>`;
+    ${S.managers.map(m => `<div data-m="${m.id}" style="margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid rgba(244,241,230,0.07);">
+      <div class="grid cols-3" style="align-items:end;">
+        <div><label aria-hidden="true">Plaza ${m.slot} — club</label><input type="text" class="mClub" aria-label="Nombre del club de la plaza ${m.slot}" value="${esc(m.club_name)}"></div>
+        <div><label aria-hidden="true">Manager</label><input type="text" class="mOwner" aria-label="Nombre del manager de la plaza ${m.slot}" value="${esc(m.owner_name)}" placeholder="libre"></div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn small mSave">Guardar</button>
+          <button class="btn ghost small mFree" ${m.user_id ? '' : 'disabled'}>Liberar</button>
+        </div>
+      </div>
+      <div class="toolbar" style="margin:8px 0 0;">
+        ${m.usuario
+          ? `<span class="pill">usuario: <strong>${esc(m.usuario)}</strong></span>
+             <input type="text" class="mPass" placeholder="contraseña nueva, mínimo 8"
+                    aria-label="Contraseña nueva para ${esc(m.usuario)}" style="max-width:230px;">
+             <button class="btn ghost small mReset">Reponer contraseña</button>`
+          : '<span class="club-tag">plaza libre · sin cuenta</span>'}
+      </div>
+    </div>`).join('')}</div>`;
 
   body.querySelectorAll('[data-m]').forEach(row => {
     const id = row.dataset.m;
@@ -1298,9 +1345,21 @@ function panelManagers(body){
     row.querySelector('.mFree').addEventListener('click', () => guard(async () => {
       const m = mgr(id);
       if(!confirm(`¿Liberar la plaza ${m.slot}? Quien la tenía perderá el acceso a ese club.`)) return;
-      await DB.adminSetManager(id, { user_id:null, club_name:'Plaza '+m.slot, owner_name:'', claimed_at:null });
+      await DB.adminSetManager(id, { user_id:null, usuario:null, club_name:'Plaza '+m.slot,
+                                     owner_name:'', claimed_at:null });
       toast('Plaza liberada', 'good');
       await boot(); switchView('panel');
+    }));
+    const reset = row.querySelector('.mReset');
+    if(reset) reset.addEventListener('click', () => guard(async () => {
+      const campo = row.querySelector('.mPass');
+      const nueva = campo.value;
+      if(!nueva){ toast('Escribe la contraseña nueva antes', 'bad'); return; }
+      const m = mgr(id);
+      if(!confirm(`¿Ponerle una contraseña nueva a ${m.usuario}? La que tuviera deja de servir.`)) return;
+      const quien = await DB.resetPassword(id, nueva);
+      campo.value = '';
+      toast(`Contraseña nueva para ${quien}. Pásasela.`, 'good');
     }));
   });
 }
@@ -1563,67 +1622,11 @@ $('jPrev').addEventListener('click', () => { S.viewJornada = clamp(S.viewJornada
 $('jNext').addEventListener('click', () => { S.viewJornada = clamp(S.viewJornada+1); renderJornada(); });
 $('jNow').addEventListener('click',  () => { S.viewJornada = clamp(S.league.current_jornada); renderJornada(); });
 
-// El código lleva V, Z, M, W… y se teclea en un móvil. Un carácter distinto y
-// el juego ni encuentra la cuenta, porque el código es a la vez usuario y
-// contraseña. Así que cada uno tiene además su enlace de acceso y no teclea
-// nada.
-//
-// El código va tras la almohadilla a propósito: ese trozo de la URL no se
-// manda al servidor, así que no queda en ningún registro. Y en cuanto entra se
-// borra de la barra de direcciones, para que no se quede a la vista ni pase al
-// historial con la credencial dentro.
-function codigoDelEnlace(){
-  const h = String(location.hash || '');
-  const m = h.match(/(?:^#|[#&])c=([^&]+)/);
-  if(!m) return null;
-  try{ return decodeURIComponent(m[1]); }catch{ return m[1]; }
-}
-function limpiarElEnlace(){
-  if(!location.hash) return;
-  const limpio = location.pathname + location.search;
-  try{ history.replaceState(null, '', limpio); }
-  catch{ location.hash = ''; }
-}
-
-// Cambiar solo el trozo tras la almohadilla no recarga la página, así que si
-// alguien ya tiene el juego abierto y pulsa su enlace no pasaría nada. Se
-// escucha el cambio y se entra igual.
-window.addEventListener('hashchange', () => {
-  const c = codigoDelEnlace();
-  if(c) entrarPorEnlace(c);
-});
-
-async function entrarPorEnlace(codigo){
-  if(await DB.session()){ limpiarElEnlace(); return; }
-  $('hdrSub').textContent = 'Entrando…';
-  try{
-    await DB.signIn(codigo);
-    limpiarElEnlace();
-    hideAuth();
-    await boot();
-    return true;
-  }catch(err){
-    // El enlace no vale: se dice y se sigue a la puerta normal, sin dejar la
-    // credencial fallida en la barra.
-    limpiarElEnlace();
-    showStep('stepSignIn');
-    stepErr('signInErr', 'El enlace no ha funcionado: ' + err.message);
-    $('hdrSub').textContent = '12 managers · 11 jornadas · playoffs';
-    return false;
-  }
-}
-
 (async function init(){
   wireAuth();
   try{
     if(await DB.session()){
-      limpiarElEnlace();
       await boot();
-      return;
-    }
-    const porEnlace = codigoDelEnlace();
-    if(porEnlace){
-      await entrarPorEnlace(porEnlace);
       return;
     }
     showStep('stepWelcome');

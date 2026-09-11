@@ -8,14 +8,45 @@ y la jornada 1 abierta.
 
 ## Cómo entra la gente
 
-El código **es** la credencial. Al reclamar plaza, la web genera un código
-(tipo `LD-7F3K-2QX9`), crea una cuenta cuya contraseña es ese código y lo
-enseña una vez. Para entrar desde otro dispositivo se mete solo el código: no
-hay email, ni contraseña aparte, ni plaza que recordar.
+**Usuario y contraseña, elegidos por cada uno.** Al fichar plaza se eligen, se
+crea la cuenta y se entra directo: no hay nada que apuntar. Sigue sin haber
+correos de verdad —Supabase Auth necesita uno, así que se deriva del usuario
+(`upepe@ligadono.app`)—, pero la parte memorable la elige la persona.
+
+Antes esto era un código generado que hacía de usuario y de contraseña a la
+vez, y la idea era buena en el papel: nada que recordar y sirve en cualquier
+dispositivo. En la práctica falló en todo lo que importaba:
+
+- Nadie se acuerda de `LD-VZMW-UWX4`, así que hay que guardarlo y se pierde.
+- **Teclearlo en un móvil falla.** Un manager con su plaza fichada no conseguía
+  entrar. Comprobado hasta el fondo: el código era el correcto —verificado
+  contra el cifrado de su propia cuenta—, la cuenta estaba sana, una llamada
+  directa al servicio de acceso con ese código devolvía 200 y un token, y el
+  sitio publicado era la versión actual. En los registros, sus intentos desde
+  el iPhone salían como `invalid_credentials`. Lo teclado no era el código.
+- Al ser también el usuario, **un carácter cambiado no se distingue de «esa
+  persona no se ha registrado»**: el juego no puede decir cuál de las dos cosas
+  pasa, y el aviso acabó mandando a fichar otra vez a quien ya tenía plaza.
+- El gestor de contraseñas del navegador no podía ayudar, porque no había un
+  campo de contraseña que guardar.
+
+El precio del cambio, asumido a la vista: **sin correo no hay «he olvidado mi
+contraseña» automático**. La repone la organización desde su panel
+(`reponer_contrasena`), que para doce amigos es quien va a estar de todas
+formas. Y cada uno puede cambiarse la suya desde Inicio, para no quedarse con
+una que le puso otro.
+
+El usuario no distingue mayúsculas ni espacios de más, y es único por liga. Al
+fichar se comprueba que esté libre **antes** de crear la cuenta: si no, cada
+intento con un usuario ya cogido dejaría una cuenta huérfana en Auth.
+
+Cuando el acceso falla no se dice cuál de las dos cosas está mal. Decir «ese
+usuario no existe» dejaría probar nombres hasta dar con los de la liga.
 
 Para fichar hace falta además el **código de la liga**, que es la puerta de
 entrada: sin él, cualquiera que encontrase la URL pública podría ocupar una
-plaza libre. Se reparte entre los 12.
+plaza libre. Se reparte entre los 12. Ese sí sigue siendo un código, pero se
+teclea una vez en la vida y con él delante.
 
 Quien organiza usa el **código de dirección**, que convierte su cuenta en
 administradora.
@@ -86,8 +117,10 @@ antes. Partido a partido cada uno son un par de segundos, y el panel puede ir
 contando por dónde va.
 
 Qué ronda real alimenta cada jornada nuestra lo dice `jornada_rondas`: nuestra
-liga son 11 jornadas y la de verdad 38. Por defecto la 1 con la 1, pero se
-puede cambiar si la liga arranca a mitad de temporada.
+liga son 11 jornadas y la de verdad 38. Arranca en la primera ronda que estaba
+entera por jugar —la 7— y va de la 7 a la 17, del 18 de septiembre al 20 de
+diciembre. Apuntaba a la 1, jugada en agosto, lo que habría hecho empezar con
+una jornada ya decidida antes de que nadie alineara.
 
 **Comprobado contra los datos reales.** Jornada 1: 453 fichas, 28 goles por
 jugador y 28 en los marcadores, 19.749 minutos (≈20 equipos × 990), 20 filas de
