@@ -222,6 +222,22 @@ function wireAuth(){
 async function boot(){
   $('hdrSub').textContent = 'Cargando…';
   const snap = await DB.bootstrap();
+
+  // Una sesión sin plaza y sin dirección viene de un alta que se quedó a
+  // medias: la cuenta se creó pero no llegó a atarse a ninguna plaza. Dejar
+  // entrar así es lo peor de los dos mundos, porque el juego se ve vacío, no
+  // se puede alinear, y encima parece que estás dentro. Fuera la sesión y a
+  // empezar otra vez, que es lo único que arregla eso.
+  if(!snap.me && !snap.isAdmin){
+    await DB.signOut();
+    Object.assign(S, snap, { me:null, isAdmin:false });
+    await fillFreeSlots();
+    showStep('stepWelcome');
+    $('hdrSub').textContent = '12 managers · 11 jornadas · playoffs';
+    toast('Esa cuenta no llegó a fichar plaza. Empieza otra vez por «Es mi primera vez».', 'bad');
+    return;
+  }
+
   Object.assign(S, snap);
   S.cache = {};
   S.viewJornada = clamp(S.league.current_jornada);
@@ -637,6 +653,7 @@ function pintarCuenta(){
       <input type="password" id="miClaveNueva" placeholder="Contraseña nueva, mínimo 8"
              autocomplete="new-password" aria-label="Contraseña nueva" style="max-width:260px;">
       <button class="btn ghost small" id="miClaveGuardar">Cambiar mi contraseña</button>
+      <button class="btn ghost small" id="miSalir">Cerrar sesión</button>
     </div>`;
   $('miClaveGuardar').addEventListener('click', () => guard(async () => {
     const v = $('miClaveNueva').value;
@@ -644,6 +661,13 @@ function pintarCuenta(){
     await DB.changePassword(v);
     $('miClaveNueva').value = '';
     toast('Contraseña cambiada', 'good');
+  }));
+  // Estaba solo dentro del panel de dirección, así que un jugador normal no
+  // tenía forma de salir de su propia sesión.
+  $('miSalir').addEventListener('click', () => guard(async () => {
+    if(!confirm('¿Cerrar sesión? Necesitarás tu usuario y tu contraseña para volver.')) return;
+    await DB.signOut();
+    location.reload();
   }));
 }
 
@@ -1611,9 +1635,9 @@ function panelCuenta(body){
     <div class="card"><h2>Sesión</h2>
       <p style="font-size:13px;">${S.me ? 'Entras como <strong>'+esc(S.me.club_name)+'</strong> (plaza '+S.me.slot+').' : 'Sin plaza de manager.'}</p>
       <button class="btn danger" id="signOut">Cerrar sesión en este dispositivo</button>
-      <p class="club-tag" style="margin-top:10px;">Para volver a entrar necesitarás tu código.</p></div>`;
+      <p class="club-tag" style="margin-top:10px;">Para volver a entrar necesitarás tu usuario y tu contraseña.</p></div>`;
   $('signOut').addEventListener('click', () => guard(async () => {
-    if(!confirm('¿Cerrar sesión? Necesitarás tu código para volver.')) return;
+    if(!confirm('¿Cerrar sesión? Necesitarás tu usuario y tu contraseña para volver.')) return;
     await DB.signOut();
     location.reload();
   }));
