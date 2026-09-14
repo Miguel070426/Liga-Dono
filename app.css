@@ -9,6 +9,11 @@
     --chalk:#f4f1e6;
     --chalk-dim:#a9c2b3;
     --red-card:#c1443a;
+    /* El rojo de tarjeta da 3.02:1 sobre el panel, por debajo del 4.5:1 que
+       necesita un texto normal. Como aviso de error se lee mal, así que hay
+       uno aclarado para texto y el original se queda para rellenos. */
+    --red-text:#e5705f;
+    --red-fill:#b23a31;
     --win:#5fae7a;
     --lose:#c1443a;
     --draw:#a9c2b3;
@@ -94,13 +99,31 @@
   .grid.cols-4{ grid-template-columns:repeat(4,1fr); }
   @media (max-width:860px){ .grid.cols-2,.grid.cols-3,.grid.cols-4{ grid-template-columns:1fr; } }
 
+
   label{ font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:var(--chalk-dim); display:block; margin-bottom:4px; }
   input[type=text], input[type=number], input[type=password], select, textarea{
     width:100%; background:var(--panel-2); border:1px solid rgba(244,241,230,0.15);
     color:var(--chalk); padding:7px 9px; border-radius:6px; font-family:inherit; font-size:13px;
   }
+  /* Un anillo de foco en todo lo que se puede accionar, no solo en los
+     campos: sin esto, quien navega con el teclado no sabe dónde está. */
+  input:focus-visible, select:focus-visible, textarea:focus-visible,
+  button:focus-visible, a:focus-visible, [tabindex]:focus-visible{
+    outline:2px solid var(--gold); outline-offset:2px;
+  }
   input:focus, select:focus, textarea:focus{ outline:2px solid var(--gold); }
+  /* Sobre fondo dorado el anillo dorado no se ve, así que ahí va en claro. */
+  button.btn:not(.ghost):not(.danger):focus-visible,
+  .aviso-vivo:focus-visible{ outline-color:var(--chalk); }
   input[type=number]{ text-align:center; }
+  /* Safari en iPhone hace zoom solo al enfocar un campo de menos de 16px, y
+     te deja la pantalla descolocada. Alinear los doce desde el móvil con eso
+     es un suplicio, así que en pantalla pequeña los campos van a 16. */
+  @media (max-width:860px){
+    input[type=text], input[type=number], input[type=password], select, textarea{
+      font-size:16px; padding:9px 11px;
+    }
+  }
 
   button.btn{
     background:var(--gold); color:var(--night); border:none; padding:9px 16px;
@@ -110,9 +133,11 @@
   button.btn:hover{ background:#f3c862; }
   button.btn.ghost{ background:transparent; border:1px solid var(--gold-dim); color:var(--gold); }
   button.btn.ghost:hover{ background:rgba(232,184,75,0.1); }
-  button.btn.danger{ background:var(--red-card); color:var(--chalk); }
+  button.btn.danger{ background:var(--red-fill); color:var(--chalk); }
   button.btn:disabled{ opacity:0.4; cursor:not-allowed; }
-  button.btn.small{ padding:5px 10px; font-size:11px; }
+  /* 24 px es el mínimo para acertar con el dedo. Los botones pequeños se
+     quedaban en 21 y en el móvil se fallan. */
+  button.btn.small{ padding:5px 10px; font-size:11px; min-height:26px; }
   button.btn.big{ padding:13px 26px; font-size:14px; }
 
   table{ width:100%; border-collapse:collapse; font-size:13px; }
@@ -123,25 +148,28 @@
 
   .badge{ display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:bold; }
   .badge.win{ background:var(--win); color:var(--night); }
-  .badge.lose{ background:var(--lose); color:var(--chalk); }
+  .badge.lose{ background:var(--red-fill); color:var(--chalk); }
   .badge.draw{ background:var(--draw); color:var(--night); }
   .badge.soft{ background:rgba(244,241,230,0.1); color:var(--chalk-dim); }
 
   .pos-tag{ font-size:10px; padding:1px 6px; border-radius:4px; text-transform:uppercase; font-weight:bold; }
   .pos-GK{ background:#4b6ea8; color:#fff; }
   .pos-DF{ background:#3d7a4f; color:#fff; }
-  .pos-MF{ background:#c98a2c; color:#fff; }
+  .pos-MF{ background:#c98a2c; color:var(--night); }   /* ámbar claro: texto oscuro */
   .pos-FW{ background:#c1443a; color:#fff; }
 
   .club-tag{ font-size:11px; color:var(--chalk-dim); }
   .toolbar{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
   .pill{ background:var(--panel-2); border-radius:20px; padding:6px 14px; font-size:12px; }
-  .warn{ color:var(--red-card); font-size:12px; margin-top:6px; }
-  .pill.warn{ margin-top:0; padding:3px 10px; font-size:11px; background:rgba(193,68,58,0.16); }
+  .warn{ color:var(--red-text); font-size:12px; margin-top:6px; }
+  /* El tinte al 16% dejaba el texto en 4.45:1, un pelo por debajo del
+     mínimo. Al 10% se lee en 4.62 y se sigue notando que es un aviso. */
+  .pill.warn{ margin-top:0; padding:3px 10px; font-size:11px;
+    background:rgba(193,68,58,0.10); border:1px solid rgba(193,68,58,0.45); }
   .ok{ color:var(--win); font-size:12px; margin-top:6px; }
   .empty{ text-align:center; color:var(--chalk-dim); padding:30px; font-size:13px; }
   .flex-between{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
-  footer.foot{ text-align:center; color:rgba(169,194,179,0.5); font-size:11px; padding:24px; }
+  footer.foot{ text-align:center; color:rgba(169,194,179,0.7); font-size:11px; padding:24px; }
 
   /* ---------- HERO (INICIO) ---------- */
   .hero{
@@ -420,7 +448,7 @@
     box-shadow:0 6px 20px rgba(0,0,0,0.45);
   }
   .aviso-vivo:hover{ background:#f3c862; }
-  .aviso-vivo:focus-visible{ outline:2px solid var(--chalk); outline-offset:2px; }
+  .aviso-vivo:focus-visible{ outline-offset:2px; }
 .banner strong{ color:var(--gold); }
 
 .save-state{ font-size:11px; color:var(--chalk-dim); }
@@ -431,3 +459,16 @@
 button.btn.wide{ width:100%; }
 .gate .err{ background:rgba(193,68,58,0.12); border-left:3px solid var(--red-card);
   padding:9px 12px; border-radius:6px; font-size:12px; margin-bottom:12px; }
+
+  /* ---------- MOVIMIENTO ---------- */
+  /* Quien lleva activado «reducir movimiento» en su sistema lo lleva por algo:
+     mareos, migrañas o simplemente que le molesta. Aquí no hay animación que
+     aporte información, así que se quitan todas y se deja el estado final. */
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{
+      animation-duration:0.01ms !important;
+      animation-iteration-count:1 !important;
+      transition-duration:0.01ms !important;
+      scroll-behavior:auto !important;
+    }
+  }

@@ -8,14 +8,45 @@ y la jornada 1 abierta.
 
 ## Cómo entra la gente
 
-El código **es** la credencial. Al reclamar plaza, la web genera un código
-(tipo `LD-7F3K-2QX9`), crea una cuenta cuya contraseña es ese código y lo
-enseña una vez. Para entrar desde otro dispositivo se mete solo el código: no
-hay email, ni contraseña aparte, ni plaza que recordar.
+**Usuario y contraseña, elegidos por cada uno.** Al fichar plaza se eligen, se
+crea la cuenta y se entra directo: no hay nada que apuntar. Sigue sin haber
+correos de verdad —Supabase Auth necesita uno, así que se deriva del usuario
+(`upepe@ligadono.app`)—, pero la parte memorable la elige la persona.
+
+Antes esto era un código generado que hacía de usuario y de contraseña a la
+vez, y la idea era buena en el papel: nada que recordar y sirve en cualquier
+dispositivo. En la práctica falló en todo lo que importaba:
+
+- Nadie se acuerda de `LD-VZMW-UWX4`, así que hay que guardarlo y se pierde.
+- **Teclearlo en un móvil falla.** Un manager con su plaza fichada no conseguía
+  entrar. Comprobado hasta el fondo: el código era el correcto —verificado
+  contra el cifrado de su propia cuenta—, la cuenta estaba sana, una llamada
+  directa al servicio de acceso con ese código devolvía 200 y un token, y el
+  sitio publicado era la versión actual. En los registros, sus intentos desde
+  el iPhone salían como `invalid_credentials`. Lo teclado no era el código.
+- Al ser también el usuario, **un carácter cambiado no se distingue de «esa
+  persona no se ha registrado»**: el juego no puede decir cuál de las dos cosas
+  pasa, y el aviso acabó mandando a fichar otra vez a quien ya tenía plaza.
+- El gestor de contraseñas del navegador no podía ayudar, porque no había un
+  campo de contraseña que guardar.
+
+El precio del cambio, asumido a la vista: **sin correo no hay «he olvidado mi
+contraseña» automático**. La repone la organización desde su panel
+(`reponer_contrasena`), que para doce amigos es quien va a estar de todas
+formas. Y cada uno puede cambiarse la suya desde Inicio, para no quedarse con
+una que le puso otro.
+
+El usuario no distingue mayúsculas ni espacios de más, y es único por liga. Al
+fichar se comprueba que esté libre **antes** de crear la cuenta: si no, cada
+intento con un usuario ya cogido dejaría una cuenta huérfana en Auth.
+
+Cuando el acceso falla no se dice cuál de las dos cosas está mal. Decir «ese
+usuario no existe» dejaría probar nombres hasta dar con los de la liga.
 
 Para fichar hace falta además el **código de la liga**, que es la puerta de
 entrada: sin él, cualquiera que encontrase la URL pública podría ocupar una
-plaza libre. Se reparte entre los 12.
+plaza libre. Se reparte entre los 12. Ese sí sigue siendo un código, pero se
+teclea una vez en la vida y con él delante.
 
 Quien organiza usa el **código de dirección**, que convierte su cuenta en
 administradora.
@@ -86,8 +117,10 @@ antes. Partido a partido cada uno son un par de segundos, y el panel puede ir
 contando por dónde va.
 
 Qué ronda real alimenta cada jornada nuestra lo dice `jornada_rondas`: nuestra
-liga son 11 jornadas y la de verdad 38. Por defecto la 1 con la 1, pero se
-puede cambiar si la liga arranca a mitad de temporada.
+liga son 11 jornadas y la de verdad 38. Arranca en la primera ronda que estaba
+entera por jugar —la 7— y va de la 7 a la 17, del 18 de septiembre al 20 de
+diciembre. Apuntaba a la 1, jugada en agosto, lo que habría hecho empezar con
+una jornada ya decidida antes de que nadie alineara.
 
 **Comprobado contra los datos reales.** Jornada 1: 453 fichas, 28 goles por
 jugador y 28 en los marcadores, 19.749 minutos (≈20 equipos × 990), 20 filas de
@@ -272,6 +305,52 @@ Verificado después del cambio, con la identidad de un jugador y de la
 organización: el jugador no ve ninguno de los dos códigos pero sí la jornada;
 la organización cierra la jornada pero tampoco toca los códigos.
 
+## Revisión de seguridad
+
+Hecha a propósito, porque la fuga de los códigos salió de rebote y eso no es un
+método. El linter de Supabase dio 25 avisos; esto es lo que resultó ser cada
+cosa.
+
+**Un fallo real, sin consecuencia por suerte.** En Postgres, crear una función
+le da EXECUTE a **PUBLIC**. En las migraciones 0019 y 0021 escribí
+`revoke all ... from anon` creyendo cerrar las funciones de organización, y no
+cerré nada: quitaba el permiso explícito de `anon`, pero `anon` seguía
+entrando por el de PUBLIC. El ACL lo decía —`=X/postgres`, con el hueco
+delante, es PUBLIC— y no lo leí.
+
+Comprobado llamando a las once funciones con la identidad de `anon` y sin
+sesión: **ninguna dejaba hacer nada**. Las seis de organización se rechazan
+solas, y `claim_slot` y `claim_admin` piden sesión incluso con el código
+correcto. Es decir: no hubo agujero, pero por suerte y no por diseño. La
+primera función que alguien añada sin ese control habría quedado abierta a
+internet el día de crearla.
+
+Arreglado donde debía: el permiso quitado de PUBLIC y dado a `authenticated`,
+salvo `public_slots()`, que es lo único que se llama antes de entrar. Y
+`alter default privileges` para que las próximas no nazcan abiertas. Los
+ejecutables sin sesión pasan de once a uno.
+
+El esquema `app` se queda como está, a propósito: las políticas RLS llaman a
+`app.is_admin()` **como el usuario que consulta**, así que tocar los permisos
+ahí rompería la lectura para todos. Lo que lo mantiene fuera de la API es que
+PostgREST no publica ese esquema.
+
+**Lo que el linter marca y no es un problema:**
+
+- *Once funciones ejecutables por usuarios con sesión.* Es el diseño: son la
+  API del juego, y cada una decide por dentro quién puede qué. Verificado con
+  la identidad de un jugador y de la organización.
+- *`hl_matches` y `hl_players` con RLS y sin políticas.* Deliberado: denegar
+  por defecto. Son materia prima interna y el panel las consulta por
+  `jornada_partidos()`, que decide qué se ve.
+- *Protección de contraseñas filtradas desactivada.* Nuestras contraseñas son
+  códigos generados al azar, que nadie elige. Comprobarlos contra
+  HaveIBeenPwned no aporta nada y podría rechazar un código válido.
+- *Los avisos de rendimiento* —once claves ajenas sin índice, tres índices sin
+  usar, políticas permisivas duplicadas— no se tocan. Las tablas tienen entre
+  12 y 900 filas: poner índices ahí es ruido, no optimización. Cuando alguna
+  pase de unas decenas de miles, se mira otra vez.
+
 ## El aviso en vivo
 
 Doce personas mirando la misma jornada tienen que verla moverse sin darle a
@@ -369,13 +448,19 @@ el esquema `app`, que PostgREST no publica.
    Providers → sección *User Signups* → *Confirm email* en `off`). Sin eso, crear
    la cuenta al fichar se quedaba a medias esperando un correo que nadie iba a
    recibir, porque las direcciones son internas.
-2. **Activar GitHub Pages** en los ajustes del repo, para que todos entren por
-   un enlace en lugar de repartir el archivo.
-3. ~~Cambiar los dos códigos~~ · hecho. Estuvieron un tiempo escritos en este
+2. ~~Activar GitHub Pages~~ · hecho.
+3. **Apuntar GitHub Pages a `main`.** Estuvo sirviendo la rama de trabajo
+   `claude/game-ui-gameplay-focus-k22mhu` mientras `main` iba por detrás.
+   Ahora que está fusionada, el enlace público debe salir de `main`: mientras
+   apunte a una rama de trabajo, cualquier commit a medias se publica en el
+   momento a los doce jugadores. Settings → Pages → *Branch* → `main` → `/`
+   (root).
+4. ~~Cambiar los dos códigos~~ · hecho. Estuvieron un tiempo escritos en este
    README, que es público: se han cambiado y ya no se documentan aquí.
-4. **Cargar las plantillas** de los 20 clubes desde el panel de dirección: los
-   clubes están creados pero vacíos, y hasta que tengan jugadores nadie puede
-   alinear.
+5. ~~Cargar las plantillas~~ · hecho. Los 20 clubes tienen plantilla y se
+   mantienen solas a partir de los box score.
+6. **Faltan 9 managers** por fichar su plaza. Hasta que la fichen, sus cruces
+   salen contra plazas vacías.
 
 ## Estado de la verificación
 

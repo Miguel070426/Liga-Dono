@@ -4,7 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Liga Fantasy · 12 Managers</title>
-<link rel="stylesheet" href="app.css">
+<!-- La ?v= de estos dos hay que subirla al cambiar app.js, db.js o app.css.
+     Sin ella el navegador puede quedarse con la versión de antes durante días:
+     a un manager le creó dos cuentas a medias porque su móvil seguía con el
+     JavaScript viejo hablando con la base de datos nueva. -->
+<link rel="stylesheet" href="app.css?v=202609141134">
 </head>
 <body>
 
@@ -18,11 +22,11 @@
       <h2>Bienvenido</h2>
       <p class="lead">Once titulares de toda Primera, 11 jornadas y playoffs.</p>
       <button class="btn big wide" id="goClaim">Es mi primera vez · fichar plaza</button>
-      <button class="btn ghost wide" id="goSignIn" style="margin-top:9px;">Ya fiché · entrar con mi código</button>
+      <button class="btn ghost wide" id="goSignIn" style="margin-top:9px;">Ya tengo cuenta · entrar</button>
       <p class="lead" style="margin:16px 0 0;font-size:12px;">
-        Si es tu primera vez, pulsa arriba: el código que te ha dado la organización
-        sirve para <strong>fichar</strong>, no para entrar. Tu código de entrada te lo
-        damos después, y empieza por <code>LD-</code>.</p>
+        La primera vez eliges tu plaza, tu usuario y tu contraseña, y hace falta
+        el <strong>código de la liga</strong> que te ha dado la organización.
+        Después entras con tu usuario y tu contraseña, aquí y en el móvil.</p>
       <div class="switch"><button id="goAdmin">Soy la organización</button></div>
     </div>
 
@@ -30,49 +34,50 @@
     <div class="auth-step hidden" id="stepClaim">
       <div class="kick">Alta de manager</div>
       <h2>Ficha tu plaza</h2>
-      <p class="lead">Elige plaza, ponle nombre a tu club y mete el código de la liga. Te daremos tu código de acceso personal.</p>
-      <div class="err hidden" id="claimErr"></div>
-      <div class="field"><label>Plaza libre</label><select id="claimSlot"></select></div>
-      <div class="field"><label>Tu nombre</label><input type="text" id="claimOwner" placeholder="Ej. Miguel" autocomplete="off"></div>
-      <div class="field"><label>Nombre de tu club</label><input type="text" id="claimClub" placeholder="Ej. Deportivo Siuuu FC" autocomplete="off"></div>
+      <p class="lead">Elige plaza, ponle nombre a tu club y crea tu usuario y contraseña. Con ellos entrarás luego, aquí y en el móvil.</p>
+      <div class="err hidden" id="claimErr" role="alert"></div>
+      <div class="field"><label for="claimSlot">Plaza libre</label><select id="claimSlot"></select></div>
+      <div class="field"><label for="claimOwner">Tu nombre</label><input type="text" id="claimOwner" placeholder="Ej. Miguel" autocomplete="name"></div>
+      <div class="field"><label for="claimClub">Nombre de tu club</label><input type="text" id="claimClub" placeholder="Ej. Deportivo Siuuu FC" autocomplete="off"></div>
       <div class="field">
-        <label>Código de la liga</label>
+        <label for="claimUser">Tu usuario</label>
+        <input type="text" id="claimUser" placeholder="Ej. miguel" autocomplete="username"
+               spellcheck="false" autocapitalize="none">
+        <div class="club-tag" style="margin-top:5px;">Con esto entras. Letras, números, puntos y guiones; mínimo 3.</div>
+      </div>
+      <div class="field">
+        <label for="claimPass">Tu contraseña</label>
+        <input type="password" id="claimPass" placeholder="Mínimo 8 caracteres" autocomplete="new-password">
+        <div class="club-tag" style="margin-top:5px;">Deja que el móvil te la guarde y no tendrás que acordarte.</div>
+      </div>
+      <div class="field">
+        <label for="claimJoin">Código de la liga</label>
         <input type="text" id="claimJoin" placeholder="El que te ha dado la organización" autocomplete="off" spellcheck="false">
-        <div class="club-tag" style="margin-top:5px;">Es el mismo para los 12. No es un código personal.</div>
+        <div class="club-tag" style="margin-top:5px;">Es el mismo para los 12. No es tu contraseña.</div>
       </div>
       <button class="btn big wide" id="doClaim">Fichar y entrar</button>
       <div class="switch"><button class="backWelcome">Volver</button></div>
     </div>
 
-    <!-- código recién generado -->
-    <div class="auth-step hidden" id="stepCode">
-      <div class="kick">Guarda esto</div>
-      <h2>Tu código de acceso</h2>
-      <p class="lead">Este es tu código personal de entrada, distinto del de la liga. Con él entras desde el ordenador y desde el móvil.</p>
-      <div class="code-box">
-        <div class="lbl">Tu código</div>
-        <div class="code" id="codeValue">—</div>
-        <button class="btn ghost small copy" id="copyCode">Copiar</button>
-      </div>
-      <div class="code-warn">
-        No se vuelve a mostrar. Apúntalo o mándatelo por WhatsApp antes de seguir.
-        Si lo pierdes, la organización tendrá que darte uno nuevo.
-      </div>
-      <button class="btn big wide" id="codeDone" style="margin-top:14px;">Ya lo he guardado, entrar</button>
-    </div>
-
-    <!-- entrar con código -->
+    <!-- entrar -->
     <div class="auth-step hidden" id="stepSignIn">
       <div class="kick">Acceso</div>
-      <h2>Entra con tu código</h2>
-      <p class="lead">Tu código personal, el que te dimos al fichar. Sirve en el ordenador y en el móvil.</p>
-      <div class="err hidden" id="signInErr"></div>
+      <h2>Entra en la liga</h2>
+      <p class="lead">Con el usuario y la contraseña que creaste al fichar. Sirven en el ordenador y en el móvil.</p>
+      <div class="err hidden" id="signInErr" role="alert"></div>
       <div class="field">
-        <label>Tu código personal</label>
-        <input type="text" id="signInCode" placeholder="LD-XXXX-XXXX" autocomplete="off" spellcheck="false" autocapitalize="characters">
-        <div class="club-tag" style="margin-top:5px;">Da igual mayúsculas, minúsculas o si te comes los guiones.</div>
+        <label for="signInUser">Usuario</label>
+        <input type="text" id="signInUser" autocomplete="username"
+               spellcheck="false" autocapitalize="none">
+      </div>
+      <div class="field">
+        <label for="signInPass">Contraseña</label>
+        <input type="password" id="signInPass" autocomplete="current-password">
       </div>
       <button class="btn big wide" id="doSignIn">Entrar</button>
+      <p class="lead" style="margin:14px 0 0;font-size:12px;">
+        Si no te acuerdas de la contraseña, la organización te pone una nueva
+        desde su panel.</p>
       <div class="switch"><button class="backWelcome">Volver</button></div>
     </div>
 
@@ -81,8 +86,8 @@
       <div class="kick">Organización</div>
       <h2>Código de dirección</h2>
       <p class="lead">Entra primero con tu código de manager. Después, este código te abre el panel de dirección.</p>
-      <div class="err hidden" id="adminErr"></div>
-      <div class="field"><label>Código de dirección</label><input type="text" id="adminCode" placeholder="LD-DIR-…" autocomplete="off" spellcheck="false"></div>
+      <div class="err hidden" id="adminErr" role="alert"></div>
+      <div class="field"><label for="adminCode">Código de dirección</label><input type="text" id="adminCode" placeholder="LD-DIR-…" autocomplete="off" spellcheck="false"></div>
       <button class="btn big wide" id="doAdmin">Activar dirección</button>
       <div class="switch"><button class="backWelcome">Volver</button></div>
     </div>
@@ -92,7 +97,7 @@
 
 <header class="top">
   <div class="brand">
-    <div class="crest">⚽</div>
+    <div class="crest" aria-hidden="true">⚽</div>
     <div style="min-width:0;">
       <h1>Liga Fantasy</h1>
       <div class="sub" id="hdrSub">Conectando…</div>
@@ -100,11 +105,11 @@
   </div>
   <div class="hdr-right">
     <span class="jornada-pill" id="hdrJornada">—</span>
-    <button class="gear" id="gearBtn" title="Panel de dirección">⚙</button>
+    <button class="gear" id="gearBtn" title="Panel de dirección" aria-label="Panel de dirección"><span aria-hidden="true">⚙</span></button>
   </div>
 </header>
 
-<nav class="tabs" id="mainTabs">
+<nav class="tabs" id="mainTabs" aria-label="Secciones del juego">
   <button data-view="inicio" class="active">Inicio</button>
   <button data-view="plantilla">Mi Plantilla</button>
   <button data-view="jornada">Jornada</button>
@@ -116,6 +121,7 @@
 
 <main>
   <div id="globalBanner"></div>
+  <div id="avisos" role="status" aria-live="polite" class="hidden"></div>
 
   <div class="view active" id="view-inicio">
     <div id="inicioHero"></div>
@@ -123,6 +129,7 @@
       <div class="card" style="margin-bottom:0;"><h2>Tu último cruce</h2><div id="inicioLast"></div></div>
       <div class="card" style="margin-bottom:0;"><h2>Cabeza de la tabla</h2><div id="inicioTop"></div></div>
     </div>
+    <div class="card" id="inicioCuenta" style="margin-top:16px;"></div>
   </div>
 
   <div class="view" id="view-plantilla">
@@ -134,9 +141,9 @@
     <div class="card" style="padding:14px 18px;">
       <div class="flex-between">
         <div class="jnav">
-          <button id="jPrev">‹</button>
+          <button id="jPrev" aria-label="Jornada anterior"><span aria-hidden="true">‹</span></button>
           <span class="lbl" id="jLabel">—</span>
-          <button id="jNext">›</button>
+          <button id="jNext" aria-label="Jornada siguiente"><span aria-hidden="true">›</span></button>
         </div>
         <button class="btn ghost small" id="jNow">Ir a la actual</button>
       </div>
@@ -200,6 +207,6 @@
 
 <footer class="foot" id="footNote">Liga Fantasy</footer>
 
-<script type="module" src="app.js"></script>
+<script type="module" src="app.js?v=202609141134"></script>
 </body>
 </html>
