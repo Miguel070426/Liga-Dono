@@ -6,7 +6,13 @@
 // La importación es perezosa a propósito: si hay una capa falsa inyectada, db.js
 // no se carga, y con él tampoco el Supabase del CDN. Así se puede probar el
 // juego entero sin red.
-const DB = window.__LIGA_FAKE_DB__ || (await import('./db.js')).default;
+// La versión viaja de index.html hasta aquí: si no, el navegador puede
+// quedarse con un db.js viejo aunque app.js sea nuevo, y entonces el juego
+// habla con la base de datos con las reglas de antes. Pasó de verdad: dos
+// cuentas creadas a medias contra un `claim_slot` que ya no existía.
+const VERSION = new URL(import.meta.url).searchParams.get('v') || '';
+const DB = window.__LIGA_FAKE_DB__
+  || (await import('./db.js' + (VERSION ? '?v=' + VERSION : ''))).default;
 
 const N_JORNADAS = 11;
 const FORMATIONS = {

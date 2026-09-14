@@ -4,7 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Liga Fantasy · 12 Managers</title>
-<link rel="stylesheet" href="app.css">
+<!-- La ?v= de estos dos hay que subirla al cambiar app.js, db.js o app.css.
+     Sin ella el navegador puede quedarse con la versión de antes durante días:
+     a un manager le creó dos cuentas a medias porque su móvil seguía con el
+     JavaScript viejo hablando con la base de datos nueva. -->
+<link rel="stylesheet" href="app.css?v=202609141134">
 </head>
 <body>
 
@@ -203,6 +207,6 @@
 
 <footer class="foot" id="footNote">Liga Fantasy</footer>
 
-<script type="module" src="app.js"></script>
+<script type="module" src="app.js?v=202609141134"></script>
 </body>
 </html>
