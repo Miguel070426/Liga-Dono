@@ -77,6 +77,28 @@
     text-transform:uppercase; letter-spacing:1px; cursor:pointer;
     border-bottom:3px solid transparent;
   }
+  /* En el móvil, con el tamaño de escritorio el menú se iba a dos filas y se
+     comía 97px antes de ver nada. Se reparte el ancho a partes iguales, que
+     con cuatro o cinco pestañas entra de sobra y además las deja alineadas.
+     Sigue pudiendo pasar a dos filas si hiciera falta: mejor eso que dejar
+     una pestaña fuera de la pantalla. */
+  @media (max-width:640px){
+    nav.tabs{ padding:0 6px; gap:0; }
+    nav.tabs button{
+      padding:11px 4px; font-size:11px; letter-spacing:0.3px;
+      flex:1 1 0; min-width:0; text-align:center;
+    }
+  }
+  /* Por debajo de 380px («Clasificación» es largo) el rótulo se recorta con
+     puntos suspensivos en vez de desbordarse por encima de la pestaña de al
+     lado, que es lo que hacía. */
+  @media (max-width:380px){
+    nav.tabs .solo-ancho{ display:none; }
+    nav.tabs button{
+      font-size:10px; padding:11px 2px;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+  }
   nav.tabs button:hover{ color:var(--chalk); }
   nav.tabs button.active{ color:var(--gold); border-bottom:3px solid var(--gold); }
   nav.tabs button.admin-tab{ color:var(--blue); }
@@ -498,6 +520,11 @@ button.btn.wide{ width:100%; }
   }
 
   /* ---------- ELEGIR ESCUDO ---------- */
+  /* Plegado: el escudo pequeño y un botón. El selector entero solo aparece
+     cuando se pide, que es una vez en la vida del equipo. */
+  .esc-resumen{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .esc-resumen > div{ min-width:0; flex:1 1 200px; }
+
   .esc-builder{
     display:flex; gap:14px; align-items:flex-start;
     background:rgba(0,0,0,0.22); border:1px solid rgba(244,241,230,0.1);

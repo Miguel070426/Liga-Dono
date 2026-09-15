@@ -41,7 +41,7 @@ const CLUB_NOISE = new Set(['fc','cf','cd','ud','sd','ad','ac','ca','rc','rcd','
 const S = {
   league:null, managers:[], clubs:[], players:[], me:null, isAdmin:false,
   standings:[], form:{}, playoffs:null,
-  view:'inicio', viewJornada:1, plantillaJornada:1,
+  view:'inicio', viewPrev:'inicio', clasSec:'tabla', viewJornada:1, plantillaJornada:1,
   cache:{}, draft:null, busy:false
 };
 
@@ -451,8 +451,12 @@ function invalidate(j){ if(j === undefined) S.cache = {}; else delete S.cache[j]
 
 /* ---------------------------------------------------------------- navegación */
 function switchView(name){
+  // El reglamento ya no es pestaña, así que hay que saber de dónde venías
+  // para que «Volver» te devuelva ahí y no siempre a Inicio.
+  if(name !== S.view) S.viewPrev = S.view || 'inicio';
   S.view = name;
   document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b.dataset.view === name));
+  $('helpBtn').classList.toggle('on', name === 'reglas');
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   const el = $('view-' + name);
   if(el) el.classList.add('active');
@@ -497,8 +501,11 @@ function renderAll(){
     case 'inicio':        renderInicio(); break;
     case 'plantilla':     renderPlantilla(); break;
     case 'jornada':       renderJornada(); break;
-    case 'clasificacion': renderClasificacion(); break;
-    case 'playoffs':      renderPlayoffs(); break;
+    // Clasificación lleva dentro las dos caras de la misma pregunta —cómo va
+    // la liga—, así que solo se pinta la que se está mirando.
+    case 'clasificacion':
+      if(S.clasSec === 'playoffs') renderPlayoffs(); else renderClasificacion();
+      break;
     case 'panel':         renderPanel(); break;
   }
 }
@@ -739,6 +746,13 @@ function pintarCuenta(){
   const c = $('inicioCuenta');
   if(!c) return;
   if(!S.me){ c.innerHTML = ''; c.style.display = 'none'; return; }
+
+  // Inicio se repinta solo —al llegar un latido, al volver de otra pestaña—
+  // y rehacer la tarjeta borraría el escudo que estuvieras eligiendo a media
+  // edición. Con el selector abierto, esto no se toca.
+  const abierto = $('miEscudo') && !$('miEscudo').classList.contains('hidden');
+  if(abierto) return;
+
   c.style.display = '';
   c.innerHTML = `<h2>Tu cuenta</h2>
     <p style="font-size:12px;color:var(--chalk-dim);margin-top:0;">
@@ -751,22 +765,52 @@ function pintarCuenta(){
       <button class="btn ghost small" id="miSalir">Cerrar sesión</button>
     </div>
     <h3 style="margin:18px 0 4px;">Tu escudo</h3>
-    <p style="font-size:12px;color:var(--chalk-dim);margin-top:0;">
-      Cámbialo cuando quieras. No afecta a los puntos, solo a cómo te ven.</p>
-    <div id="miEscudo"></div>
-    <div class="toolbar" style="margin:10px 0 0;">
+    <div class="esc-resumen">
+      <span id="miEscudoVista">${ESC.escudoDe(S.me, { clase:'esc-sm' })}</span>
+      <div>
+        <p style="font-size:12px;color:var(--chalk-dim);margin:0 0 7px;">
+          Cámbialo cuando quieras. No afecta a los puntos, solo a cómo te ven.</p>
+        <button class="btn ghost small" id="miEscudoAbrir">Cambiar escudo</button>
+      </div>
+    </div>
+    <div id="miEscudo" class="hidden"></div>
+    <div class="toolbar hidden" id="miEscudoBarra" style="margin:10px 0 0;">
       <button class="btn ghost small" id="miEscudoGuardar">Guardar escudo</button>
+      <button class="btn ghost small" id="miEscudoCancelar">Cancelar</button>
     </div>`;
 
-  const selector = montarSelectorEscudo($('miEscudo'),
-    S.me.escudo ? ESC.leer(S.me.escudo) : ESC.sugerir(S.me.club_name));
+  // El selector es algo que se toca una vez: desplegado siempre se comía
+  // media pantalla de Inicio por debajo de lo que sí se mira a diario. Se
+  // monta la primera vez que se abre, no antes.
+  let selector = null;
+  const plegar = abierto => {
+    $('miEscudo').classList.toggle('hidden', !abierto);
+    $('miEscudoBarra').classList.toggle('hidden', !abierto);
+    $('miEscudoAbrir').classList.toggle('hidden', abierto);
+  };
+  $('miEscudoAbrir').addEventListener('click', () => {
+    if(!selector){
+      selector = montarSelectorEscudo($('miEscudo'),
+        S.me.escudo ? ESC.leer(S.me.escudo) : ESC.sugerir(S.me.club_name));
+    }
+    plegar(true);
+  });
+  $('miEscudoCancelar').addEventListener('click', () => {
+    // Lo elegido y no guardado se descarta: al volver a abrir se monta otra
+    // vez desde lo que hay guardado.
+    selector = null;
+    $('miEscudo').innerHTML = '';
+    plegar(false);
+  });
   $('miEscudoGuardar').addEventListener('click', () => guard(async () => {
     const receta = selector.valor();
     await DB.saveEscudo(receta);
     S.me.escudo = receta;
     const enLista = S.managers.find(m => m.id === S.me.id);
     if(enLista) enLista.escudo = receta;
+    $('miEscudoVista').innerHTML = ESC.escudoDe(S.me, { clase:'esc-sm' });
     renderHeader();
+    plegar(false);
     toast('Escudo guardado', 'good');
   }));
 
@@ -1763,6 +1807,23 @@ function panelCuenta(body){
    ============================================================ */
 document.querySelectorAll('nav.tabs button').forEach(b =>
   b.addEventListener('click', () => switchView(b.dataset.view)));
+
+// Las dos caras de Clasificación: la tabla y el cuadro de playoffs.
+document.querySelectorAll('#clasSubtabs button').forEach(b =>
+  b.addEventListener('click', () => {
+    S.clasSec = b.dataset.sec;
+    document.querySelectorAll('#clasSubtabs button').forEach(x =>
+      x.classList.toggle('active', x === b));
+    $('clasSec-tabla').classList.toggle('hidden', S.clasSec !== 'tabla');
+    $('clasSec-playoffs').classList.toggle('hidden', S.clasSec !== 'playoffs');
+    renderAll();
+  }));
+
+// El reglamento vive fuera del menú, en el «?» de la cabecera.
+$('helpBtn').addEventListener('click', () =>
+  switchView(S.view === 'reglas' ? (S.viewPrev || 'inicio') : 'reglas'));
+$('reglasVolver').addEventListener('click', () => switchView(S.viewPrev || 'inicio'));
+
 $('jPrev').addEventListener('click', () => { S.viewJornada = clamp(S.viewJornada-1); renderJornada(); });
 $('jNext').addEventListener('click', () => { S.viewJornada = clamp(S.viewJornada+1); renderJornada(); });
 $('jNow').addEventListener('click',  () => { S.viewJornada = clamp(S.league.current_jornada); renderJornada(); });
