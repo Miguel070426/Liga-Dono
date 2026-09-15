@@ -13,6 +13,9 @@
 const VERSION = new URL(import.meta.url).searchParams.get('v') || '';
 const DB = window.__LIGA_FAKE_DB__
   || (await import('./db.js' + (VERSION ? '?v=' + VERSION : ''))).default;
+// El dibujo de los escudos va aparte porque lo usan dos sitios muy distintos:
+// la pantalla de alta, para elegirlo, y el juego entero, para pintarlo.
+const ESC = await import('./escudo.js' + (VERSION ? '?v=' + VERSION : ''));
 
 const N_JORNADAS = 11;
 const FORMATIONS = {
@@ -144,8 +147,93 @@ async function fillFreeSlots(){
   }
 }
 
+// ------------------------------------------------------------ ELEGIR ESCUDO
+// El mismo selector sirve en el alta y para cambiarlo luego desde Inicio.
+// Devuelve un mando con el que quien lo monta lee la receta al guardar.
+function montarSelectorEscudo(caja, inicial){
+  const e = { ...ESC.POR_DEFECTO, ...inicial };
+
+  caja.innerHTML = `<div class="esc-builder">
+    <div class="esc-vista"></div>
+    <div class="esc-mandos">
+      <div class="esc-grupo"><span class="esc-lbl">Forma</span><div class="esc-chips" data-g="forma"></div></div>
+      <div class="esc-grupo"><span class="esc-lbl">Diseño</span><div class="esc-chips" data-g="patron"></div></div>
+      <div class="esc-grupo"><span class="esc-lbl">Color principal</span><div class="esc-chips" data-g="c1"></div></div>
+      <div class="esc-grupo"><span class="esc-lbl">Color secundario</span><div class="esc-chips" data-g="c2"></div></div>
+      <div class="esc-grupo"><span class="esc-lbl">Símbolo</span><div class="esc-chips" data-g="simbolo"></div></div>
+      <button type="button" class="btn ghost small" data-azar>Sorpréndeme</button>
+    </div>
+  </div>`;
+
+  const grupo = k => caja.querySelector(`[data-g="${k}"]`);
+  const vista = caja.querySelector('.esc-vista');
+
+  grupo('forma').innerHTML = Object.entries(ESC.FORMAS).map(([k, v]) =>
+    `<button type="button" class="esc-chip forma" data-k="${k}" title="${v.n}" aria-label="Forma ${v.n}" aria-pressed="false">
+       <svg viewBox="0 0 100 124" aria-hidden="true"><path d="${v.d}" fill="none" stroke="currentColor" stroke-width="8"/></svg>
+     </button>`).join('');
+  grupo('patron').innerHTML = Object.entries(ESC.PATRONES).map(([k, v]) =>
+    `<button type="button" class="esc-chip" data-k="${k}" aria-pressed="false">${v.n}</button>`).join('');
+  grupo('simbolo').innerHTML = Object.entries(ESC.SIMBOLOS).map(([k, v]) =>
+    v.d ? `<button type="button" class="esc-chip simbolo" data-k="${k}" title="${v.n}" aria-label="Símbolo ${v.n}" aria-pressed="false">
+             <svg viewBox="12 16 76 76" aria-hidden="true">${v.d.replace(/CC/g, 'currentColor')}</svg></button>`
+        : `<button type="button" class="esc-chip" data-k="${k}" aria-pressed="false">${v.n}</button>`).join('');
+  for(const c of ['c1', 'c2']){
+    grupo(c).innerHTML = ESC.PALETA.map(p =>
+      `<button type="button" class="esc-color" data-k="${p.h}" style="background:#${p.h}"
+               aria-label="${p.n}" title="${p.n}" aria-pressed="false"></button>`).join('');
+  }
+
+  function pinta(){
+    vista.innerHTML = ESC.dibujar(e, { alt:'Vista previa de tu escudo' });
+    for(const k of ['forma', 'patron', 'simbolo', 'c1', 'c2']){
+      grupo(k).querySelectorAll('[data-k]').forEach(b =>
+        b.setAttribute('aria-pressed', String(b.dataset.k === e[k])));
+    }
+  }
+
+  for(const k of ['forma', 'patron', 'simbolo', 'c1', 'c2']){
+    grupo(k).addEventListener('click', ev => {
+      const b = ev.target.closest('[data-k]');
+      if(!b) return;
+      e[k] = b.dataset.k;
+      pinta();
+    });
+  }
+  caja.querySelector('[data-azar]').addEventListener('click', () => {
+    const uno = a => a[Math.floor(Math.random() * a.length)];
+    e.forma   = uno(Object.keys(ESC.FORMAS));
+    e.patron  = uno(Object.keys(ESC.PATRONES));
+    e.simbolo = uno(Object.keys(ESC.SIMBOLOS));
+    e.c1      = uno(ESC.PALETA).h;
+    do { e.c2 = uno(ESC.PALETA).h; } while(e.c2 === e.c1);
+    pinta();
+  });
+
+  pinta();
+  return {
+    valor: () => ESC.escribir(e),
+    // Las iniciales no se piden aparte: salen del nombre del club mientras
+    // lo escribe, que es un campo que ya está ahí arriba.
+    iniciales(nombreClub){
+      const i = ESC.inicialesDe(nombreClub);
+      if(i !== e.ini){ e.ini = i; pinta(); }
+    }
+  };
+}
+
+let selectorAlta = null;
+
 function wireAuth(){
-  $('goClaim').addEventListener('click', () => { stepErr('claimErr',''); showStep('stepClaim'); fillFreeSlots(); });
+  $('goClaim').addEventListener('click', () => {
+    stepErr('claimErr','');
+    showStep('stepClaim');
+    fillFreeSlots();
+    if(!selectorAlta){
+      selectorAlta = montarSelectorEscudo($('claimEscudo'), ESC.sugerir($('claimClub').value));
+      $('claimClub').addEventListener('input', () => selectorAlta.iniciales($('claimClub').value));
+    }
+  });
   $('goSignIn').addEventListener('click', () => { stepErr('signInErr',''); showStep('stepSignIn'); });
   $('goAdmin').addEventListener('click', () => { stepErr('adminErr',''); showStep('stepAdmin'); });
   document.querySelectorAll('.backWelcome').forEach(b => b.addEventListener('click', () => showStep('stepWelcome')));
@@ -167,7 +255,8 @@ function wireAuth(){
     try{
       // Ya no hay pantalla intermedia con un código que apuntar: la cuenta es
       // suya desde el primer momento, así que se entra directo.
-      await DB.claim(slot, club, owner, user, pass, join);
+      await DB.claim(slot, club, owner, user, pass, join,
+                     selectorAlta ? selectorAlta.valor() : null);
       hideAuth();
       await boot();
       toast('Plaza fichada. Ya puedes poner tu once', 'good');
@@ -383,6 +472,12 @@ function renderHeader(){
   $('hdrSub').textContent = S.me
     ? `${S.me.club_name} · ${st && st.pj ? st.rank + 'º con ' + st.pts + ' pts' : 'sin jugar todavía'}`
     : '12 managers · 11 jornadas · playoffs';
+
+  // Con plaza fichada manda tu escudo; sin ella se queda el balón de la liga.
+  const hc = $('hdrCrest');
+  hc.classList.toggle('con-escudo', !!S.me);
+  hc.innerHTML = S.me ? ESC.escudoDe(S.me, { clase:'esc-mini' }) : '⚽';
+
   $('footNote').textContent = S.isAdmin ? 'Modo dirección activo' : 'Liga Fantasy';
 
   const b = $('globalBanner');
@@ -420,7 +515,7 @@ function catsFrom(fr){
 function sideHtml(id, winner){
   const m = mgr(id);
   return `<div class="bs-side${winner ? ' winner' : ''}">
-    <div class="crest-sm">${esc(initials(m.club_name))}</div>
+    ${ESC.escudoDe(m, { clase:'esc-sm' })}
     <div class="bs-name">${esc(m.club_name)}</div>
     <div class="bs-owner">${esc(m.owner_name || '—')}</div>
   </div>`;
@@ -572,7 +667,7 @@ async function renderInicio(){
 
     hero.innerHTML = `<div class="hero">
       <div class="hero-top">
-        <div class="crest-big">${esc(initials(S.me.club_name))}</div>
+        ${ESC.escudoDe(S.me, { clase:'esc-hero' })}
         <div class="hero-id">
           <div class="hero-eyebrow">Tu club</div>
           <div class="hero-team">${esc(S.me.club_name)}</div>
@@ -654,7 +749,27 @@ function pintarCuenta(){
              autocomplete="new-password" aria-label="Contraseña nueva" style="max-width:260px;">
       <button class="btn ghost small" id="miClaveGuardar">Cambiar mi contraseña</button>
       <button class="btn ghost small" id="miSalir">Cerrar sesión</button>
+    </div>
+    <h3 style="margin:18px 0 4px;">Tu escudo</h3>
+    <p style="font-size:12px;color:var(--chalk-dim);margin-top:0;">
+      Cámbialo cuando quieras. No afecta a los puntos, solo a cómo te ven.</p>
+    <div id="miEscudo"></div>
+    <div class="toolbar" style="margin:10px 0 0;">
+      <button class="btn ghost small" id="miEscudoGuardar">Guardar escudo</button>
     </div>`;
+
+  const selector = montarSelectorEscudo($('miEscudo'),
+    S.me.escudo ? ESC.leer(S.me.escudo) : ESC.sugerir(S.me.club_name));
+  $('miEscudoGuardar').addEventListener('click', () => guard(async () => {
+    const receta = selector.valor();
+    await DB.saveEscudo(receta);
+    S.me.escudo = receta;
+    const enLista = S.managers.find(m => m.id === S.me.id);
+    if(enLista) enLista.escudo = receta;
+    renderHeader();
+    toast('Escudo guardado', 'good');
+  }));
+
   $('miClaveGuardar').addEventListener('click', () => guard(async () => {
     const v = $('miClaveNueva').value;
     if(!v){ toast('Escribe la contraseña nueva', 'bad'); return; }
@@ -735,7 +850,7 @@ async function renderPlantilla(){
   head.innerHTML = `<div class="card" style="padding:16px 18px;">
     <div class="flex-between" style="flex-wrap:wrap;">
       <div style="display:flex;align-items:center;gap:14px;min-width:0;">
-        <div class="crest-sm">${esc(initials(S.me.club_name))}</div>
+        ${ESC.escudoDe(S.me, { clase:'esc-sm' })}
         <div><div style="font-size:17px;text-transform:uppercase;letter-spacing:.5px;">${esc(S.me.club_name)}</div>
           <div class="club-tag">${esc(S.me.owner_name || '—')} · ${
             editable ? 'jornada abierta' : (j === cur ? 'jornada cerrada' : 'jornada ya pasada')}</div></div>
@@ -936,9 +1051,10 @@ async function renderJornada(){
    ============================================================ */
 function renderClasificacion(){
   $('tablaClasificacion').innerHTML = `<div style="overflow-x:auto;"><table>
-    <tr><th>#</th><th>Club</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>SF</th><th>SC</th><th>Dif</th><th>Pts</th><th>Racha</th></tr>
+    <tr><th>#</th><th></th><th>Club</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>SF</th><th>SC</th><th>Dif</th><th>Pts</th><th>Racha</th></tr>
     ${S.standings.map(s => `<tr class="st-row ${isMine(s.manager_id)?'me':''}">
       <td><span class="zone ${s.rank<=8?'zone-top':'zone-low'}" role="img" aria-label="${s.rank<=8?'Playoff por el título':'Playoff de consolación'}"></span>${s.rank}</td>
+      <td style="width:34px;">${ESC.escudoDe(mgr(s.manager_id), { clase:'esc-fila' })}</td>
       <td>${esc(s.club_name)}<br><span class="club-tag">${esc(s.owner_name || '—')}</span></td>
       <td>${s.pj}</td><td>${s.g}</td><td>${s.e}</td><td>${s.p}</td>
       <td>${s.sub_f}</td><td>${s.sub_c}</td><td>${s.sub_dif > 0 ? '+' : ''}${s.sub_dif}</td>
@@ -1375,8 +1491,7 @@ function panelManagers(body){
     row.querySelector('.mFree').addEventListener('click', () => guard(async () => {
       const m = mgr(id);
       if(!confirm(`¿Liberar la plaza ${m.slot}? Quien la tenía perderá el acceso a ese club.`)) return;
-      await DB.adminSetManager(id, { user_id:null, usuario:null, club_name:'Plaza '+m.slot,
-                                     owner_name:'', claimed_at:null });
+      await DB.freeSlot(id);
       toast('Plaza liberada', 'good');
       await boot(); switchView('panel');
     }));

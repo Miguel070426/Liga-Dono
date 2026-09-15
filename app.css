@@ -350,14 +350,21 @@
   .bracket-match .seed{ font-size:10px; color:var(--chalk-dim); margin-right:5px; }
 
   /* ---------- OVERLAY / GATE ---------- */
+  /* El alta creció al añadirle el escudo y en un móvil ya no cabe de una vez.
+     Con `align-items:center` lo que sobra se corta por arriba y por abajo sin
+     poder llegar a ello: el botón de fichar quedaba fuera de la pantalla.
+     Con `flex-start` + `margin:auto` se centra cuando cabe y se desplaza
+     cuando no. */
   .overlay{
-    position:fixed; inset:0; z-index:100; display:flex; align-items:center; justify-content:center;
+    position:fixed; inset:0; z-index:100; display:flex; align-items:flex-start; justify-content:center;
     padding:20px; background:rgba(5,12,9,0.9); backdrop-filter:blur(4px);
+    overflow-y:auto; overscroll-behavior:contain;
   }
   .overlay.hidden{ display:none !important; }
   .gate{
     background:linear-gradient(150deg, #14402c, #0c2318); border:1px solid rgba(232,184,75,0.35);
     border-radius:16px; padding:28px; width:100%; max-width:440px; box-shadow:0 20px 60px rgba(0,0,0,0.6);
+    margin:auto;
   }
   .gate .kick{ font-size:11px; letter-spacing:3px; color:var(--gold-dim); text-transform:uppercase; }
   .gate h2{ color:var(--chalk); font-size:24px; border:none; margin:6px 0 4px; }
@@ -459,6 +466,80 @@
 button.btn.wide{ width:100%; }
 .gate .err{ background:rgba(193,68,58,0.12); border-left:3px solid var(--red-card);
   padding:9px 12px; border-radius:6px; font-size:12px; margin-bottom:12px; }
+
+  /* Con la columna del escudo son doce columnas, y en un móvil el navegador
+     las estrecha hasta dejar «Racha» en «R». El contenedor ya se desplaza de
+     lado; esto es lo que hace que lo use en vez de encoger. */
+  #tablaClasificacion table{ min-width:540px; }
+
+  /* ---------- ESCUDOS ---------- */
+  /* El escudo es un SVG, no una imagen: se dibuja con la receta que cada uno
+     eligió. Se mide por altura y la anchura sale sola, porque un escudo es
+     más alto que ancho y estirarlo a un cuadrado lo deforma. */
+  /* El tamaño va en la misma clase que el selector base, no en una suelta:
+     `.esc-fila{height:30px}` solo tiene una clase y `svg.escudo{height:...}`
+     tiene clase más etiqueta, así que ganaba el genérico y los escudos de la
+     clasificación salían de altura cero, es decir, invisibles. */
+  svg.escudo{ display:block; width:auto; flex:0 0 auto; height:38px; }
+  svg.escudo.esc-mini{ height:38px; }
+  svg.escudo.esc-fila{ height:30px; }
+  svg.escudo.esc-sm  { height:46px; }
+  svg.escudo.esc-hero{ height:74px; filter:drop-shadow(0 6px 18px rgba(0,0,0,0.45)); }
+  @media (max-width:620px){
+    svg.escudo.esc-sm{ height:36px; }
+    svg.escudo.esc-hero{ height:62px; }
+    svg.escudo.esc-fila{ height:26px; }
+  }
+
+  /* El hueco del escudo en la cabecera venía con el círculo dorado y el balón
+     de relleno; cuando lleva escudo de verdad, ese adorno estorba. */
+  header.top .crest.con-escudo{
+    background:none; border-radius:0; width:auto; height:38px;
+  }
+
+  /* ---------- ELEGIR ESCUDO ---------- */
+  .esc-builder{
+    display:flex; gap:14px; align-items:flex-start;
+    background:rgba(0,0,0,0.22); border:1px solid rgba(244,241,230,0.1);
+    border-radius:var(--radius); padding:12px;
+  }
+  .esc-vista{ flex:0 0 auto; text-align:center; }
+  .esc-vista svg.escudo{ height:96px; filter:drop-shadow(0 5px 14px rgba(0,0,0,0.5)); }
+  .esc-mandos{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:10px; }
+  .esc-grupo > .esc-lbl, .lbl-esc{
+    display:block; font-size:10px; letter-spacing:1.6px; text-transform:uppercase;
+    color:var(--chalk-dim); margin-bottom:5px;
+  }
+  .lbl-esc{ margin-bottom:7px; }
+  .esc-chips{ display:flex; flex-wrap:wrap; gap:4px; }
+  .esc-chip{
+    background:var(--panel-2); border:1px solid rgba(244,241,230,0.12); color:var(--chalk-dim);
+    font-family:inherit; text-transform:uppercase; font-size:11px; letter-spacing:0.6px;
+    padding:5px 9px; border-radius:16px; cursor:pointer; min-height:28px; line-height:1;
+    transition:border-color .15s ease, color .15s ease, background .15s ease;
+  }
+  .esc-chip:hover{ color:var(--chalk); border-color:var(--gold-dim); }
+  .esc-chip[aria-pressed="true"]{
+    background:rgba(232,184,75,0.16); border-color:var(--gold); color:var(--gold);
+  }
+  .esc-chip.forma, .esc-chip.simbolo{ padding:3px 5px; display:grid; place-items:center; }
+  .esc-chip.forma svg{ width:20px; height:24px; display:block; }
+  .esc-chip.simbolo svg{ width:22px; height:22px; display:block; }
+  .esc-color{
+    width:26px; height:26px; border-radius:50%; padding:0; cursor:pointer;
+    border:2px solid rgba(244,241,230,0.2);
+    transition:transform .13s ease, border-color .13s ease;
+  }
+  .esc-color:hover{ transform:scale(1.14); }
+  .esc-color[aria-pressed="true"]{
+    border-color:var(--gold); transform:scale(1.14); box-shadow:0 0 0 3px rgba(232,184,75,0.22);
+  }
+  /* En el móvil los mandos van debajo del escudo, no al lado. */
+  @media (max-width:560px){
+    .esc-builder{ flex-direction:column; align-items:center; }
+    .esc-mandos{ width:100%; }
+    .esc-vista svg.escudo{ height:84px; }
+  }
 
   /* ---------- MOVIMIENTO ---------- */
   /* Quien lleva activado «reducir movimiento» en su sistema lo lleva por algo:

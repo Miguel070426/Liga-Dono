@@ -8,7 +8,7 @@
      Sin ella el navegador puede quedarse con la versión de antes durante días:
      a un manager le creó dos cuentas a medias porque su móvil seguía con el
      JavaScript viejo hablando con la base de datos nueva. -->
-<link rel="stylesheet" href="app.css?v=202609141148">
+<link rel="stylesheet" href="app.css?v=202609151015">
 </head>
 <body>
 
@@ -55,6 +55,10 @@
         <input type="text" id="claimJoin" placeholder="El que te ha dado la organización" autocomplete="off" spellcheck="false">
         <div class="club-tag" style="margin-top:5px;">Es el mismo para los 12. No es tu contraseña.</div>
       </div>
+      <div class="field">
+        <span class="lbl-esc">Tu escudo</span>
+        <div id="claimEscudo"></div>
+      </div>
       <button class="btn big wide" id="doClaim">Fichar y entrar</button>
       <div class="switch"><button class="backWelcome">Volver</button></div>
     </div>
@@ -97,7 +101,7 @@
 
 <header class="top">
   <div class="brand">
-    <div class="crest" aria-hidden="true">⚽</div>
+    <div class="crest" id="hdrCrest" aria-hidden="true">⚽</div>
     <div style="min-width:0;">
       <h1>Liga Fantasy</h1>
       <div class="sub" id="hdrSub">Conectando…</div>
@@ -207,6 +211,6 @@
 
 <footer class="foot" id="footNote">Liga Fantasy</footer>
 
-<script type="module" src="app.js?v=202609141148"></script>
+<script type="module" src="app.js?v=202609151015"></script>
 </body>
 </html>

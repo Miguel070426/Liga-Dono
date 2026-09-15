@@ -73,7 +73,7 @@ export const DB = {
 
   // Crea la cuenta con el usuario y la contraseña que ha elegido, y ata esa
   // cuenta a la plaza.
-  async claim(slot, club, owner, usuario, clave, joinCode){
+  async claim(slot, club, owner, usuario, clave, joinCode, escudo){
     const malU = revisaUsuario(usuario), malC = revisaClave(clave);
     if(malU) throw new Error(malU);
     if(malC) throw new Error(malC);
@@ -108,7 +108,8 @@ export const DB = {
     }
 
     const { error: claimErr } = await sb.rpc('claim_slot', {
-      p_slot: slot, p_club: club, p_owner: owner, p_usuario: u, p_join_code: joinCode
+      p_slot: slot, p_club: club, p_owner: owner, p_usuario: u,
+      p_join_code: joinCode, p_escudo: escudo || null
     });
     if(claimErr) throw fail(claimErr, 'No se ha podido reclamar la plaza');
     return u;
@@ -173,7 +174,7 @@ export const DB = {
   async bootstrap(){
     const [lg, mgrs, cls, pls] = await Promise.all([
       sb.from('leagues').select('id,name,current_jornada,lineups_locked,admin_user_id').limit(1).single(),
-      sb.from('managers').select('id,slot,club_name,owner_name,usuario,user_id,is_admin').order('slot'),
+      sb.from('managers').select('id,slot,club_name,owner_name,usuario,user_id,is_admin,escudo').order('slot'),
       sb.from('clubs').select('id,name').order('name'),
       sb.from('club_players').select('id,club_id,name,pos,activo,revisar,club_segun_api,motivo_baja')
     ]);
@@ -363,6 +364,13 @@ export const DB = {
     return { blocked: !data || data.length === 0 };
   },
 
+  // El escudo propio. Va por función y no por UPDATE directo porque los
+  // permisos de columna de managers están cerrados a lo imprescindible.
+  async saveEscudo(receta){
+    const { error } = await sb.rpc('guardar_escudo', { p_escudo: receta });
+    if(error) throw fail(error, 'No se ha podido guardar el escudo');
+  },
+
   async renameOwnClub(managerId, club, owner){
     const { data, error } = await sb.from('managers')
       .update({ club_name: club, owner_name: owner }).eq('id', managerId).select('id');
@@ -424,6 +432,13 @@ export const DB = {
   async adminSetManager(id, patch){
     const { error } = await sb.from('managers').update(patch).eq('id', id);
     if(error) throw fail(error, 'No se ha podido guardar el manager');
+  },
+  // Liberar una plaza toca user_id, usuario y claimed_at, que ya no son
+  // escribibles desde el navegador: lo hace una función que comprueba que
+  // quien llama es la organización.
+  async freeSlot(managerId){
+    const { error } = await sb.rpc('liberar_plaza', { p_manager: managerId });
+    if(error) throw fail(error, 'No se ha podido liberar la plaza');
   },
   async generateBrackets(){
     const { error } = await sb.rpc('generate_brackets');

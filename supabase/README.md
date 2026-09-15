@@ -78,6 +78,12 @@ cortina de cliente.
 | Cargar estadísticas | no | sí |
 | Mover o cerrar la jornada | no | sí |
 | Cambiar plazas, cuentas o roles | no | sí |
+| Cambiar su nombre de club y su escudo | solo los suyos | cualquiera |
+
+De `managers`, alguien con sesión solo puede escribir `club_name`, `owner_name`
+y `escudo`, y solo en su fila. El resto de columnas —`is_admin`, `user_id`,
+`slot`, `usuario`— no se tocan desde el navegador: las escriben funciones
+`security definer`. Esto no era así hasta la migración 0026; ver más abajo.
 
 El flujo de una jornada es: abierta (cada uno alinea a ciegas) → la organización
 la cierra (`lineups_locked = true`, y ahí se destapan los onces) → carga las
@@ -266,6 +272,34 @@ dejar uno de más, así que ahora:
 Un jugador de baja deja de ofrecerse en los desplegables, pero su ficha no se
 borra: las alineaciones de jornadas ya jugadas siguen enseñándolo, con el motivo.
 
+## El escudo de cada manager
+
+En `managers.escudo`, y **no es una imagen**: es la receta para dibujarla.
+
+```
+esp|bandas|1f7a4d|f4f1e6|balon|NC
+forma|diseño|color1|color2|símbolo|iniciales
+```
+
+Unos 30 caracteres. Los doce escudos de una liga ocupan menos que este párrafo.
+El dibujo lo hace el navegador (`escudo.js`), así que se ve nítido a cualquier
+tamaño, de 26 px en una fila de la clasificación a pantalla completa.
+
+Guardar una imagen subida habría costado almacenamiento y tráfico —justo el
+recurso que limita cuántas ligas caben a la vez en el plan gratuito— y habría
+obligado a alguien a moderar lo que suben. Así no hay nada que moderar: solo se
+puede elegir entre lo que el catálogo ofrece, y la paleta está cerrada a doce
+colores que combinan entre sí.
+
+El `check` de la columna es de **forma**, no de contenido: impide que ahí acabe
+texto arbitrario. Que la forma y el símbolo existan de verdad lo comprueba el
+navegador al dibujar, que es quien tiene el catálogo; ante algo que no reconoce
+pinta el escudo por defecto en vez de fallar. Son 66.000 combinaciones.
+
+`claim_slot` lo recibe al fichar y `guardar_escudo(text)` lo cambia después.
+Quien no tiene escudo no sale en blanco: se le dibuja uno derivado del nombre
+de su club, distinto para cada nombre.
+
 ## Vistas
 
 | Vista | Para qué |
@@ -334,6 +368,54 @@ El esquema `app` se queda como está, a propósito: las políticas RLS llaman a
 `app.is_admin()` **como el usuario que consulta**, así que tocar los permisos
 ahí rompería la lectura para todos. Lo que lo mantiene fuera de la API es que
 PostgREST no publica ese esquema.
+
+### Un segundo fallo real, este sí aprovechable (migración 0026)
+
+Encontrado al ir a añadir el escudo, que necesitaba una columna nueva
+escribible por cada manager.
+
+La política `managers_own` deja a cada uno escribir en **su** fila, que es lo
+que se quiere: renombrar su club. Pero los permisos de columna estaban abiertos:
+`authenticated` tenía UPDATE sobre **todas** las columnas de `managers`,
+`is_admin` incluida.
+
+Las políticas deciden **qué filas** tocas; los permisos de columna, **qué
+campos**. Aquí la fila era la correcta y el campo podía ser cualquiera.
+
+Comprobado contra la base de datos real, haciéndose pasar por un jugador:
+
+```
+un jugador hace UPDATE managers SET is_admin=true sobre su propia fila
+  → PASA, el UPDATE no da error
+después, app.is_admin() devuelve
+  → true
+```
+
+Es decir, cualquiera de los doce podía abrirse el panel de dirección y desde
+ahí cargar resultados, cerrar la jornada o cambiarle la contraseña a otro. A
+diferencia del anterior, este sí era explotable con una línea. No lo usó nadie
+—solo había una plaza fichada, la de la organización— y se cerró antes de que
+entrasen los otros once.
+
+Arreglado dejando a `authenticated` solo las tres columnas que una persona
+tiene por qué cambiar de sí misma: `club_name`, `owner_name` y `escudo`. Lo
+demás lo escriben funciones `security definer`. «Liberar plaza» del panel
+escribía `user_id`, `usuario` y `claimed_at` a pelo, así que pasa a ser
+`liberar_plaza(uuid)`, que comprueba `app.is_admin()`.
+
+Comprobado después, con la misma identidad de jugador:
+
+```
+se pone is_admin=true      → BLOQUEADO, permission denied for table managers
+reescribe user_id          → BLOQUEADO
+se cambia de plaza         → BLOQUEADO
+renombra su club           → pasa, que es lo suyo
+guarda su escudo           → pasa
+```
+
+La lección se repite: **una política RLS correcta no basta si los permisos de
+columna están abiertos.** Al añadir una columna escribible hay que mirar el
+`grant`, no solo la política.
 
 **Lo que el linter marca y no es un problema:**
 

@@ -14,8 +14,8 @@ de baja a nadie sin que una persona lo confirme.
 
 ## Cómo está montado
 
-Una web estática (`index.html` + `app.css` + `app.js` + `db.js`) publicada en
-GitHub Pages, que habla con Supabase.
+Una web estática (`index.html` + `app.css` + `app.js` + `db.js` + `escudo.js`)
+publicada en GitHub Pages, que habla con Supabase.
 
 Hubo antes una versión de un solo archivo que guardaba los datos en el propio
 navegador. Se retiró al quedarse con un reglamento distinto: cada persona tenía
@@ -25,6 +25,12 @@ en el historial de Git si alguna vez hace falta.
 Cada manager elige su **usuario y su contraseña** al fichar plaza, y con ellos
 entra en el ordenador y en el móvil. No hay emails: el que la cuenta necesita se
 deriva del usuario y no se envía nada nunca.
+
+En el mismo alta se **dibuja su escudo**: forma, diseño, dos colores, símbolo e
+iniciales, unas 66.000 combinaciones. No se sube ninguna imagen — se guarda la
+receta, unos 30 caracteres, y lo dibuja el navegador. Así no ocupa espacio ni
+gasta tráfico, se ve nítido a cualquier tamaño y no hay nada que moderar. Es
+puramente decorativo: no da ni quita un punto.
 
 Hubo antes un código generado que hacía de usuario y contraseña a la vez. Se
 retiró porque nadie se acuerda de `LD-VZMW-UWX4`, teclearlo en el móvil falla, y
