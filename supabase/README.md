@@ -180,6 +180,28 @@ Un subpunto por categoría, y empate reparte uno a cada uno. Los subpuntos de un
 lado son, por tanto, el número de categorías en las que va igual o por delante.
 Más subpuntos = 3 puntos de liga; empate a subpuntos = 1 para cada uno.
 
+## De dónde sale cada número
+
+Debajo de cada alineación destapada hay un desplegable, **«Ver de dónde sale cada
+número»**, con los 11 jugadores en filas y las 8 categorías en columnas: lo que
+aporta cada uno, y el total abajo. Viene plegado para no estorbar a quien solo
+quiere ver el resultado.
+
+La pregunta que genera discusiones en un juego así es «¿por qué he sacado eso en
+minutos?». No se resuelve discutiendo: se enseña la cuenta y se acaba.
+
+El cálculo lo hace el navegador (`aporteDe` en `app.js`), porque los datos por
+jugador ya están descargados y así no cuesta ninguna consulta más. Eso duplica
+los pesos del reglamento fuera de SQL, con el riesgo de que un día dejen de
+coincidir — así que **el desglose se comprueba a sí mismo**: suma sus 11 filas
+por categoría y las compara con el resultado oficial que manda la base de datos.
+Si no cuadran, avisa en rojo en vez de enseñar una cuenta falsa. El oficial
+siempre manda.
+
+Los pesos del navegador tienen que seguir a la vista `slot_contrib` tal y como la
+dejó la migración 0011. Si algún día se cambia el reglamento en SQL, hay que
+tocar también `MULT` y `aporteDe` en `app.js`.
+
 ## De dónde pueden salir los datos
 
 Investigado y probado contra las APIs reales, no leído de su publicidad:

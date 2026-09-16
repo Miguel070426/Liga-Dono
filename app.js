@@ -670,9 +670,92 @@ function lineupsHtml(fr, lineups){
         <td style="text-align:right;white-space:nowrap;">${bits.join(' ') || '<span class="club-tag">—</span>'}</td>
       </tr>`;
     }).join('');
-    return `<div><h3>${esc(m.club_name)} <span class="club-tag">· ${esc(lu.formation)}</span></h3><table>${rows}</table></div>`;
+    return `<div><h3>${esc(m.club_name)} <span class="club-tag">· ${esc(lu.formation)}</span></h3><table>${rows}</table>
+      ${desgloseHtml(fr, id, lu)}</div>`;
   }
   return `<div class="lineups-grid">${one(fr.home_id)}${one(fr.away_id)}</div>`;
+}
+
+/* ============================================================
+   DE DÓNDE SALE CADA NÚMERO
+   ============================================================
+   La pregunta que genera todas las discusiones de un juego así es «¿por qué
+   he sacado 0 en minutos?». Eso no se resuelve discutiendo: se enseña la
+   cuenta, jugador a jugador, y se acabó.
+
+   Los multiplicadores tienen que ser los mismos que aplica la base de datos:
+   la vista slot_contrib, tal y como la dejó la migración 0011 (amarilla 1,
+   roja 3). Si alguna vez dejan de serlo, el desglose no cuadraría con el total
+   y sería peor que no tenerlo — así que se comprueba contra el resultado
+   oficial y, si no cuadra, se dice en vez de enseñar una cuenta falsa.     */
+const MULT = {
+  goles:     {GK:2, DF:2, MF:1, FW:1},
+  porteria0: {GK:3, DF:2, MF:1, FW:1},
+  tiros:     {GK:3, DF:3, MF:2, FW:1}
+};
+
+// Lo que aporta un jugador en cada categoría. Si su club no jugó, nada: es la
+// regla del reglamento y por eso se devuelve todo a cero en vez de omitirlo.
+function aporteDe(slot, ps, cs){
+  const noJugo = slot.club_id && cs && cs.played === false;
+  const z = k => noJugo ? 0 : k;
+  return {
+    goles:       z((ps.goals   || 0) * (MULT.goles[slot.pos]     || 1)),
+    asistencias: z(ps.assists  || 0),
+    tarjetas:    z((ps.yellow  || 0) + 3 * (ps.red || 0)),
+    ptsEquipo:   z(cs ? (cs.team_points || 0) : 0),
+    porteria0:   z(cs && cs.clean_sheet ? (MULT.porteria0[slot.pos] || 0) : 0),
+    faltas:      z(ps.fouls    || 0),
+    minutos:     z(ps.minutes  || 0),
+    tiros:       z((ps.shots   || 0) * (MULT.tiros[slot.pos]     || 1)),
+    noJugo
+  };
+}
+
+function desgloseHtml(fr, managerId, lu){
+  if(!fr.has_data) return '';
+  const esLocal = fr.home_id === managerId;
+  const cache = S.cache[fr.jornada] || {};
+  const slots = [...(lu.lineup_slots || [])].sort((a, b) => a.slot - b.slot);
+
+  const suma = {};
+  CATS.forEach(c => suma[c.key] = 0);
+  const filas = slots.map(s => {
+    const ps = (cache.byPlayer || {})[s.club_player_id] || {};
+    const cs = (cache.clubStats || []).find(c => c.club_id === s.club_id);
+    const a = aporteDe(s, ps, cs);
+    CATS.forEach(c => suma[c.key] += a[c.key]);
+    return `<tr${a.noJugo ? ' class="no-jugo"' : ''}>
+      <td class="dg-jug"><span class="pos-tag pos-${s.pos}">${s.pos}</span>
+        ${esc(s.player_name || '—')}${a.noJugo ? '<br><span class="club-tag">su club no jugó</span>' : ''}</td>
+      ${CATS.map(c => `<td class="num${a[c.key] ? '' : ' cero'}">${a[c.key] || '·'}</td>`).join('')}
+    </tr>`;
+  }).join('');
+
+  // El total de la casa contra el oficial. Si no cuadra, se dice.
+  const oficial = {};
+  CATS.forEach(c => oficial[c.key] = fr[esLocal ? c.h : c.a] || 0);
+  const descuadres = CATS.filter(c => suma[c.key] !== oficial[c.key]);
+
+  return `<details class="desglose">
+    <summary>Ver de dónde sale cada número</summary>
+    <div style="overflow-x:auto;">
+      <table class="dg">
+        <tr><th>Jugador</th>${CATS.map(c =>
+          `<th class="num" title="${c.label}"><span aria-hidden="true">${c.icon}</span>
+             <span class="dg-th">${esc(c.label.split(' ')[0])}</span></th>`).join('')}</tr>
+        ${filas}
+        <tr class="dg-total"><td>Total</td>${CATS.map(c =>
+          `<td class="num">${suma[c.key]}</td>`).join('')}</tr>
+      </table>
+    </div>
+    ${descuadres.length
+      ? `<p class="warn" style="margin:8px 0 0;font-size:12px;">Este desglose no cuadra con el
+          resultado oficial en: ${descuadres.map(c => esc(c.label)).join(', ')}. Manda el oficial;
+          avisa a la organización.</p>`
+      : `<p class="club-tag" style="margin:8px 0 0;">Estos totales son los que se comparan con los
+          de tu rival: cada categoría ganada vale un subpunto.</p>`}
+  </details>`;
 }
 function wireLineups(root, fr, lineups){
   const btn = root.querySelector('.lineupsBtn');

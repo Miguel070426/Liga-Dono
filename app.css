@@ -494,6 +494,33 @@ button.btn.wide{ width:100%; }
      lado; esto es lo que hace que lo use en vez de encoger. */
   #tablaClasificacion table{ min-width:540px; }
 
+  /* ---------- DE DÓNDE SALE CADA NÚMERO ---------- */
+  /* Ocho columnas no caben en un móvil, así que la tabla se desplaza de lado
+     dentro de su caja. Va plegada: se abre quien quiere la cuenta, no se le
+     mete a todo el mundo por delante. */
+  .desglose{ margin-top:12px; }
+  .desglose > summary{
+    cursor:pointer; color:var(--gold); font-size:12px; text-transform:uppercase;
+    letter-spacing:1px; padding:6px 0; list-style:none;
+  }
+  .desglose > summary::before{ content:'▸ '; }
+  .desglose[open] > summary::before{ content:'▾ '; }
+  .desglose > summary::-webkit-details-marker{ display:none; }
+  .desglose > summary:focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
+  table.dg{ min-width:520px; font-size:12px; }
+  table.dg th{ font-size:10px; padding:4px 5px; }
+  table.dg td{ padding:5px; }
+  table.dg .dg-th{ display:block; font-size:9px; letter-spacing:0; }
+  table.dg .dg-jug{ min-width:130px; }
+  table.dg .num{ text-align:right; font-variant-numeric:tabular-nums; }
+  /* Un cero repetido once veces es ruido: se apaga para que destaque lo que
+     sí suma, que es lo que se viene a mirar. */
+  table.dg .cero{ color:rgba(244,241,230,0.25); }
+  table.dg tr.no-jugo td{ opacity:0.5; }
+  table.dg tr.dg-total td{
+    border-top:2px solid var(--gold-dim); color:var(--gold); font-weight:bold; font-size:13px;
+  }
+
   /* ---------- LÍMITE DE CAMBIOS ---------- */
   /* El contador dice «5 de 7»; esto dice cuáles son los cinco. Sin la marca,
      el número no sirve para decidir a quién quitas. */
