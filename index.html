@@ -8,7 +8,7 @@
      Sin ella el navegador puede quedarse con la versión de antes durante días:
      a un manager le creó dos cuentas a medias porque su móvil seguía con el
      JavaScript viejo hablando con la base de datos nueva. -->
-<link rel="stylesheet" href="app.css?v=202609161215">
+<link rel="stylesheet" href="app.css?v=202609161510">
 </head>
 <body>
 
@@ -144,6 +144,8 @@
 
   <div class="view" id="view-plantilla">
     <div id="plantillaHead"></div>
+    <!-- Aquí es donde de verdad se decide, así que aquí van los partidos. -->
+    <div class="card" id="plantillaPartidos"></div>
     <div class="card" id="plantillaEditor"></div>
   </div>
 
@@ -159,6 +161,10 @@
       </div>
     </div>
     <div id="jornadaFeatured"></div>
+    <!-- Los partidos reales de Primera. Estaban en la base de datos desde el
+         principio pero solo se veían en el panel de dirección, así que para
+         saber contra quién juega el Madrid había que salir de la aplicación. -->
+    <div class="card"><h2>Los partidos de Primera</h2><div id="partidosReales"></div></div>
     <div class="card"><h2 id="restTitle">Resto de la jornada</h2><div id="jornadaRest"></div></div>
   </div>
 
@@ -225,6 +231,6 @@
 
 <footer class="foot" id="footNote">Liga Fantasy</footer>
 
-<script type="module" src="app.js?v=202609161215"></script>
+<script type="module" src="app.js?v=202609161510"></script>
 </body>
 </html>

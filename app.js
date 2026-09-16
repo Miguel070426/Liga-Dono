@@ -935,6 +935,7 @@ async function renderPlantilla(){
   if(!S.me){
     head.innerHTML = '<div class="card"><p class="empty">Esta cuenta no tiene plaza de manager.</p></div>';
     el.innerHTML = '';
+    $('plantillaPartidos').innerHTML = '';
     return;
   }
   el.innerHTML = loadingHtml();
@@ -942,6 +943,10 @@ async function renderPlantilla(){
   const cur = clamp(S.league.current_jornada);
   const d = await ensureDraft();
   if(stale(seq)) return;
+
+  // El borrador que estás tocando, no lo guardado: si acabas de poner al
+  // Madrid quieres ver marcado el Madrid al momento, sin guardar antes.
+  pintarPartidosDelBorrador(j, d);
   const editable = j === cur && jornadaOpen();
   const v = validate(d.slots);
 
@@ -1126,9 +1131,11 @@ async function renderJornada(){
   const feat = $('jornadaFeatured'), rest = $('jornadaRest');
   feat.innerHTML = '';
   rest.innerHTML = loadingHtml();
+  $('partidosReales').innerHTML = loadingHtml();
 
   const d = await jornadaData(j);
   if(stale(seq)) return;
+  pintarPartidos('partidosReales', j, d);
   const mine = S.me ? d.results.find(r => r.home_id === S.me.id || r.away_id === S.me.id) : null;
   const others = d.results.filter(r => r !== mine);
 
@@ -1330,6 +1337,87 @@ async function panelSimulador(body, seq){
     toast(`${n} once(s) simulado(s) borrado(s)`, 'good');
     await boot(); switchView('panel');
   }));
+}
+
+/* ============================================================
+   LOS PARTIDOS DE VERDAD
+   ============================================================
+   Contra quién juega cada club, en casa o fuera, y a qué hora. Se enseña
+   donde se decide —en Mi Plantilla— y no solo en una pantalla aparte, porque
+   el dato hace falta mientras eliges, no después.
+
+   Lo que NO se enseña antes del cierre es cuántos managers tienen jugadores
+   de cada partido: eso delataría los onces. Cada uno solo ve los suyos, que
+   ya se los sabe.                                                          */
+const DIA_CORTO = ['dom','lun','mar','mié','jue','vie','sáb'];
+
+function partidoHora(p){
+  if(!p.comienza) return esc(p.fecha || '');
+  const d = new Date(p.comienza);
+  return `${DIA_CORTO[d.getDay()]} ${d.getDate()} · ${
+    d.toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'})}`;
+}
+
+// `mios` es un mapa club_id -> nombre del jugador que tienes ahí.
+function partidosHtml(partidos, mios = {}, opciones = {}){
+  if(!partidos || !partidos.length){
+    return '<p class="empty">No hay partidos cargados para esta jornada.</p>';
+  }
+  const lado = (nombre, clubId) => {
+    const mio = mios[clubId];
+    return `<span class="pl-eq${mio ? ' pl-mio' : ''}">${esc(nombre)}${
+      mio ? `<span class="pl-jug">${esc(mio)}</span>` : ''}</span>`;
+  };
+  return `<div class="partidos">${partidos.map(p => {
+    const jugado = p.estado === 'Finished' && p.goles_local !== null;
+    const marcador = jugado
+      ? `<span class="pl-res num">${p.goles_local}–${p.goles_visitante}</span>`
+      : `<span class="pl-vs">vs</span>`;
+    return `<div class="pl-fila${p.excluido ? ' pl-fuera' : ''}">
+      <span class="pl-cuando">${p.excluido ? 'fuera' : partidoHora(p)}</span>
+      ${lado(p.local, p.local_club)}
+      ${marcador}
+      ${lado(p.visitante, p.visitante_club)}
+    </div>`;
+  }).join('')}</div>${opciones.nota === false ? '' : `
+  <p class="club-tag" style="margin:8px 0 0;">El primero de la lista marca la hora de cierre.
+    Los tuyos van en dorado.</p>`}`;
+}
+
+// Pinta los partidos en un hueco, marcando los jugadores propios. Si falla la
+// consulta no se rompe la pantalla: se queda el hueco con un aviso, porque
+// esto es información de apoyo y no impide jugar.
+async function pintarPartidos(donde, j, d){
+  const el = $(donde);
+  if(!el) return;
+  try{
+    const partidos = await DB.matchesOfJornada(j);
+    const mios = {};
+    const lu = d && d.lineups && S.me
+      ? d.lineups.find(l => l.manager_id === S.me.id) : null;
+    (lu ? (lu.lineup_slots || []) : []).forEach(s => {
+      if(s.club_id) mios[s.club_id] = s.player_name || 'tuyo';
+    });
+    el.innerHTML = partidosHtml(partidos, mios);
+  }catch(err){
+    el.innerHTML = '<p class="empty">No se han podido cargar los partidos de Primera.</p>';
+  }
+}
+
+// En Mi Plantilla se marca con lo que tienes puesto AHORA en la pantalla, no
+// con lo guardado, para que al cambiar un club se vea al momento dónde juega.
+let partidosCache = {};
+async function pintarPartidosDelBorrador(j, d){
+  const el = $('plantillaPartidos');
+  if(!el) return;
+  if(!partidosCache[j]){
+    el.innerHTML = loadingHtml();
+    try{ partidosCache[j] = await DB.matchesOfJornada(j); }
+    catch(err){ el.innerHTML = '<p class="empty">No se han podido cargar los partidos de Primera.</p>'; return; }
+  }
+  const mios = {};
+  (d.slots || []).forEach(s => { if(s.club_id) mios[s.club_id] = s.player_name || 'tuyo'; });
+  el.innerHTML = `<h2>Los partidos de esta jornada</h2>${partidosHtml(partidosCache[j], mios)}`;
 }
 
 // Un datetime-local quiere «2026-09-18T20:59» en hora local, sin zona.

@@ -272,6 +272,27 @@ dejar uno de más, así que ahora:
 Un jugador de baja deja de ofrecerse en los desplegables, pero su ficha no se
 borra: las alineaciones de jornadas ya jugadas siguen enseñándolo, con el motivo.
 
+## Los partidos reales, a la vista de los doce
+
+Para decidir a quién alineas hace falta saber contra quién juega cada club, en
+casa o fuera, y a qué hora. Eso obligaba a salir de la aplicación, que es un
+fallo de diseño: la decisión se toma en la pantalla de alineación y el dato
+estaba en otro sitio.
+
+Los 200 partidos ya estaban en `hl_matches`, y `jornada_partidos()` ya la podía
+llamar cualquier jugador —no solo la organización—. Solo faltaba devolver tres
+cosas más y enseñarlo: la hora de comienzo, los identificadores de club (para
+marcar «aquí juega uno de los tuyos» sin adivinar por el nombre) y si el
+partido está fuera de la jornada.
+
+Se enseña en la pestaña Jornada y, sobre todo, **en Mi Plantilla**, que es
+donde de verdad se decide. Ahí se marca con el borrador que tienes en pantalla,
+no con lo guardado: al cambiar un club se ve al momento dónde juega.
+
+**Lo que no se devuelve, a propósito:** cuántos managers tienen jugadores de
+cada partido. Eso delataría las alineaciones antes del cierre y se cargaría el
+«alinear a ciegas». Cada uno solo ve los suyos, que ya se los sabe.
+
 ## Cuándo se cierra la jornada
 
 La marca **el primer partido de la jornada**, no un botón. Si el primero es el

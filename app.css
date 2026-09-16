@@ -494,6 +494,32 @@ button.btn.wide{ width:100%; }
      lado; esto es lo que hace que lo use en vez de encoger. */
   #tablaClasificacion table{ min-width:540px; }
 
+  /* ---------- LOS PARTIDOS DE PRIMERA ---------- */
+  /* Una fila por partido: cuándo, local, marcador, visitante. Los clubes
+     donde tienes a alguien van en dorado con el nombre debajo, que es el
+     dato por el que se mira esta lista. */
+  .partidos{ display:flex; flex-direction:column; }
+  .pl-fila{
+    display:grid; grid-template-columns:74px 1fr auto 1fr; gap:8px;
+    align-items:center; padding:9px 2px;
+    border-top:1px solid rgba(244,241,230,0.08);
+  }
+  .pl-fila:first-child{ border-top:none; }
+  .pl-cuando{ font-size:11px; color:var(--chalk-dim); text-transform:uppercase; letter-spacing:0.5px; }
+  .pl-eq{ font-size:13.5px; min-width:0; }
+  .pl-fila > .pl-eq:last-child{ text-align:right; }
+  .pl-mio{ color:var(--gold); font-weight:bold; }
+  .pl-jug{ display:block; font-size:11px; font-weight:normal; color:var(--chalk-dim); letter-spacing:0; }
+  .pl-vs{ font-size:11px; color:rgba(244,241,230,0.35); }
+  .pl-res{ font-size:15px; font-weight:bold; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .pl-fuera .pl-eq{ opacity:0.45; text-decoration:line-through; }
+  .pl-fuera .pl-cuando{ color:var(--red-text); }
+  @media (max-width:520px){
+    .pl-fila{ grid-template-columns:60px 1fr auto 1fr; gap:6px; }
+    .pl-eq{ font-size:12.5px; }
+    .pl-cuando{ font-size:10px; }
+  }
+
   /* ---------- CIERRE DE LA JORNADA ---------- */
   /* La hora del cierre cambia de color según lo que falte. No hay reloj
      corriendo: un contador de segundos gasta batería y no dice nada cuando
