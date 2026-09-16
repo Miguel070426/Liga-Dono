@@ -272,6 +272,47 @@ dejar uno de más, así que ahora:
 Un jugador de baja deja de ofrecerse en los desplegables, pero su ficha no se
 borra: las alineaciones de jornadas ya jugadas siguen enseñándolo, con el motivo.
 
+## Máximo 7 cambios por jornada
+
+De una jornada a la siguiente se pueden cambiar 7 jugadores como mucho, así que
+al menos 4 repiten. `leagues.max_cambios`, por si algún día se quiere otro
+número. Vale igual en playoffs.
+
+Se cuenta contra **el último once puesto de verdad**, no contra la jornada
+inmediatamente anterior. La diferencia importa: si fuera «la anterior»,
+saltarse una jornada valdría como reseteo gratis del once. Quien no ha alineado
+nunca entra libre, porque no hay con qué comparar.
+
+Un jugador que se va de Primera **no da derecho a cambio gratis**: o gastas uno
+de los 7 en sustituirlo, o lo dejas en el once sabiendo que no puntúa. Incluido
+el caso de que se vayan tantos que no puedas repetir 4: entonces juegas con
+muertos en el once. Decisión tomada a propósito — dura y simple, y las reglas
+duras y simples se discuten menos.
+
+**Esto obligó a cambiar cómo se guarda el once.** Eran varias escrituras
+sueltas desde el navegador —crear la alineación, borrar los 11 huecos,
+insertarlos otra vez— y una regla que mira el once entero no se puede comprobar
+así: entre el borrado y la inserción el once no existe. Ahora es una sola
+llamada, `guardar_alineacion(jornada, formacion, slots)`, que valida y escribe
+de golpe.
+
+De regalo desaparece un fallo que ya estaba ahí: si el borrado salía bien y la
+inserción fallaba —se cae la red a media operación— te quedabas con la
+alineación vacía y sin enterarte.
+
+Comprobado contra la base de datos real, como jugador que no es la
+organización:
+
+```
+jornada 1 libre: guarda 11 nuevos          → guardado, sin referencia
+jornada 2 cambiando 7                      → aceptado, cambios = 7
+jornada 2 cambiando 8                      → RECHAZADO
+jornada 4 sin haber jugado la 3            → se compara con la jornada 2
+```
+
+La organización se salta el límite, igual que se salta la hora de cierre:
+alguien tiene que poder arreglar un desastre.
+
 ## Los partidos reales, a la vista de los doce
 
 Para decidir a quién alineas hace falta saber contra quién juega cada club, en

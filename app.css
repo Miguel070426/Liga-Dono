@@ -494,6 +494,16 @@ button.btn.wide{ width:100%; }
      lado; esto es lo que hace que lo use en vez de encoger. */
   #tablaClasificacion table{ min-width:540px; }
 
+  /* ---------- LÍMITE DE CAMBIOS ---------- */
+  /* El contador dice «5 de 7»; esto dice cuáles son los cinco. Sin la marca,
+     el número no sirve para decidir a quién quitas. */
+  .chip-cambio{
+    background:rgba(232,184,75,0.16); border:1px solid var(--gold-dim); color:var(--gold);
+    font-size:9px; letter-spacing:1px; text-transform:uppercase;
+    padding:2px 6px; border-radius:10px; flex:0 0 auto; line-height:1.4;
+  }
+  .lineup-row.es-cambio .slot-num{ border-color:var(--gold-dim); color:var(--gold); }
+
   /* ---------- LOS PARTIDOS DE PRIMERA ---------- */
   /* Una fila por partido: cuándo, local, marcador, visitante. Los clubes
      donde tienes a alguien van en dorado con el nombre debajo, que es el

@@ -333,6 +333,7 @@ async function boot(){
 
   Object.assign(S, snap);
   S.cache = {};
+  refCache = {}; partidosCache = {};
   S.viewJornada = clamp(S.league.current_jornada);
   S.plantillaJornada = clamp(S.league.current_jornada);
   S.draft = null;
@@ -948,6 +949,20 @@ async function renderPlantilla(){
   // Madrid quieres ver marcado el Madrid al momento, sin guardar antes.
   pintarPartidosDelBorrador(j, d);
   const editable = j === cur && jornadaOpen();
+
+  // El once con el que se cuentan los cambios. Se pide una vez por jornada y
+  // se guarda: no cambia mientras editas.
+  if(!refCache[j]){
+    try{ refCache[j] = await DB.onceReferencia(j); }
+    catch(err){ refCache[j] = { limite:null, jornada_ref:null, jugadores:[] }; }
+    if(stale(seq)) return;
+  }
+  const ref = refCache[j];
+  const anteriores = new Set(ref.jugadores || []);
+  const cambiados = (d.slots || [])
+    .filter(s => s.club_player_id && !anteriores.has(s.club_player_id));
+  const hayLimite = ref.jornada_ref != null && ref.limite != null;
+  const restantes = hayLimite ? ref.limite - cambiados.length : null;
   const v = validate(d.slots);
 
   const badge = d.confirmed ? '<span class="badge win">Confirmada</span>'
@@ -1018,9 +1033,13 @@ async function renderPlantilla(){
       lastPos = s.pos;
     }
     const empty = s.club_id && playersOf(s.club_id, s.pos).length === 0;
-    blocks += `<div class="lineup-row">
+    // Marca quién cuenta como cambio respecto a tu once anterior. Sin esto el
+    // contador dice «5 de 7» y no sabes cuáles son los cinco.
+    const esCambio = hayLimite && s.club_player_id && !anteriores.has(s.club_player_id);
+    blocks += `<div class="lineup-row${esCambio ? ' es-cambio' : ''}">
       <div class="slot-num">${i+1}</div>
       <span class="pos-tag pos-${s.pos}">${s.pos}</span>
+      ${esCambio ? '<span class="chip-cambio" title="Cuenta como cambio">nuevo</span>' : ''}
       <select class="slotClub" data-i="${i}" aria-label="Hueco ${i+1}, ${POS_LABEL[s.pos]}: club" ${editable?'':'disabled'}>${clubOpts(s.club_id)}</select>
       <select class="slotPlayer pn" data-i="${i}" aria-label="Hueco ${i+1}, ${POS_LABEL[s.pos]}: jugador" ${(!s.club_id || !editable)?'disabled':''}>${playerOpts(s.club_id, s.pos, s.club_player_id, s.player_name)}</select>
     </div>${empty ? `<div class="club-tag" style="margin:-4px 0 6px 84px;">No hay ${s.pos} cargados para ${esc(clubName(s.club_id))}. La organización tiene que subir esa plantilla.</div>` : ''}`;
@@ -1037,12 +1056,25 @@ async function renderPlantilla(){
         ${Object.keys(FORMATIONS).map(f => `<option value="${f}" ${f===d.formation?'selected':''}>${f}</option>`).join('')}
       </select>
       <span class="pill">${Object.keys(used).length}/11 clubes</span>
+      ${hayLimite ? `<span class="pill ${restantes < 0 ? 'warn' : ''}" id="pillCambios">${
+        restantes < 0
+          ? `Te pasas por ${-restantes}`
+          : `${cambiados.length} de ${ref.limite} cambios`}</span>` : ''}
       <span class="club-tag">Máximo 1 jugador por club real</span>
     </div>
+    ${hayLimite ? `<p class="club-tag" style="margin:-6px 0 12px;">
+      Puedes cambiar ${ref.limite} jugadores respecto a tu once de la jornada
+      ${ref.jornada_ref}: al menos ${11 - ref.limite} tienen que repetir.
+      Los nuevos van marcados.</p>` : ''}
     ${blocks}
-    <div style="margin-top:10px;">${v.valid
-      ? '<span class="ok">Once completo y legal ✓</span>'
-      : `<span class="warn">${v.errors.join('<br>')}</span>`}</div>
+    <div style="margin-top:10px;">${
+      restantes !== null && restantes < 0
+        ? `<span class="warn">Estás cambiando ${cambiados.length} jugadores y el máximo son
+             ${ref.limite}. Quita ${-restantes} de los marcados como nuevos, o vuelve a poner
+             a alguno de tu once de la jornada ${ref.jornada_ref}.</span>`
+      : (v.valid
+        ? '<span class="ok">Once completo y legal ✓</span>'
+        : `<span class="warn">${v.errors.join('<br>')}</span>`)}</div>
     ${(() => {
       // Un once puede ser legal y aun así llevar jugadores que no van a
       // puntuar, porque su club se ha salido de la jornada. «Legal ✓» a
@@ -1407,6 +1439,9 @@ async function pintarPartidos(donde, j, d){
 // En Mi Plantilla se marca con lo que tienes puesto AHORA en la pantalla, no
 // con lo guardado, para que al cambiar un club se vea al momento dónde juega.
 let partidosCache = {};
+// El once con el que se cuentan los cambios. No cambia mientras editas, así
+// que se pide una vez por jornada.
+let refCache = {};
 async function pintarPartidosDelBorrador(j, d){
   const el = $('plantillaPartidos');
   if(!el) return;

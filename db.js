@@ -317,44 +317,41 @@ export const DB = {
   // --------------------------------------------------------------- ESCRITURA
   // Devuelve {blocked:true} cuando RLS deja pasar la llamada sin tocar filas,
   // que es lo que ocurre al intentar guardar con la jornada cerrada.
+  // Guardar el once es UNA llamada, no seis escrituras sueltas. Así la base
+  // de datos puede comprobar el límite de cambios, que mira el once entero, y
+  // de paso deja de existir el estado a medias en el que el borrado de los
+  // huecos salía bien y la inserción no: te quedabas con la alineación vacía.
   async saveLineup(leagueId, jornada, managerId, formation, slots){
-    let { data: existing, error: selErr } = await sb.from('lineups')
-      .select('id').eq('jornada', jornada).eq('manager_id', managerId).maybeSingle();
-    if(selErr) throw fail(selErr, 'No se ha podido leer tu alineación');
-
-    let lineupId = existing?.id;
-    if(!lineupId){
-      const ins = await sb.from('lineups')
-        .insert({ league_id: leagueId, jornada, manager_id: managerId, formation })
-        .select('id').maybeSingle();
-      if(ins.error){
-        if(ins.error.code === '42501') return { blocked: true };
-        throw fail(ins.error, 'No se ha podido crear tu alineación');
-      }
-      if(!ins.data) return { blocked: true };
-      lineupId = ins.data.id;
-    }else{
-      // Al tocarla, deja de ser del simulador y pasa a ser tuya.
-      const upd = await sb.from('lineups')
-        .update({ formation, simulada: false, updated_at: new Date().toISOString() })
-        .eq('id', lineupId).select('id');
-      if(upd.error) throw fail(upd.error, 'No se ha podido guardar la formación');
-      if(!upd.data || upd.data.length === 0) return { blocked: true };
+    const { data, error } = await sb.rpc('guardar_alineacion', {
+      p_jornada: jornada,
+      p_formacion: formation,
+      p_slots: slots.map(s => ({
+        pos: s.pos,
+        club_id: s.club_id || null,
+        club_player_id: s.club_player_id || null,
+        player_name: s.player_name || ''
+      }))
+    });
+    if(error){
+      const msg = error.message || '';
+      // Jornada cerrada: el juego ya lo trata como «no se ha guardado» y lo
+      // explica en pantalla, así que no hace falta un error rojo encima.
+      if(/cerrada/i.test(msg)) return { blocked: true };
+      // El aviso del límite ya viene escrito en cristiano desde la base de
+      // datos, con los números concretos. Se pasa tal cual.
+      if(/Solo puedes cambiar/i.test(msg)) throw new Error(msg);
+      throw fail(error, 'No se ha podido guardar tu once');
     }
+    return data || {};
+  },
 
-    const del = await sb.from('lineup_slots').delete().eq('lineup_id', lineupId).select('id');
-    if(del.error) throw fail(del.error, 'No se ha podido actualizar tu once');
-
-    const rows = slots.map((s, i) => ({
-      lineup_id: lineupId, slot: i + 1, pos: s.pos,
-      club_id: s.club_id || null,
-      club_player_id: s.club_player_id || null,
-      player_name: s.player_name || ''
-    }));
-    const insSlots = await sb.from('lineup_slots').insert(rows).select('id');
-    if(insSlots.error) throw fail(insSlots.error, 'No se ha podido guardar tu once');
-    if(!insSlots.data || insSlots.data.length !== rows.length) return { blocked: true };
-    return { lineupId };
+  // Contra qué once se cuentan los cambios y cuántos caben. La pantalla lo usa
+  // para ir contando mientras editas; el recuento que manda lo rehace el
+  // servidor al guardar.
+  async onceReferencia(jornada){
+    const { data, error } = await sb.rpc('once_referencia', { p_jornada: jornada });
+    if(error) throw fail(error, 'No se ha podido consultar tu once anterior');
+    return data || { limite: 7, jornada_ref: null, jugadores: [] };
   },
 
   async setConfirmed(lineupId, confirmed){
