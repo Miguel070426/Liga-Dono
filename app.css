@@ -557,6 +557,30 @@ button.btn.wide{ width:100%; }
     .pl-cuando{ font-size:10px; }
   }
 
+  /* ---------- EL PARTIDO ABIERTO ---------- */
+  /* Un partido ya jugado se abre y enseña a sus jugadores. La flecha solo sale
+     en los que se pueden abrir, para que no parezca que los demás no responden. */
+  .pl-det > summary{ list-style:none; cursor:pointer; }
+  .pl-det > summary::-webkit-details-marker{ display:none; }
+  summary.pl-fila{ grid-template-columns:74px 1fr auto 1fr 14px; }
+  .pl-abrir{ font-size:10px; color:var(--chalk-dim); transition:transform 0.15s; }
+  .pl-det[open] > summary .pl-abrir{ transform:rotate(180deg); display:inline-block; }
+  .pl-det[open] > summary{ background:rgba(244,241,230,0.03); }
+  .pl-cuerpo{ padding:4px 0 12px; }
+  .pj-grid{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .pj-grid h4{
+    margin:0 0 6px; font-size:12px; letter-spacing:0.6px; text-transform:uppercase;
+    color:var(--gold-dim);
+  }
+  table.pj{ width:100%; border-collapse:collapse; font-size:12px; }
+  table.pj td{ padding:3px 4px; border-top:1px solid rgba(244,241,230,0.05); vertical-align:middle; }
+  table.pj td.num{ text-align:right; color:var(--chalk-dim); font-variant-numeric:tabular-nums; }
+  tr.pj-mio td{ background:rgba(201,162,77,0.07); }
+  @media (max-width:520px){
+    summary.pl-fila{ grid-template-columns:60px 1fr auto 1fr 12px; }
+    .pj-grid{ grid-template-columns:1fr; gap:14px; }
+  }
+
   /* ---------- CIERRE DE LA JORNADA ---------- */
   /* La hora del cierre cambia de color según lo que falte. No hay reloj
      corriendo: un contador de segundos gasta batería y no dice nada cuando

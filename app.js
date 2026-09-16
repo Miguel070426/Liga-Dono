@@ -1483,20 +1483,96 @@ function partidosHtml(partidos, mios = {}, opciones = {}){
     return `<span class="pl-eq${mio ? ' pl-mio' : ''}">${esc(nombre)}${
       mio ? `<span class="pl-jug">${esc(mio)}</span>` : ''}</span>`;
   };
+  const abrible = opciones.abrir !== false;
   return `<div class="partidos">${partidos.map(p => {
     const jugado = p.estado === 'Finished' && p.goles_local !== null;
     const marcador = jugado
       ? `<span class="pl-res num">${p.goles_local}–${p.goles_visitante}</span>`
       : `<span class="pl-vs">vs</span>`;
-    return `<div class="pl-fila${p.excluido ? ' pl-fuera' : ''}">
-      <span class="pl-cuando">${p.excluido ? 'fuera' : partidoHora(p)}</span>
+    const dentro = `<span class="pl-cuando">${p.excluido ? 'fuera' : partidoHora(p)}</span>
       ${lado(p.local, p.local_club)}
       ${marcador}
-      ${lado(p.visitante, p.visitante_club)}
-    </div>`;
+      ${lado(p.visitante, p.visitante_club)}`;
+    // Solo se puede abrir lo que tiene números detrás. Un partido sin cargar
+    // que se abriera para no enseñar nada es peor que uno que no se abre.
+    if(!abrible || !p.cargado){
+      return `<div class="pl-fila${p.excluido ? ' pl-fuera' : ''}">${dentro}</div>`;
+    }
+    return `<details class="pl-det" data-local="${p.local_club || ''}" data-visitante="${p.visitante_club || ''}">
+      <summary class="pl-fila${p.excluido ? ' pl-fuera' : ''}">${dentro}<span class="pl-abrir" aria-hidden="true">▾</span></summary>
+      <div class="pl-cuerpo">${loadingHtml()}</div>
+    </details>`;
   }).join('')}</div>${opciones.nota === false ? '' : `
   <p class="club-tag" style="margin:8px 0 0;">El primero de la lista marca la hora de cierre.
-    Los tuyos van en dorado.</p>`}`;
+    Los tuyos van en dorado. Pulsa un partido ya jugado para ver a sus jugadores uno a uno.</p>`}`;
+}
+
+/* ============================================================
+   EL PARTIDO DE VERDAD, JUGADOR A JUGADOR
+   ============================================================
+   Los números de los 22 ya están descargados: son los mismos que alimentan el
+   resultado de la jornada. Enseñarlos no cuesta ninguna consulta más y quita
+   la otra mitad de las discusiones — la de «¿seguro que ese no marcó?».
+
+   Se rellena al abrir, no antes: en Mi Plantilla la mayoría de los partidos no
+   se abren nunca y no tiene sentido pagar por ellos.                        */
+const ORDEN_POS = { GK:0, DF:1, MF:2, FW:3 };
+
+function jugadoresDelClub(clubId, cache, mis){
+  const stats = cache.byPlayer || {};
+  return S.players
+    .filter(p => p.club_id === clubId && stats[p.id])
+    .map(p => ({ ...p, st: stats[p.id], mio: mis && mis.has(p.id) }))
+    .sort((a, b) =>
+      (ORDEN_POS[a.pos] ?? 9) - (ORDEN_POS[b.pos] ?? 9) ||
+      (b.st.minutes || 0) - (a.st.minutes || 0) ||
+      a.name.localeCompare(b.name));
+}
+
+function ladoDelPartidoHtml(clubId, cache, mis){
+  const js = clubId ? jugadoresDelClub(clubId, cache, mis) : [];
+  if(!js.length){
+    return `<div><h4>${esc(clubName(clubId) || '—')}</h4>
+      <p class="empty" style="padding:10px;">Sin datos de este equipo.</p></div>`;
+  }
+  const filas = js.map(p => {
+    const s = p.st;
+    const bits = [];
+    if(s.goals)   bits.push(`${s.goals}⚽`);
+    if(s.assists) bits.push(`${s.assists}🎯`);
+    if(s.yellow)  bits.push('🟨');
+    if(s.red)     bits.push('🟥');
+    if(s.shots)   bits.push(`${s.shots}🥅`);
+    if(s.fouls)   bits.push(`${s.fouls}⚠️`);
+    return `<tr${p.mio ? ' class="pj-mio"' : ''}>
+      <td><span class="pos-tag pos-${p.pos}">${p.pos}</span></td>
+      <td>${esc(p.name)}${p.mio ? ' <span class="pl-jug">tuyo</span>' : ''}</td>
+      <td class="num">${s.minutes || 0}'</td>
+      <td style="text-align:right;white-space:nowrap;">${bits.join(' ') || '<span class="club-tag">—</span>'}</td>
+    </tr>`;
+  }).join('');
+  return `<div><h4>${esc(clubName(clubId) || '—')}</h4><table class="pj">${filas}</table></div>`;
+}
+
+// Rellena cada partido la primera vez que se abre. Si falla, se dice ahí mismo
+// y el resto de la pantalla sigue funcionando: esto es información de apoyo.
+function wirePartidos(el, j, mis){
+  el.querySelectorAll('details.pl-det').forEach(det => {
+    det.addEventListener('toggle', async () => {
+      if(!det.open || det.dataset.listo) return;
+      det.dataset.listo = '1';
+      const cuerpo = det.querySelector('.pl-cuerpo');
+      try{
+        const cache = S.cache[j] || await jornadaData(j);
+        cuerpo.innerHTML = `<div class="pj-grid">
+          ${ladoDelPartidoHtml(det.dataset.local, cache, mis)}
+          ${ladoDelPartidoHtml(det.dataset.visitante, cache, mis)}</div>`;
+      }catch(err){
+        delete det.dataset.listo;
+        cuerpo.innerHTML = '<p class="empty">No se han podido cargar los jugadores de este partido.</p>';
+      }
+    });
+  });
 }
 
 // Pinta los partidos en un hueco, marcando los jugadores propios. Si falla la
@@ -1507,13 +1583,15 @@ async function pintarPartidos(donde, j, d){
   if(!el) return;
   try{
     const partidos = await DB.matchesOfJornada(j);
-    const mios = {};
+    const mios = {}, mis = new Set();
     const lu = d && d.lineups && S.me
       ? d.lineups.find(l => l.manager_id === S.me.id) : null;
     (lu ? (lu.lineup_slots || []) : []).forEach(s => {
       if(s.club_id) mios[s.club_id] = s.player_name || 'tuyo';
+      if(s.club_player_id) mis.add(s.club_player_id);
     });
     el.innerHTML = partidosHtml(partidos, mios);
+    wirePartidos(el, j, mis);
   }catch(err){
     el.innerHTML = '<p class="empty">No se han podido cargar los partidos de Primera.</p>';
   }
@@ -1533,9 +1611,13 @@ async function pintarPartidosDelBorrador(j, d){
     try{ partidosCache[j] = await DB.matchesOfJornada(j); }
     catch(err){ el.innerHTML = '<p class="empty">No se han podido cargar los partidos de Primera.</p>'; return; }
   }
-  const mios = {};
-  (d.slots || []).forEach(s => { if(s.club_id) mios[s.club_id] = s.player_name || 'tuyo'; });
+  const mios = {}, mis = new Set();
+  (d.slots || []).forEach(s => {
+    if(s.club_id) mios[s.club_id] = s.player_name || 'tuyo';
+    if(s.club_player_id) mis.add(s.club_player_id);
+  });
   el.innerHTML = `<h2>Los partidos de esta jornada</h2>${partidosHtml(partidosCache[j], mios)}`;
+  wirePartidos(el, j, mis);
 }
 
 // Un datetime-local quiere «2026-09-18T20:59» en hora local, sin zona.

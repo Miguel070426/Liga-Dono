@@ -202,6 +202,23 @@ Los pesos del navegador tienen que seguir a la vista `slot_contrib` tal y como l
 dejó la migración 0011. Si algún día se cambia el reglamento en SQL, hay que
 tocar también `MULT` y `aporteDe` en `app.js`.
 
+### El partido real, abierto
+
+En la lista de partidos de Primera, uno ya cargado se abre y enseña a los
+jugadores de los dos equipos con sus minutos, goles, asistencias, tarjetas,
+tiros y faltas. Está tanto en la pestaña Jornada como en Mi Plantilla, que es
+donde se decide a quién alinear.
+
+No cuesta ninguna consulta más: son los mismos datos que ya alimentan el
+resultado, y la plantilla de cada club ya viene en el arranque. El contenido se
+rellena al abrir cada partido, no antes, porque en Mi Plantilla la mayoría no se
+abren nunca. Los partidos sin cargar no se pueden abrir: uno que se abriera para
+no enseñar nada sería peor que uno que no se abre.
+
+**Solo se marcan los jugadores propios.** Marcar los del rival destaparía su once
+desde una pantalla que no está protegida por las reglas de la jornada, así que
+hay una prueba dedicada a ello (`t-partido.mjs`).
+
 ## De dónde pueden salir los datos
 
 Investigado y probado contra las APIs reales, no leído de su publicidad:
