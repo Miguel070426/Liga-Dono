@@ -63,7 +63,11 @@ const mgr       = id => S.managers.find(m => m.id === id) || {club_name:'—', o
 const clubName  = id => (S.clubs.find(c => c.id === id) || {}).name || '';
 const clamp     = j => Math.max(1, Math.min(N_JORNADAS, j|0));
 const isMine    = id => S.me && id === S.me.id;
-const jornadaOpen = () => S.league && !S.league.lineups_locked;
+// Abierta = ni cerrada a mano, ni pasada la hora del primer partido. La
+// base de datos rechaza igual lo que llegue tarde; esto es para que la
+// pantalla no te deje escribir un once que luego no se va a guardar.
+const jornadaOpen = () =>
+  S.league && !S.league.lineups_locked && !(S.jEstado && S.jEstado.cerrada);
 
 // Quien ya no está en el club no se ofrece para alinear. Sigue existiendo:
 // el panel lo ve y una alineación vieja conserva su nombre.
@@ -333,7 +337,13 @@ async function boot(){
   S.plantillaJornada = clamp(S.league.current_jornada);
   S.draft = null;
 
-  const [st, fm] = await Promise.all([DB.standings(), DB.form()]);
+  const [st, fm, je] = await Promise.all([
+    DB.standings(), DB.form(),
+    // Si esto falla no se cae el juego: se pierde la cuenta atrás, nada más.
+    // El cierre de verdad lo aplica la base de datos, no esta consulta.
+    DB.jornadaEstado(clamp(S.league.current_jornada)).catch(() => null)
+  ]);
+  S.jEstado = je;
   S.standings = st;
   S.form = {};
   fm.forEach(r => { (S.form[r.manager_id] = S.form[r.manager_id] || []).push(r.res); });
@@ -485,13 +495,59 @@ function renderHeader(){
   $('footNote').textContent = S.isAdmin ? 'Modo dirección activo' : 'Liga Fantasy';
 
   const b = $('globalBanner');
-  if(S.league.lineups_locked){
+  const e = S.jEstado || {};
+  const cierre = e.cierre ? new Date(e.cierre) : null;
+  const cerrada = S.league.lineups_locked || e.cerrada;
+
+  if(cerrada){
     b.innerHTML = `<div class="banner locked">🔒 <span><strong>Jornada ${j} cerrada.</strong>
       Las alineaciones ya no se pueden cambiar y se han destapado todos los onces.</span></div>`;
+  }else if(cierre){
+    b.innerHTML = `<div class="banner locked">✍️ <span><strong>Jornada ${j} abierta.</strong>
+      Puedes cambiar tu once hasta que empiece el primer partido:
+      <strong class="cuenta" id="hastaCierre">${fechaCierre(cierre)}</strong>.
+      Hasta entonces nadie ve el once de nadie.</span></div>`;
+    marcarCuentaAtras(cierre);
   }else{
     b.innerHTML = `<div class="banner locked">✍️ <span><strong>Jornada ${j} abierta.</strong>
-      Cada uno alinea a ciegas: el once de tu rival no se ve hasta que la organización cierre la jornada.</span></div>`;
+      Cada uno alinea a ciegas: el once de tu rival no se ve hasta que se cierre la jornada.</span></div>`;
   }
+  pintarClubesFuera();
+}
+
+// La hora del cierre, escrita como la diría una persona.
+function fechaCierre(d){
+  const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  const hoy = new Date();
+  const mismoDia = d.toDateString() === hoy.toDateString();
+  const hora = d.toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'});
+  if(mismoDia) return `hoy a las ${hora}`;
+  const manana = new Date(hoy); manana.setDate(hoy.getDate() + 1);
+  if(d.toDateString() === manana.toDateString()) return `mañana a las ${hora}`;
+  return `el ${dias[d.getDay()]} ${d.getDate()} a las ${hora}`;
+}
+
+// Las últimas horas se avisan con color, que es cuando la gente se despista.
+// No hay reloj corriendo a propósito: un contador de segundos en pantalla
+// gasta batería y no aporta nada cuando faltan dos días.
+function marcarCuentaAtras(cierre){
+  const el = $('hastaCierre');
+  if(!el) return;
+  const horas = (cierre - Date.now()) / 3600000;
+  el.classList.toggle('urge', horas <= 3);
+  el.classList.toggle('pronto', horas > 3 && horas <= 24);
+}
+
+// Los clubes que se han sacado de la jornada, avisados arriba del todo para
+// que nadie se entere después de haber alineado.
+function pintarClubesFuera(){
+  const fuera = (S.jEstado && S.jEstado.clubes_fuera) || [];
+  const b = $('globalBanner');
+  if(!fuera.length || !b) return;
+  b.insertAdjacentHTML('beforeend', `<div class="banner warn">⚠️ <span>
+    <strong>Fuera de esta jornada:</strong> ${fuera.map(c =>
+      `${esc(c.club)}${c.motivo ? ' <span class="club-tag">(' + esc(c.motivo) + ')</span>' : ''}`
+    ).join(' · ')}. Sus jugadores no puntúan y no se pueden elegir.</span></div>`);
 }
 
 function renderAll(){
@@ -917,9 +973,22 @@ async function renderPlantilla(){
   const used = {};
   d.slots.forEach(s => { if(s.club_id) used[s.club_id] = true; });
 
+  // Los clubes sacados de la jornada no se pueden elegir. El aviso va en la
+  // propia opción y no en un mensaje aparte: si solo se avisara después de
+  // guardar, alguien gastaría un hueco de su once en un jugador que no va a
+  // puntuar, que es justo lo que esto evita.
+  const fuera = {};
+  ((j === clamp(S.league.current_jornada) && S.jEstado && S.jEstado.clubes_fuera) || [])
+    .forEach(c => { fuera[c.club_id] = c.motivo || 'fuera de esta jornada'; });
+
   const clubOpts = sel => `<option value="">— club —</option>` + S.clubs.map(c => {
     const clash = used[c.id] && c.id !== sel;
-    return `<option value="${c.id}" ${c.id===sel?'selected':''}${clash?' disabled':''}>${esc(c.name)}${clash?' · ya usado':''}</option>`;
+    const bloqueado = !!fuera[c.id];
+    // Si ya lo tenías elegido se sigue viendo, con el aviso, para que sepas
+    // que tienes que cambiarlo. Lo que no se puede es elegirlo de nuevo.
+    const nota = bloqueado ? ' · no juega esta jornada' : (clash ? ' · ya usado' : '');
+    return `<option value="${c.id}" ${c.id===sel?'selected':''}${
+      ((clash || bloqueado) && c.id !== sel)?' disabled':''}>${esc(c.name)}${nota}</option>`;
   }).join('');
   const playerOpts = (clubId, pos, selId, selName) => {
     const list = playersOf(clubId, pos);
@@ -969,6 +1038,16 @@ async function renderPlantilla(){
     <div style="margin-top:10px;">${v.valid
       ? '<span class="ok">Once completo y legal ✓</span>'
       : `<span class="warn">${v.errors.join('<br>')}</span>`}</div>
+    ${(() => {
+      // Un once puede ser legal y aun así llevar jugadores que no van a
+      // puntuar, porque su club se ha salido de la jornada. «Legal ✓» a
+      // secas se leería como «todo en orden», y no lo está.
+      const muertos = d.slots.filter(s => s.club_id && fuera[s.club_id]);
+      return muertos.length ? `<div class="warn" style="margin-top:6px;">
+        ${muertos.length === 1 ? 'Un jugador tuyo no puntuará' : muertos.length + ' jugadores tuyos no puntuarán'}
+        esta jornada: ${muertos.map(s => esc(clubName(s.club_id))).join(', ')}
+        ${muertos.length === 1 ? 'está' : 'están'} fuera. Cámbia${muertos.length === 1 ? 'lo' : 'los'} si puedes.</div>` : '';
+    })()}
     ${editable ? `<div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
       <button class="btn" id="saveLineup" ${d.dirty?'':'disabled'}>Guardar cambios</button>
       <button class="btn ghost" id="confirmLineup" ${(!v.valid && !d.confirmed)?'disabled':''}>${d.confirmed?'Quitar confirmación':'Confirmar alineación'}</button>
@@ -1253,10 +1332,16 @@ async function panelSimulador(body, seq){
   }));
 }
 
+// Un datetime-local quiere «2026-09-18T20:59» en hora local, sin zona.
+function paraInput(d){
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 async function panelJornada(body, seq){
   const cur = clamp(S.league.current_jornada);
   const locked = S.league.lineups_locked;
-  const d = await jornadaData(cur);
+  const [d, est] = await Promise.all([jornadaData(cur), DB.jornadaEstado(cur).catch(() => ({}))]);
   if(stale(seq)) return;
   body.innerHTML = `
     <div class="admin-note">El ciclo de una jornada: <strong>abierta</strong> (cada uno alinea a ciegas) →
@@ -1266,10 +1351,29 @@ async function panelJornada(body, seq){
       <div style="display:flex;flex-wrap:wrap;gap:8px;">${Array.from({length:N_JORNADAS},(_,i)=>i+1)
         .map(n => `<div class="jchip ${n===cur?'cur':''}" data-j="${n}">Jornada ${n}${n===cur?' ✓':''}</div>`).join('')}</div>
       <div style="margin-top:16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <button class="btn ${locked?'ghost':''}" id="toggleLock">${locked?'Reabrir la jornada':'Cerrar la jornada'}</button>
+        <button class="btn ${locked?'ghost':''}" id="toggleLock">${locked?'Reabrir la jornada':'Cerrar ya, a mano'}</button>
         <span class="club-tag">${locked
-          ? 'Cerrada: nadie puede editar y todos ven todos los onces.'
-          : 'Abierta: cada uno puede editar y nadie ve el once del rival.'}</span>
+          ? 'Cerrada a mano: nadie puede editar y todos ven todos los onces.'
+          : 'Solo hace falta si quieres adelantar el cierre. Normalmente cierra sola.'}</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Cuándo se cierra la jornada ${cur}</h2>
+      <p style="font-size:12px;color:var(--chalk-dim);margin-top:0;">
+        La marca el primer partido de la jornada que no esté excluido. A esa hora se bloquean
+        las alineaciones y se destapan los onces, sin que nadie tenga que hacer nada.</p>
+      <div class="toolbar">
+        <span class="pill ${est.cerrada ? 'warn' : ''}">${
+          est.cerrada ? 'Ya cerrada'
+          : (est.cierre ? 'Cierra ' + fechaCierre(new Date(est.cierre)) : 'Sin hora: refresca el calendario')}</span>
+        ${est.a_mano ? '<span class="pill warn">hora puesta a mano</span>' : ''}
+      </div>
+      <div class="toolbar" style="margin-bottom:0;">
+        <label style="margin:0;" for="cierreManual">Cambiar la hora</label>
+        <input type="datetime-local" id="cierreManual" style="max-width:230px;"
+               value="${est.cierre ? paraInput(new Date(est.cierre)) : ''}">
+        <button class="btn ghost small" id="cierreGuardar">Fijar</button>
+        <button class="btn ghost small" id="cierreAuto" ${est.a_mano ? '' : 'disabled'}>Volver al automático</button>
       </div>
     </div>
     <div class="card"><h2>Estado de las alineaciones · jornada ${cur}</h2>
@@ -1285,13 +1389,28 @@ async function panelJornada(body, seq){
       }).join('')}</table></div>`;
 
   body.querySelectorAll('.jchip').forEach(c => c.addEventListener('click', () => guard(async () => {
-    await DB.setLeague(S.league.id, { current_jornada: +c.dataset.j });
+    // Al cambiar de jornada se quita el cierre a mano: si no, la jornada
+    // nueva nacía cerrada y había que acordarse de reabrirla. A partir de
+    // aquí manda la hora del primer partido.
+    await DB.setLeague(S.league.id, { current_jornada: +c.dataset.j, lineups_locked: false });
     toast(`Jornada ${c.dataset.j} en juego`, 'good');
     await boot(); switchView('panel');
   })));
   $('toggleLock').addEventListener('click', () => guard(async () => {
     await DB.setLeague(S.league.id, { lineups_locked: !locked });
-    toast(locked ? 'Jornada reabierta' : 'Jornada cerrada', 'good');
+    toast(locked ? 'Jornada reabierta' : 'Jornada cerrada a mano', 'good');
+    await boot(); switchView('panel');
+  }));
+  $('cierreGuardar').addEventListener('click', () => guard(async () => {
+    const v = $('cierreManual').value;
+    if(!v){ toast('Elige una fecha y una hora', 'bad'); return; }
+    await DB.setDeadline(cur, new Date(v).toISOString());
+    toast('Hora de cierre fijada', 'good');
+    await boot(); switchView('panel');
+  }));
+  $('cierreAuto').addEventListener('click', () => guard(async () => {
+    await DB.setDeadline(cur, null);
+    toast('Vuelve a mandar el calendario', 'good');
     await boot(); switchView('panel');
   }));
 }
@@ -1354,17 +1473,27 @@ async function panelStats(body, seq){
   const porCargar  = jugados.filter(p => !p.cargado);
   const sinJugar   = (partidos || []).length - jugados.length;
 
+  // Qué partidos están sacados de esta jornada, para poder devolverlos.
+  const estJ = await DB.jornadaEstado(j).catch(() => ({}));
+  if(stale(seq)) return;
+  const clubesFuera = new Set(((estJ && estJ.clubes_fuera) || []).map(c => c.club));
+
   const mRows = (partidos || []).map(p => {
     const marcador = p.goles_local === null ? '–' : `${p.goles_local}-${p.goles_visitante}`;
-    const estado = p.estado !== 'Finished'
-      ? '<span class="club-tag">sin jugar</span>'
-      : (p.cargado ? '<span class="badge win">cargado</span>' : '<span class="pill warn">pendiente</span>');
-    return `<tr data-match="${p.match_id}">
+    const sacado = clubesFuera.has(p.local) || clubesFuera.has(p.visitante);
+    const estado = sacado
+      ? '<span class="pill warn">fuera de la jornada</span>'
+      : (p.estado !== 'Finished'
+        ? '<span class="club-tag">sin jugar</span>'
+        : (p.cargado ? '<span class="badge win">cargado</span>' : '<span class="pill warn">pendiente</span>'));
+    return `<tr data-match="${p.match_id}" class="${sacado ? 'fuera' : ''}">
       <td class="club-tag" style="white-space:nowrap;">${esc(p.fecha || '')}</td>
       <td>${esc(p.local)}</td>
       <td style="text-align:center;font-weight:bold;white-space:nowrap;">${marcador}</td>
       <td>${esc(p.visitante)}</td>
-      <td style="text-align:right;" class="mEstado">${estado}</td></tr>`;
+      <td style="text-align:right;" class="mEstado">${estado}</td>
+      <td style="text-align:right;"><button class="btn ghost small ${sacado ? 'mMeter' : 'mSacar'}">${
+        sacado ? 'Devolver' : 'Sacar'}</button></td></tr>`;
   }).join('');
 
   body.innerHTML = `
@@ -1463,6 +1592,30 @@ async function panelStats(body, seq){
     invalidate(j);
     await boot(); switchView('panel');
   }));
+
+  // Sacar un partido de la jornada, o devolverlo. Sirve para el aplazado —sus
+  // clubes no puntúan— y sobre todo para el adelantado, donde además arrastra
+  // la hora de cierre al día del partido si no se saca.
+  body.querySelectorAll('[data-match] .mSacar').forEach(b =>
+    b.addEventListener('click', () => guard(async () => {
+      const fila = b.closest('[data-match]');
+      const cual = fila.children[1].textContent + ' – ' + fila.children[3].textContent;
+      const motivo = prompt(`¿Por qué sale «${cual}» de la jornada ${j}?\n`
+        + 'Ej.: aplazado · adelantado, ya se jugó', 'aplazado');
+      if(motivo === null) return;
+      await DB.excludeMatch(j, +fila.dataset.match, motivo);
+      toast('Partido fuera de la jornada. Sus dos clubes no puntúan', 'good');
+      invalidate(j);
+      await boot(); switchView('panel');
+    })));
+  body.querySelectorAll('[data-match] .mMeter').forEach(b =>
+    b.addEventListener('click', () => guard(async () => {
+      const fila = b.closest('[data-match]');
+      await DB.includeMatch(j, +fila.dataset.match);
+      toast('Partido devuelto a la jornada', 'good');
+      invalidate(j);
+      await boot(); switchView('panel');
+    })));
 
   const scb = $('saveClubStats');
   if(scb) scb.addEventListener('click', () => guard(async () => {

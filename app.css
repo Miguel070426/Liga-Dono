@@ -494,6 +494,21 @@ button.btn.wide{ width:100%; }
      lado; esto es lo que hace que lo use en vez de encoger. */
   #tablaClasificacion table{ min-width:540px; }
 
+  /* ---------- CIERRE DE LA JORNADA ---------- */
+  /* La hora del cierre cambia de color según lo que falte. No hay reloj
+     corriendo: un contador de segundos gasta batería y no dice nada cuando
+     faltan dos días. */
+  .cuenta{ color:var(--chalk); }
+  .cuenta.pronto{ color:var(--gold); }
+  .cuenta.urge{ color:var(--red-text); }
+  @media (prefers-reduced-motion: no-preference){
+    .cuenta.urge{ animation:latir 1.6s ease-in-out infinite; }
+  }
+  @keyframes latir{ 50%{ opacity:0.55; } }
+  /* Una fila de partido sacado de la jornada se lee de un vistazo. */
+  tr.fuera td{ opacity:0.55; text-decoration:line-through; }
+  tr.fuera td:last-child{ opacity:1; text-decoration:none; }
+
   /* ---------- ESCUDOS ---------- */
   /* El escudo es un SVG, no una imagen: se dibuja con la receta que cada uno
      eligió. Se mide por altura y la anchura sale sola, porque un escudo es

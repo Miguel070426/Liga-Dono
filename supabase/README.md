@@ -272,6 +272,76 @@ dejar uno de más, así que ahora:
 Un jugador de baja deja de ofrecerse en los desplegables, pero su ficha no se
 borra: las alineaciones de jornadas ya jugadas siguen enseñándolo, con el motivo.
 
+## Cuándo se cierra la jornada
+
+La marca **el primer partido de la jornada**, no un botón. Si el primero es el
+viernes a las 21:00, a las 21:00 se bloquean las alineaciones y se destapan
+todos los onces. Nadie tiene que estar delante.
+
+Antes cerraba a mano, y eso dejaba abierta la única forma real de hacer trampa
+en este juego: que a alguien se le olvide cerrar y otro alinee con los partidos
+ya empezados.
+
+La hora sale de `hl_matches.comienza`, que es el `date` completo de la API
+—hasta ahora se recortaba a `left(date,10)` y se tiraba la hora—. Se guarda con
+zona horaria y se compara con `now()`, así que el cambio de hora de octubre se
+resuelve solo.
+
+Lo aplican **dos sitios y nada más**:
+
+- `app.lineup_editable()`, que usan las políticas de insert, update y delete
+- la política `lineups_read`, que decide cuándo se ven los onces de los rivales
+
+Ambas pasan por `app.jornada_cerrada()`, que es `lineups_locked OR now() >=
+cierre`. El botón de cerrar a mano se queda, pero ahora solo sirve para
+**adelantar** el cierre.
+
+Si no hay hora conocida —calendario sin refrescar— manda solo el botón. Dejar a
+doce personas sin poder alinear por un dato que falta es peor que el riesgo que
+evita.
+
+Comprobado contra la base de datos real, haciéndose pasar por un jugador que no
+es la organización:
+
+```
+jornada abierta: guarda su once        → GUARDA
+pasada la hora: intenta modificarlo    → BLOQUEADO, 0 filas
+pasada la hora: intenta crear otro     → BLOQUEADO
+pasada la hora: intenta borrarlo       → BLOQUEADO, 0 filas
+la formación guardada sigue siendo     → la de antes
+```
+
+La organización sí puede editar fuera de hora, por la política `lineups_admin`.
+Es a propósito: alguien tiene que poder arreglar un desastre.
+
+## Sacar un partido de la jornada
+
+`jornada_excluidos(league_id, jornada, match_id, motivo)`. Resuelve dos casos:
+
+- **Aplazado**: se juega semanas después. La jornada no espera —se congelaría la
+  liga— y esos clubes no puntúan, que es la regla que ya estaba escrita.
+- **Adelantado**: se juega *antes* de que la gente alinee. Quien ponga a un
+  jugador de ese partido ya sabe lo que hizo. Además, sin sacarlo, el cierre se
+  iría al día del adelanto y fastidiaría a los doce.
+
+Sacar el partido hace las dos cosas a la vez: sus clubes quedan fuera **y** el
+cierre se recalcula con los que quedan. Verificado:
+
+```
+cierre con los 10 partidos        → viernes 18, 21:00
+cierre tras sacar el del viernes  → sábado 19, 14:00
+clubes bloqueados al alinear      → Elche y Espanyol, con el motivo
+al devolver el partido            → viernes 18, 21:00
+```
+
+Va por liga, no global, porque el reparto jornada→ronda ya es por liga: dos
+ligas pueden empezar en rondas distintas y no tienen por qué tomar la misma
+decisión sobre un adelantado.
+
+La pantalla de alineación los bloquea con el motivo a la vista, y avisa si ya
+tenías elegido a alguien de esos clubes. Un once puede ser legal y aun así
+llevar jugadores que no van a puntuar; decir solo «legal ✓» engañaría.
+
 ## El escudo de cada manager
 
 En `managers.escudo`, y **no es una imagen**: es la receta para dibujarla.

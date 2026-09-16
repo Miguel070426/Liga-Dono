@@ -371,6 +371,29 @@ export const DB = {
     if(error) throw fail(error, 'No se ha podido guardar el escudo');
   },
 
+  // Cuándo cierra la jornada, si ya cerró, y qué clubes están fuera y por qué.
+  // La hora la decide el servidor: el navegador solo la enseña.
+  async jornadaEstado(jornada){
+    const { data, error } = await sb.rpc('jornada_estado', { p_jornada: jornada });
+    if(error) throw fail(error, 'No se ha podido consultar el estado de la jornada');
+    return data || {};
+  },
+  async excludeMatch(jornada, matchId, motivo){
+    const { error } = await sb.rpc('excluir_partido', {
+      p_jornada: jornada, p_match: matchId, p_motivo: motivo || null });
+    if(error) throw fail(error, 'No se ha podido sacar el partido de la jornada');
+  },
+  async includeMatch(jornada, matchId){
+    const { error } = await sb.rpc('incluir_partido', { p_jornada: jornada, p_match: matchId });
+    if(error) throw fail(error, 'No se ha podido devolver el partido a la jornada');
+  },
+  async setDeadline(jornada, cuando){
+    const { data, error } = await sb.rpc('fijar_cierre', {
+      p_jornada: jornada, p_cuando: cuando || null });
+    if(error) throw fail(error, 'No se ha podido cambiar la hora de cierre');
+    return data;
+  },
+
   async renameOwnClub(managerId, club, owner){
     const { data, error } = await sb.from('managers')
       .update({ club_name: club, owner_name: owner }).eq('id', managerId).select('id');
