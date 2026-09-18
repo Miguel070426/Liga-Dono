@@ -33,8 +33,8 @@ dispositivo. En la práctica falló en todo lo que importaba:
 El precio del cambio, asumido a la vista: **sin correo no hay «he olvidado mi
 contraseña» automático**. La repone la organización desde su panel
 (`reponer_contrasena`), que para doce amigos es quien va a estar de todas
-formas. Y cada uno puede cambiarse la suya desde Inicio, para no quedarse con
-una que le puso otro.
+formas. Y cada uno puede cambiarse la suya desde **Mi cuenta**, para no quedarse
+con una que le puso otro.
 
 El usuario no distingue mayúsculas ni espacios de más, y es único por liga. Al
 fichar se comprueba que esté libre **antes** de crear la cuenta: si no, cada
@@ -701,10 +701,42 @@ por delante «el partido real desglosado».
 
 Todo esto lo vigila `t-movil.mjs`, que mide en vez de mirar.
 
+## Mi cuenta: lo tuyo, fuera del juego
+
+Inicio llevaba una tarjeta con el escudo, el nombre del club y la contraseña.
+Son tres cosas que se tocan **una vez** y luego no vuelven a tocarse, y estaban
+ocupando sitio en la pantalla que se abre cada día. Ahora viven en su propia
+pantalla, a la que se entra **pulsando tu escudo de la cabecera**, que ya estaba
+ahí arriba y no hacía nada.
+
+- El escudo de la cabecera es un `<button>` de verdad, con `aria-label="Mi
+  cuenta"` para quien navega a oídas, y se queda marcado mientras estás dentro.
+- «Volver» te devuelve **a la pantalla donde estabas**, no a Inicio.
+- El selector de escudo viene **plegado y sin montar**: sus 66.000
+  combinaciones no se dibujan hasta que se piden.
+- Inicio se quedó en menos de 1.200 px y ya no habla de contraseñas.
+
+De paso salió a la luz un fallo que llevaba desde el principio: **nadie podía
+cambiarse el nombre del club**. El permiso estaba dado —RLS deja escribir en tu
+propia fila y el `grant` de columnas solo abre `club_name`, `owner_name` y
+`escudo`— y `renameOwnClub` estaba escrito en `db.js`… y **el juego no lo
+llamaba desde ningún sitio**. Un camino entero construido sin puerta. Ahora Mi
+cuenta tiene los dos campos —club y tu nombre— y la cabecera se actualiza al
+guardar. Si la base rechaza el cambio, el juego lo dice en vez de fingir que se
+guardó: `renameOwnClub` devuelve `blocked` cuando no vuelve ninguna fila.
+
+Y un aviso que casi se rompe: `pintarCuenta()` lleva un cortocircuito que **no
+repinta mientras el selector de escudo está abierto**. Lo quité pensando que la
+pantalla propia no se repintaba sola; se repinta, porque `refrescarEnVivo()`
+llama a `renderAll()` sobre la vista que tengas delante. Sin ese cortocircuito,
+que otro de la liga guardara su once te **borraba el escudo a medio elegir**.
+Está vigilado por `t-micuenta.mjs`, que elige un escudo, provoca un refresco en
+vivo y comprueba que el dibujo sigue siendo el mismo.
+
 ## El ensayo de una jornada completa
 
 Hecho **sobre la base de datos real**, con datos reales de Primera, y deshecho
-después restaurando una copia. No prueba las pantallas —eso lo hacen las 17
+después restaurando una copia. No prueba las pantallas —eso lo hacen las 19
 baterías del navegador— sino **los números**: que la cadena entera desde el acta
 de un partido hasta la clasificación da lo que debe.
 

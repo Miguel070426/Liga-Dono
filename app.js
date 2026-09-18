@@ -468,6 +468,7 @@ function switchView(name){
   S.view = name;
   document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b.dataset.view === name));
   $('helpBtn').classList.toggle('on', name === 'reglas');
+  $('hdrCrest').classList.toggle('on', name === 'cuenta');
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   const el = $('view-' + name);
   if(el) el.classList.add('active');
@@ -564,6 +565,7 @@ function renderAll(){
       if(S.clasSec === 'playoffs') renderPlayoffs(); else renderClasificacion();
       break;
     case 'panel':         renderPanel(); break;
+    case 'cuenta':        pintarCuenta(); break;
   }
 }
 
@@ -876,35 +878,63 @@ async function renderInicio(){
   <div style="margin-top:12px;"><button class="btn ghost small" id="toStandings">Ver clasificación completa</button></div>`;
   $('toStandings').addEventListener('click', () => switchView('clasificacion'));
 
-  pintarCuenta();
 }
 
 // Cambiar la propia contraseña. Hace falta porque la organización puede poner
 // una para que entres, y nadie debería quedarse con una contraseña que eligió
 // otro.
+/* ---------------------------------------------------------- MI CUENTA
+   Lo que es tuyo y no del partido: el nombre de tu club, tu escudo y tu
+   contraseña. Se abre con tu escudo, arriba a la izquierda.
+
+   Vivía en Inicio, y son cosas que se tocan una vez ocupando sitio fijo en la
+   pantalla que más se mira.
+
+   El candado de abajo se quitó al mudarla aquí, dando por hecho que su propia
+   pantalla no se repinta. Error: quien repinta no es Inicio, es el refresco en
+   vivo, que rehace la pantalla en la que estés cuando otro guarda su once o
+   pasa el ciclo. Lo cazó la prueba del escudo —a mitad del bucle de
+   «sorpréndeme» los botones desaparecían de debajo del ratón— y el candado
+   volvió.
+
+   De paso se puede cambiar el nombre del club. `renameOwnClub` llevaba escrito
+   en db.js desde el principio y NADIE lo llamaba: no había forma de cambiarse
+   el nombre del club desde el juego, ni tú ni los otros once. */
 function pintarCuenta(){
-  const c = $('inicioCuenta');
+  const c = $('cuentaBody');
   if(!c) return;
-  if(!S.me){ c.innerHTML = ''; c.style.display = 'none'; return; }
+  if(!S.me){
+    c.innerHTML = '<p class="empty">Esta cuenta no tiene plaza de manager.</p>';
+    return;
+  }
 
-  // Inicio se repinta solo —al llegar un latido, al volver de otra pestaña—
-  // y rehacer la tarjeta borraría el escudo que estuvieras eligiendo a media
-  // edición. Con el selector abierto, esto no se toca.
-  const abierto = $('miEscudo') && !$('miEscudo').classList.contains('hidden');
-  if(abierto) return;
+  // Con el selector de escudo abierto no se repinta.
+  if($('miEscudo') && !$('miEscudo').classList.contains('hidden')) return;
 
-  c.style.display = '';
-  c.innerHTML = `<h2>Tu cuenta</h2>
+  c.innerHTML = `<h2>Mi cuenta</h2>
     <p style="font-size:12px;color:var(--chalk-dim);margin-top:0;">
-      Entras como <strong>${esc(S.me.usuario || '—')}</strong>. Si la organización te ha puesto
-      una contraseña para que pudieras entrar, cámbiala aquí por una tuya.</p>
+      Entras como <strong>${esc(S.me.usuario || '—')}</strong>. Nada de esta pantalla afecta a los
+      puntos: es cómo te llamas y cómo te ven.</p>
+
+    <h3 style="margin:18px 0 4px;">Tu club</h3>
+    <div class="grid cols-2" style="align-items:end;">
+      <div><label for="miClub">Nombre del club</label>
+        <input type="text" id="miClub" value="${esc(S.me.club_name || '')}" maxlength="40"></div>
+      <div><label for="miDueno">Tu nombre</label>
+        <input type="text" id="miDueno" value="${esc(S.me.owner_name || '')}" maxlength="40"></div>
+    </div>
+    <div class="toolbar" style="margin:10px 0 0;">
+      <button class="btn ghost small" id="miNombreGuardar">Guardar nombres</button>
+    </div>
+
+    <h3 style="margin:22px 0 4px;">Tu contraseña</h3>
     <div class="toolbar" style="margin-bottom:0;">
       <input type="password" id="miClaveNueva" placeholder="Contraseña nueva, mínimo 8"
              autocomplete="new-password" aria-label="Contraseña nueva" style="max-width:260px;">
       <button class="btn ghost small" id="miClaveGuardar">Cambiar mi contraseña</button>
       <button class="btn ghost small" id="miSalir">Cerrar sesión</button>
     </div>
-    <h3 style="margin:18px 0 4px;">Tu escudo</h3>
+    <h3 style="margin:22px 0 4px;">Tu escudo</h3>
     <div class="esc-resumen">
       <span id="miEscudoVista">${ESC.escudoDe(S.me, { clase:'esc-sm' })}</span>
       <div>
@@ -952,6 +982,18 @@ function pintarCuenta(){
     renderHeader();
     plegar(false);
     toast('Escudo guardado', 'good');
+  }));
+
+  $('miNombreGuardar').addEventListener('click', () => guard(async () => {
+    const club = $('miClub').value.trim(), dueno = $('miDueno').value.trim();
+    if(!club){ toast('Tu club necesita un nombre', 'bad'); return; }
+    const r = await DB.renameOwnClub(S.me.id, club, dueno);
+    if(r.blocked){ toast('No se ha podido guardar', 'bad'); return; }
+    S.me.club_name = club; S.me.owner_name = dueno;
+    const enLista = S.managers.find(m => m.id === S.me.id);
+    if(enLista){ enLista.club_name = club; enLista.owner_name = dueno; }
+    renderHeader();
+    toast('Nombres guardados', 'good');
   }));
 
   $('miClaveGuardar').addEventListener('click', () => guard(async () => {
@@ -2576,6 +2618,11 @@ document.querySelectorAll('#clasSubtabs button').forEach(b =>
     $('clasSec-playoffs').classList.toggle('hidden', S.clasSec !== 'playoffs');
     renderAll();
   }));
+
+// Mi cuenta se abre con tu propio escudo. Solo con plaza fichada: sin ella no
+// hay nada tuyo que ajustar.
+$('hdrCrest').addEventListener('click', () => { if(S.me) switchView('cuenta'); });
+$('cuentaVolver').addEventListener('click', () => switchView(S.viewPrev || 'inicio'));
 
 // El reglamento vive fuera del menú, en el «?» de la cabecera.
 $('helpBtn').addEventListener('click', () =>

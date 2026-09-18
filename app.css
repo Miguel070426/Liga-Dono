@@ -43,12 +43,19 @@
     border-bottom:2px solid var(--gold-dim);
   }
   header.top .brand{ display:flex; align-items:center; gap:12px; min-width:0; }
+  /* Es un botón: abre Mi cuenta. Se quitan los adornos que el navegador le
+     pone a un botón para que siga pareciendo un escudo y no un botón. */
   header.top .crest{
     width:38px;height:38px;border-radius:50%;flex:0 0 auto;
     background:radial-gradient(circle at 35% 30%, var(--gold), var(--gold-dim));
     display:flex;align-items:center;justify-content:center;
     font-weight:bold;color:var(--night);font-size:18px;
+    border:none; padding:0; font-family:inherit; cursor:pointer;
   }
+  /* 38px de alto ya pasa el mínimo para el dedo, pero sin escudo propio el
+     botón es un balón y conviene que se note que responde. */
+  header.top .crest:hover{ filter:brightness(1.12); }
+  header.top .crest.on{ outline:2px solid var(--gold); outline-offset:2px; }
   header.top h1{ font-size:20px; color:var(--gold); margin:0; white-space:nowrap; }
   header.top .sub{ font-size:12px; color:var(--chalk-dim); text-transform:none; letter-spacing:0;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -688,6 +695,7 @@ button.btn.wide{ width:100%; }
   header.top .crest.con-escudo{
     background:none; border-radius:0; width:auto; height:38px;
   }
+  header.top .crest.con-escudo:hover{ filter:brightness(1.15); }
 
   /* ---------- ELEGIR ESCUDO ---------- */
   /* Plegado: el escudo pequeño y un botón. El selector entero solo aparece

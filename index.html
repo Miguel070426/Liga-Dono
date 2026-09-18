@@ -8,7 +8,7 @@
      Sin ella el navegador puede quedarse con la versión de antes durante días:
      a un manager le creó dos cuentas a medias porque su móvil seguía con el
      JavaScript viejo hablando con la base de datos nueva. -->
-<link rel="stylesheet" href="app.css?v=202609181900">
+<link rel="stylesheet" href="app.css?v=202609182100">
 </head>
 <body>
 
@@ -101,7 +101,11 @@
 
 <header class="top">
   <div class="brand">
-    <div class="crest" id="hdrCrest" aria-hidden="true">⚽</div>
+    <!-- Tu escudo es el botón de tus ajustes. El escudo, el nombre del club y
+         la contraseña se tocan una vez y no son parte del juego: tenerlos
+         ocupando sitio fijo en Inicio —la pantalla que más se mira— era poner
+         al invitado en la silla del dueño. -->
+    <button class="crest" id="hdrCrest" title="Mi cuenta" aria-label="Mi cuenta">⚽</button>
     <div style="min-width:0;">
       <h1>Liga Fantasy</h1>
       <div class="sub" id="hdrSub">Conectando…</div>
@@ -139,7 +143,6 @@
       <div class="card" style="margin-bottom:0;"><h2>Tu último cruce</h2><div id="inicioLast"></div></div>
       <div class="card" style="margin-bottom:0;"><h2>Cabeza de la tabla</h2><div id="inicioTop"></div></div>
     </div>
-    <div class="card" id="inicioCuenta" style="margin-top:16px;"></div>
   </div>
 
   <div class="view" id="view-plantilla">
@@ -210,6 +213,15 @@
     </div>
   </div>
 
+  <!-- Mi cuenta: lo que es tuyo y no del partido. Se abre con tu escudo, arriba
+       a la izquierda, que es el gesto que todo el mundo ya conoce. -->
+  <div class="view" id="view-cuenta">
+    <div class="card">
+      <button class="btn ghost small" id="cuentaVolver" style="margin-bottom:12px;">‹ Volver</button>
+      <div id="cuentaBody"></div>
+    </div>
+  </div>
+
   <div class="view" id="view-reglas">
     <div class="card">
       <button class="btn ghost small" id="reglasVolver" style="margin-bottom:12px;">‹ Volver</button>
@@ -242,6 +254,6 @@
 
 <footer class="foot" id="footNote">Liga Fantasy</footer>
 
-<script type="module" src="app.js?v=202609181900"></script>
+<script type="module" src="app.js?v=202609182100"></script>
 </body>
 </html>
