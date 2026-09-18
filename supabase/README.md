@@ -662,6 +662,45 @@ Verificado después del cambio, con la identidad de un jugador y de la
 organización: el jugador no ve ninguno de los dos códigos pero sí la jornada;
 la organización cierra la jornada pero tampoco toca los códigos.
 
+## Tres arreglos para el móvil, medidos
+
+Salieron de mirar el ensayo en un móvil de 390 px. Los tres eran de verdad y
+los tres se comprobaron con números, no con opinión.
+
+**1 · La clasificación no cabía.** La tabla medía 540 px dentro de una caja de
+312: había que **arrastrarla 228 px de lado**, y lo que quedaba escondido eran
+los **puntos**, que es lo primero que quiere ver cualquiera. Se veían G, E y P
+—lo accesorio— y no se veía Pts.
+
+Ahora en el móvil se esconden PJ, G, E, P, SF y SC, y sus números salen en una
+línea pequeña debajo del nombre del club (`1 PJ · 1G 0E 0P · 6-3`), **siempre
+visible**. Nada que pulsar: un dato detrás de un gesto es un dato que la mitad
+de la gente no ve nunca. Quedan #, escudo, club, Dif, Pts y la racha. En el
+ordenador no cambia nada, que allí sobra sitio. Medido después: **0 px de
+arrastre**.
+
+PJ se esconde porque en esta liga los doce juegan siempre las mismas: era una
+columna diciendo lo mismo doce veces.
+
+**2 · En Mi Plantilla había que bajar pantalla y media antes de poder alinear.**
+Los partidos de Primera ocupaban 670 px y estaban encima, así que el primer
+hueco empezaba en el **píxel 1.252** de una pantalla de 844. Abrías la pantalla
+de alinear y lo primero que veías no era tu alineación. Ahora los partidos van
+**debajo**: el primer hueco queda en el **píxel 528**, dentro de la primera
+pantalla. La ayuda va detrás de la tarea.
+
+**3 · La pestaña Jornada medía 2.274 px**, casi tres pantallas. Ahí los partidos
+van ahora **plegados**: en esa pestaña ya no se decide nada, se mira lo que
+pasó. Quedó en **1.721 px**. En Mi Plantilla siguen abiertos, porque allí sí se
+decide.
+
+Se valoró quitarlos de una de las dos pestañas y **se descartó**: hacen cosas
+distintas. En Mi Plantilla están antes de jugarse, para elegir; en Jornada están
+después, con el resultado y con los 22 dentro. Quitarlos de Jornada se llevaría
+por delante «el partido real desglosado».
+
+Todo esto lo vigila `t-movil.mjs`, que mide en vez de mirar.
+
 ## El ensayo de una jornada completa
 
 Hecho **sobre la base de datos real**, con datos reales de Primera, y deshecho

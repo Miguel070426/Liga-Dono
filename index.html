@@ -8,7 +8,7 @@
      Sin ella el navegador puede quedarse con la versión de antes durante días:
      a un manager le creó dos cuentas a medias porque su móvil seguía con el
      JavaScript viejo hablando con la base de datos nueva. -->
-<link rel="stylesheet" href="app.css?v=202609181630">
+<link rel="stylesheet" href="app.css?v=202609181900">
 </head>
 <body>
 
@@ -144,9 +144,12 @@
 
   <div class="view" id="view-plantilla">
     <div id="plantillaHead"></div>
-    <!-- Aquí es donde de verdad se decide, así que aquí van los partidos. -->
-    <div class="card" id="plantillaPartidos"></div>
     <div class="card" id="plantillaEditor"></div>
+    <!-- Aquí es donde de verdad se decide, así que aquí van los partidos, pero
+         DEBAJO de la alineación. Estuvieron encima y el primer hueco para
+         alinear quedaba en el píxel 1.252: en un móvil son pantalla y media de
+         arrastrar antes de poder tocar nada. La ayuda va detrás de la tarea. -->
+    <div class="card" id="plantillaPartidos"></div>
   </div>
 
   <div class="view" id="view-jornada">
@@ -163,8 +166,16 @@
     <div id="jornadaFeatured"></div>
     <!-- Los partidos reales de Primera. Estaban en la base de datos desde el
          principio pero solo se veían en el panel de dirección, así que para
-         saber contra quién juega el Madrid había que salir de la aplicación. -->
-    <div class="card"><h2>Los partidos de Primera</h2><div id="partidosReales"></div></div>
+         saber contra quién juega el Madrid había que salir de la aplicación.
+         Aquí van plegados: en esta pestaña ya no se decide nada, se mira lo que
+         pasó, y desplegados dejaban la pantalla en casi tres pantallas de
+         móvil. En Mi Plantilla, donde sí se decide, van abiertos. -->
+    <div class="card">
+      <details id="partidosPliegue">
+        <summary><h2 style="display:inline;">Los partidos de Primera</h2></summary>
+        <div id="partidosReales"></div>
+      </details>
+    </div>
     <div class="card"><h2 id="restTitle">Resto de la jornada</h2><div id="jornadaRest"></div></div>
   </div>
 
@@ -231,6 +242,6 @@
 
 <footer class="foot" id="footNote">Liga Fantasy</footer>
 
-<script type="module" src="app.js?v=202609181630"></script>
+<script type="module" src="app.js?v=202609181900"></script>
 </body>
 </html>

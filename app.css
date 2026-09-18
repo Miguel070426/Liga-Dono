@@ -494,6 +494,19 @@ button.btn.wide{ width:100%; }
      lado; esto es lo que hace que lo use en vez de encoger. */
   #tablaClasificacion table{ min-width:540px; }
 
+  /* En el móvil no se desplaza: se esconden las columnas accesorias y sus
+     números salen en una línea debajo del nombre del club. Medido: la tabla
+     ocupaba 540 px en una caja de 312, o sea 228 px de arrastre, y lo que
+     quedaba fuera eran los puntos. */
+  .solo-movil{ display:none; }
+  @media (max-width:560px){
+    #tablaClasificacion table{ min-width:0; width:100%; }
+    #tablaClasificacion .col-extra{ display:none; }
+    .solo-movil{ display:block; margin-top:2px; }
+    #tablaClasificacion td, #tablaClasificacion th{ padding-left:3px; padding-right:3px; }
+    #tablaClasificacion .dots{ gap:2px; }
+  }
+
   /* ---------- DE DÓNDE SALE CADA NÚMERO ---------- */
   /* Ocho columnas no caben en un móvil, así que la tabla se desplaza de lado
      dentro de su caja. Va plegada: se abre quien quiere la cuenta, no se le
@@ -597,6 +610,20 @@ button.btn.wide{ width:100%; }
   @media (max-width:520px){
     table.fich td{ padding:6px 3px; font-size:12px; }
   }
+
+  /* ---------- LOS PARTIDOS, PLEGADOS EN JORNADA ---------- */
+  /* En Jornada ya no se decide nada, se mira lo que pasó, y desplegados dejaban
+     la pestaña en 2.274 px: casi tres pantallas de móvil. En Mi Plantilla, que
+     es donde se elige, van abiertos. */
+  #partidosPliegue > summary{
+    list-style:none; cursor:pointer; display:flex; align-items:center; gap:8px;
+  }
+  #partidosPliegue > summary::-webkit-details-marker{ display:none; }
+  #partidosPliegue > summary::after{
+    content:'▾'; font-size:11px; color:var(--chalk-dim); transition:transform 0.15s;
+  }
+  #partidosPliegue[open] > summary::after{ transform:rotate(180deg); }
+  #partidosPliegue > summary h2{ margin:0; }
 
   /* ---------- EL PARTIDO ABIERTO ---------- */
   /* Un partido ya jugado se abre y enseña a sus jugadores. La flecha solo sale

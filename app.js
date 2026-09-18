@@ -1294,15 +1294,37 @@ async function renderJornada(){
 /* ============================================================
    CLASIFICACIÓN
    ============================================================ */
+/* La clasificación entra en un móvil.
+
+   Con las 12 columnas la tabla medía 540 px dentro de una caja de 312: había
+   que arrastrarla 228 px de lado, y lo que quedaba escondido eran los puntos,
+   que es lo primero que quiere ver cualquiera. Se ven G, E, P, SF y SC —lo
+   accesorio— y no se veía Pts.
+
+   Así que en el móvil se esconden las columnas accesorias y sus números pasan a
+   una línea pequeña debajo del nombre del club, siempre visible. Nada que
+   pulsar ni descubrir: un dato escondido detrás de un gesto es un dato que la
+   mitad de la gente no verá nunca. En el ordenador no cambia nada, que allí
+   sobra sitio.
+
+   PJ también se esconde: en esta liga los doce juegan siempre las mismas, así
+   que es una columna que dice lo mismo doce veces. La racha se queda, que es de
+   las que más se miran. */
 function renderClasificacion(){
   $('tablaClasificacion').innerHTML = `<div style="overflow-x:auto;"><table>
-    <tr><th>#</th><th></th><th>Club</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>SF</th><th>SC</th><th>Dif</th><th>Pts</th><th>Racha</th></tr>
+    <tr><th>#</th><th></th><th>Club</th>
+      <th class="col-extra">PJ</th><th class="col-extra">G</th><th class="col-extra">E</th>
+      <th class="col-extra">P</th><th class="col-extra">SF</th><th class="col-extra">SC</th>
+      <th>Dif</th><th>Pts</th><th>Racha</th></tr>
     ${S.standings.map(s => `<tr class="st-row ${isMine(s.manager_id)?'me':''}">
       <td><span class="zone ${s.rank<=8?'zone-top':'zone-low'}" role="img" aria-label="${s.rank<=8?'Playoff por el título':'Playoff de consolación'}"></span>${s.rank}</td>
       <td style="width:34px;">${ESC.escudoDe(mgr(s.manager_id), { clase:'esc-fila' })}</td>
-      <td>${esc(s.club_name)}<br><span class="club-tag">${esc(s.owner_name || '—')}</span></td>
-      <td>${s.pj}</td><td>${s.g}</td><td>${s.e}</td><td>${s.p}</td>
-      <td>${s.sub_f}</td><td>${s.sub_c}</td><td>${s.sub_dif > 0 ? '+' : ''}${s.sub_dif}</td>
+      <td>${esc(s.club_name)}<br><span class="club-tag">${esc(s.owner_name || '—')}</span>
+        <span class="club-tag solo-movil">${s.pj} PJ · ${s.g}G ${s.e}E ${s.p}P · ${s.sub_f}-${s.sub_c}</span></td>
+      <td class="col-extra">${s.pj}</td><td class="col-extra">${s.g}</td>
+      <td class="col-extra">${s.e}</td><td class="col-extra">${s.p}</td>
+      <td class="col-extra">${s.sub_f}</td><td class="col-extra">${s.sub_c}</td>
+      <td>${s.sub_dif > 0 ? '+' : ''}${s.sub_dif}</td>
       <td><strong style="color:var(--gold);font-size:15px;">${s.pts}</strong></td>
       <td><div class="dots">${(S.form[s.manager_id]||[]).slice(-5).map(f=>`<span class="dot ${f}">${f}</span>`).join('') || '<span class="club-tag">—</span>'}</div></td>
     </tr>`).join('')}</table></div>`;
