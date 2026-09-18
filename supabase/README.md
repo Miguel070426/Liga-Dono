@@ -662,6 +662,71 @@ Verificado después del cambio, con la identidad de un jugador y de la
 organización: el jugador no ve ninguno de los dos códigos pero sí la jornada;
 la organización cierra la jornada pero tampoco toca los códigos.
 
+## Copia de seguridad (migración 0035)
+
+El plan gratuito de Supabase **no da copias que se puedan restaurar**, así que
+hasta aquí no había ninguna red. Y el riesgo de verdad no es que Supabase pierda
+la base de datos —eso no pasa— sino que **algo borre datos**: un fallo, una
+pulsación en el panel, un `delete` sin `where`. Probando el ciclo quedaron en la
+base real una alineación fantasma y un jugador de prueba; se vieron y se
+quitaron, pero así es como se pierde una clasificación en la jornada 8.
+
+Hay **dos formas de perder los datos y hacen falta dos remedios**:
+
+| Qué pasa | Qué lo arregla |
+|---|---|
+| Algo borra datos y el proyecto sigue vivo | Restaurar de una copia guardada en la propia base. Un clic. |
+| Se pierde el proyecto entero | Solo el `.json` descargado al ordenador. Una copia que vive dentro del proyecto muere con él. |
+
+Por eso la pantalla insiste en descargar de vez en cuando, y avisa de que **el
+fichero lleva dentro los dos códigos de la liga**: es para guardarlo, no para
+reenviarlo.
+
+**Qué se guarda:** las 13 tablas que no se pueden volver a bajar —`leagues`,
+`clubs`, `managers`, `club_players`, `fixtures`, `jornada_rondas`,
+`jornada_excluidos`, `lineups`, `lineup_slots`, `club_stats`,
+`player_jornada_stats`, `playoff_series`, `playoff_games`—. Las alineaciones son
+irrecuperables: son decisiones de doce personas, no un dato que esté en ningún
+sitio. Las estadísticas sí se podrían rebajar de la API, pero a una llamada por
+partido, así que se guardan igual.
+
+**Qué no:** `hl_matches` y `hl_players`, que son la copia local del calendario y
+se rehacen con 4 llamadas, y `latidos`, `app_avisos` y `app_api_uso`, que son
+registros de funcionamiento.
+
+Una copia entera ocupa **243 kB**. Se guardan las 25 últimas. Se hace una al
+terminar cada jornada —justo antes de pasar de jornada, que es la foto que se
+querría recuperar— y una al día. **No gastan ninguna llamada a la API**, y la
+copia va antes que todo lo demás en el ciclo: si un día la API falla, la copia se
+hace igual.
+
+`app_copias` no es legible desde el navegador: se pasa siempre por funciones que
+comprueban quién pregunta, porque una copia lleva los códigos dentro.
+
+### La restauración, probada
+
+Una copia que no se sabe si restaura es una promesa falsa. Se probó **sobre la
+base real**: huella md5 de las 13 tablas, se destroza la liga a propósito
+(nombres de club cambiados, porteros borrados, plazas en blanco, jornada en
+curso movida, jornadas y cruces borrados, un once fantasma añadido) y se
+restaura.
+
+La primera vez volvieron **12 de 13**. La que no: `leagues`. El disparador
+`leagues_apertura_de_jornada` tomaba la restauración de `current_jornada` por un
+cambio de jornada y pisaba `jornada_desde` con la hora de ahora — y esa columna
+es la que decide **a qué hora cierra la jornada**, así que restaurar movía el
+cierre en silencio. Se apaga el disparador durante la restauración y se vuelve a
+encender incluso si falla. Segunda vuelta: **13 de 13 idénticas**.
+
+Antes de restaurar se guarda otra copia de cómo está todo, así que una
+restauración equivocada también se deshace. Y hay que escribir `RESTAURAR` a
+mano: un botón de restaurar a un clic, al lado de uno de descargar, es un
+accidente esperando.
+
+**Restaurar devuelve la liga entera** a como estaba. Si alguien fichó plaza
+después de esa copia, se queda sin ella y tendría que volver a fichar; su cuenta
+sigue existiendo. La pantalla lo avisa antes.
+
 ## Repaso de seguridad del ciclo (migración 0034)
 
 Pasado el analizador de Supabase después de los cambios de hoy. Tres cosas
@@ -912,6 +977,12 @@ el esquema `app`, que PostgREST no publica.
 9. **Los fichajes de este verano no están.** Van entrando solos a medida que
    juegan; el que se quiera tener antes de su debut se añade desde
    *Equipos y jugadores → Fichajes*.
+10. **Descargar una copia de vez en cuando** desde *Dirección → Copias*. Es lo
+   único que sobrevive a perder el proyecto. El fichero lleva los códigos
+   dentro: guardarlo, no reenviarlo.
+11. **Comprobar a qué rama apunta GitHub Pages** (Settings → Pages → Branch).
+   Debe ser `main`. Mientras apunte a la rama de trabajo, cualquier commit a
+   medias se publica al momento a los doce.
 
 ## Estado de la verificación
 

@@ -413,6 +413,35 @@ export const DB = {
     return data || [];
   },
 
+  // ------------------------------------------------------------- COPIAS
+  // La copia dentro de la base sirve para cuando algo borra datos. Para
+  // cuando se pierde el proyecto entero solo sirve la descargada, así que el
+  // .json que se baja al ordenador es el respaldo de verdad.
+  async backups(){
+    const { data, error } = await sb.rpc('copias');
+    if(error) throw fail(error, 'No se han podido leer las copias');
+    return data || [];
+  },
+
+  async backupNow(motivo){
+    const { data, error } = await sb.rpc('copia_ahora', { p_motivo: motivo || 'a mano' });
+    if(error) throw fail(error, 'No se ha podido hacer la copia');
+    return data;
+  },
+
+  async backupJson(id){
+    const { data, error } = await sb.rpc('copia_json', { p_id: id });
+    if(error) throw fail(error, 'No se ha podido descargar la copia');
+    return data;
+  },
+
+  async restoreBackup(id, confirmacion){
+    const { data, error } = await sb.rpc('restaurar_copia',
+      { p_id: id, p_confirmacion: confirmacion });
+    if(error) throw fail(error, 'No se ha podido restaurar');
+    return data || {};
+  },
+
   // ------------------------------------------------------------- FICHAJES
   // La búsqueda de la API no dice el club, así que el club de cada candidato se
   // pide aparte. Van en llamadas separadas a propósito: una petición por ficha

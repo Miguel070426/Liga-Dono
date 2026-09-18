@@ -1360,8 +1360,9 @@ async function renderPanel(){
   const seq = newRender();
   const root = $('panelRoot');
   if(!S.isAdmin){ root.innerHTML = '<div class="card"><p class="empty">Zona de la organización.</p></div>'; return; }
-  const secs = [['jornada','Jornada'],['ciclo','Automático'],['stats','Cargar resultados'],
-                ['managers','Managers'],['equipos','Equipos y jugadores'],['playoffs','Playoffs'],
+  const secs = [['jornada','Jornada'],['ciclo','Automático'],['copias','Copias'],
+                ['stats','Cargar resultados'],['managers','Managers'],
+                ['equipos','Equipos y jugadores'],['playoffs','Playoffs'],
                 ['simulador','Simulador'],['cuenta','Cuenta']];
   root.innerHTML = `<div class="subtabs">${secs.map(([k,l]) =>
       `<button data-sec="${k}" class="${panelSec===k?'active':''}">${l}</button>`).join('')}</div>
@@ -1376,6 +1377,7 @@ async function renderPanel(){
   if(stale(seq)) return;
   if(panelSec === 'jornada')       await panelJornada(body, seq);
   else if(panelSec === 'ciclo')    await panelCiclo(body, seq);
+  else if(panelSec === 'copias')   await panelCopias(body, seq);
   else if(panelSec === 'stats')    await panelStats(body, seq);
   else if(panelSec === 'managers') panelManagers(body);
   else if(panelSec === 'equipos')  panelEquipos(body);
@@ -2181,6 +2183,103 @@ function estadoJugador(p){
 }
 
 let equiposClub = null;
+/* ---------------------------------------------------------- COPIAS
+   Hay dos formas de perder la liga y hacen falta dos remedios.
+
+   Si algo borra datos y el proyecto sigue vivo, se restaura de una copia
+   guardada dentro de la propia base: un clic. Pero si se pierde el proyecto
+   entero, una copia que vive dentro de él no sirve de nada — para eso está el
+   botón de descargar, que es el único respaldo que sobrevive al proyecto.
+
+   El plan gratuito de Supabase no da copias restaurables, así que hasta aquí
+   no había ninguna red.                                                     */
+function tamanoCorto(b){
+  if(!b) return '—';
+  return b < 1024 ? b + ' B'
+       : b < 1048576 ? Math.round(b / 1024) + ' kB'
+       : (b / 1048576).toFixed(1) + ' MB';
+}
+
+async function panelCopias(body, seq){
+  let cs;
+  try{ cs = await DB.backups(); }
+  catch(err){ body.innerHTML = '<div class="card"><p class="empty">No se han podido leer las copias.</p></div>'; return; }
+  if(stale(seq)) return;
+
+  const filas = cs.length ? cs.map(c => `<tr data-id="${c.id}">
+      <td><strong>${cuandoCorto(c.cuando)}</strong><br>
+        <span class="club-tag">${new Date(c.cuando).toLocaleString('es-ES')}</span></td>
+      <td>${esc(c.motivo)}${c.jornada ? `<br><span class="club-tag">jornada ${c.jornada}</span>` : ''}</td>
+      <td class="num"><span class="club-tag">${c.alineaciones} onces · ${c.huecos} huecos<br>
+        ${c.fichas} fichas · ${c.estadisticas} datos<br>${tamanoCorto(c.bytes)}</span></td>
+      <td style="text-align:right;white-space:nowrap;">
+        <button class="btn ghost small cpBajar">Descargar</button>
+        <button class="btn danger small cpVolver">Restaurar</button></td>
+    </tr>`).join('')
+    : '<tr><td colspan="4" class="empty" style="padding:14px;">Todavía no hay ninguna copia.</td></tr>';
+
+  body.innerHTML = `<div class="card">
+    <h2>Copias de seguridad</h2>
+    <p class="club-tag" style="margin:0 0 10px;">El plan gratuito de Supabase no da copias que se puedan
+      restaurar, así que estas las hace el juego. Se guarda <strong>lo que no se puede volver a bajar</strong>:
+      las alineaciones, las plazas, los escudos, los clubes, las fichas y las decisiones sobre jornadas. Las
+      estadísticas también, para no tener que gastar 110 llamadas rebajándolas.</p>
+    <p class="club-tag" style="margin:0 0 10px;">Se hace una <strong>al terminar cada jornada</strong> y una
+      <strong>al día</strong>, solas. No gastan ninguna llamada a la API: es todo dentro de la base.</p>
+    <div class="row" style="gap:8px;flex-wrap:wrap;">
+      <input type="text" id="cpMotivo" placeholder="Para qué es esta copia…" style="max-width:240px;">
+      <button class="btn" id="cpAhora">Hacer copia ahora</button></div>
+  </div>
+
+  <div class="card">
+    <h2>Las que hay · ${cs.length}</h2>
+    <div class="admin-note" style="margin-top:0;">⚠️ <strong>Descarga una de vez en cuando.</strong> Una copia
+      guardada dentro del proyecto te salva si algo borra datos, pero no si se pierde el proyecto entero. El
+      fichero que bajas al ordenador es el único respaldo que sobrevive a eso. <strong>Lleva dentro los dos
+      códigos de la liga</strong>, así que guárdalo para ti y no lo reenvíes.</div>
+    <div style="overflow-x:auto;"><table class="copias">${filas}</table></div>
+    <p class="warn" style="margin:10px 0 0;font-size:12px;">Restaurar devuelve la liga <strong>entera</strong> a
+      como estaba: alineaciones, plazas y resultados. Si alguien fichó plaza después de esa copia, se queda sin
+      ella y tendría que volver a fichar. Antes de restaurar se guarda otra copia de cómo está ahora, así que
+      una restauración equivocada también se deshace.</p>
+  </div>`;
+
+  $('cpAhora').addEventListener('click', () => guard(async () => {
+    const id = await DB.backupNow($('cpMotivo').value.trim());
+    toast('Copia ' + id + ' guardada', 'good');
+    await renderPanel();
+  }));
+
+  body.querySelectorAll('tr[data-id]').forEach(fila => {
+    const id = Number(fila.dataset.id);
+    const c = cs.find(x => x.id === id);
+
+    fila.querySelector('.cpBajar').addEventListener('click', () => guard(async () => {
+      const datos = await DB.backupJson(id);
+      const dia = new Date(c.cuando).toISOString().slice(0, 16).replace(/[:T]/g, '-');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([JSON.stringify(datos, null, 1)],
+        { type: 'application/json' }));
+      a.download = `liga-dono-${dia}.json`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+      toast('Guárdalo fuera del proyecto: es el respaldo de verdad', 'good');
+    }));
+
+    fila.querySelector('.cpVolver').addEventListener('click', () => guard(async () => {
+      const q = prompt(
+        `Vas a devolver la liga a como estaba el ${new Date(c.cuando).toLocaleString('es-ES')}.\n\n`
+        + 'Se pierde todo lo que haya pasado después: alineaciones, resultados y plazas fichadas.\n'
+        + 'Antes se guarda una copia de cómo está ahora, así que esto también se puede deshacer.\n\n'
+        + 'Escribe RESTAURAR para seguir:');
+      if(q === null) return;
+      const r = await DB.restoreBackup(id, q);
+      toast(`Restaurada la copia ${r.restaurada}. Respaldo de lo anterior: ${r.respaldo}`, 'good');
+      await boot(); switchView('panel');
+    }));
+  });
+}
+
 /* ---------------------------------------------------------- FICHAJES
    El mercado sigue abierto todo el año para los jugadores sin contrato, así que
    el catálogo se queda corto. Hay tres formas de arreglarlo y esta es la del
