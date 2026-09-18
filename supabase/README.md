@@ -662,6 +662,40 @@ Verificado después del cambio, con la identidad de un jugador y de la
 organización: el jugador no ve ninguno de los dos códigos pero sí la jornada;
 la organización cierra la jornada pero tampoco toca los códigos.
 
+## El ensayo de una jornada completa
+
+Hecho **sobre la base de datos real**, con datos reales de Primera, y deshecho
+después restaurando una copia. No prueba las pantallas —eso lo hacen las 17
+baterías del navegador— sino **los números**: que la cadena entera desde el acta
+de un partido hasta la clasificación da lo que debe.
+
+Cómo se montó: copia de seguridad, la jornada 1 apuntando temporalmente a la
+**ronda 5** (jugada entera, 11–14 de septiembre), los 10 partidos cargados de la
+API de verdad, los datos de club cerrados y los 12 onces rellenados con el
+simulador. Coste: **10 llamadas** a la API.
+
+Qué salió:
+
+| Comprobación | Resultado |
+|---|---|
+| Partidos cargados | 10 de 10 · 456 fichas de jugador · 20 filas de club |
+| **Goles por jugador contra los marcadores** | **29 y 29** · cuadran exactamente |
+| Minutos totales | 19.922, contra los ≈19.800 de 20 equipos × 990 (la diferencia es el descuento) |
+| Jugadores con minutos | 316 en 20 equipos, unos 16 por club: los 11 y los cambios |
+| **Las 8 categorías de los 12 managers** | recalculadas a mano desde los datos crudos y comparadas con `manager_jornada_totals`: **12 de 12 cuadran** |
+| Reparto de puntos de los 6 cruces | 6 de 6 correctos (3 al que gana, 1 y 1 si empatan) |
+| Invariante de subpuntos | los 6 cumplen `total = 8 + categorías empatadas`, que es la regla del empate reparte uno a cada uno |
+| Clasificación | 12 filas, 17 puntos repartidos = 5 victorias + 1 empate, y el desempate por diferencia de subpuntos bien aplicado |
+| El ciclo | cerró la jornada 1, guardó su copia (425 kB con los 12 onces y los 456 datos dentro) y abrió la jornada 2 él solo |
+| Restauración | las **13 tablas volvieron idénticas** a la copia previa |
+
+Un detalle que el ensayo dejó a la vista: al usar una ronda jugada una semana
+antes de que la jornada «se abriera», el ciclo marcó los 10 partidos como
+adelantados. En la temporada de verdad no pasa, porque la jornada se abre antes
+de que empiece su ronda. Pero enseña qué haría si el ciclo se retrasara y una
+jornada naciera con partidos ya jugados: avisarlos uno por uno, y calcular el
+cierre con el primer partido que quede por jugar en vez de con uno ya disputado.
+
 ## Copia de seguridad (migración 0035)
 
 El plan gratuito de Supabase **no da copias que se puedan restaurar**, así que
