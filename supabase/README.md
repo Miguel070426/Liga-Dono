@@ -219,6 +219,98 @@ no enseñar nada sería peor que uno que no se abre.
 desde una pantalla que no está protegida por las reglas de la jornada, así que
 hay una prueba dedicada a ello (`t-partido.mjs`).
 
+## La liga va sola (migraciones 0030 y 0031)
+
+Cada hora, `pg_cron` llama a `app.ciclo()` dentro de la propia base de datos. No
+hace falta ningún servidor: la clave de la API está en el baúl y las llamadas
+salen de Postgres con la extensión `http`.
+
+Lo que hace, en este orden:
+
+1. **Refresca el calendario real** cada 6 h. Es lo que trae los aplazamientos y
+   los cambios de hora, así que va primero.
+2. **Carga los partidos terminados** de la jornada en curso y de la anterior —la
+   anterior por si alguno acabó después de pasar de jornada—. Máximo 4 por
+   pasada, para no comerse la cuota.
+3. **Cierra los datos de club** de lo que acaba de cargar, en la misma pasada. Si
+   se dejara para después, el desglose de la pantalla no cuadraría con el
+   resultado oficial mientras tanto y saldría el aviso de descuadre.
+4. **Saca de la jornada lo aplazado más allá de la jornada siguiente.** Es el
+   único caso que dejaría la liga congelada un mes. Por reglamento no se
+   recalcula hacia atrás, así que ese partido no cuenta. Reversible con un clic.
+5. **Avisa de los adelantados** —un partido jugado antes de abrirse la jornada—
+   pero no los saca: eso es decisión de la organización, no del robot.
+6. **Pasa de jornada** cuando la ronda está entera jugada y cargada.
+
+**No va por calendario, va por estado.** Nada de «los martes»: es lo único que
+aguanta una jornada intersemanal que acaba un jueves y encadena con otra el
+viernes. En cuanto la ronda está completa, se pasa de jornada, sea lunes o sea
+jueves por la noche.
+
+Todo lo que hace queda escrito en `app_avisos` y se ve en el panel, en
+**Dirección → Automático**, con un botón para adelantar la pasada y otro para
+apagarlo. Una automatización sin parte de lo que ha hecho es una automatización
+en la que no se puede confiar: cuando alguien pregunte por qué su jugador no
+puntuó, la respuesta tiene que estar escrita.
+
+La cuota se cuenta en `app_api_uso`, dentro de `app.highlightly()`, que es el
+único sitio por el que pasan todas las llamadas. El ciclo se para solo al llegar
+a 80 de las 100 diarias, para que a la organización le queden 20 por si tiene que
+hacer algo a mano.
+
+Para pararlo o mirarlo desde SQL:
+
+```sql
+select cron.unschedule('liga-dono-ciclo');
+select * from cron.job_run_details order by start_time desc limit 20;
+```
+
+### Dos fallos que salieron al montarlo
+
+**Sacar un partido de la jornada no lo sacaba de la cuenta.** `jornada_excluidos`
+movía la hora de cierre y bloqueaba elegir a esos jugadores, pero `slot_contrib`
+no miraba la tabla. El cartel de la pantalla decía «sus jugadores no puntúan» y
+sí puntuaban: quien ya los tuviera puestos de antes seguía sumando con ellos.
+Ahora la vista `clubes_excluidos` entra en `slot_contrib` y anula la aportación,
+y `cerrar_datos_de_club` tampoco cuenta esos partidos. El dato no se borra, se
+anula: volver a meter el partido es un clic y no una recarga desde la API.
+
+**Un partido adelantado abría la jornada ya cerrada.** El cierre era el primer
+partido de la ronda. Si uno se adelantaba a la semana anterior, ese pasaba a ser
+«el primero» y la jornada nacía con la hora de cierre ya pasada: doce personas
+sin poder alinear. Ahora se apunta en `leagues.jornada_desde` cuándo se abrió la
+jornada —con un disparador, para que valga igual si la pasa el ciclo o la
+organización— y el cierre lo marca el primer partido que quede **por jugar**.
+
+### Y un tercero: los `revoke` no revocaban (migración 0032)
+
+Al comprobar que un jugador normal no pudiera lanzar el ciclo salió que **sí
+podía**. Por todas las migraciones hay líneas como esta:
+
+```sql
+revoke all on function app.highlightly(text) from anon, authenticated;
+```
+
+y ninguna hacía nada. En Postgres, EXECUTE sobre una función se concede por
+defecto a **PUBLIC**, y quitárselo a `anon` y a `authenticated` no toca esa
+concesión: los dos roles la siguen heredando por ser miembros de PUBLIC. Las 29
+funciones de `app` eran ejecutables por los dos.
+
+¿Estaba abierto de verdad? **No.** Se preguntó a la API pública con la clave
+pública y contesta `PGRST106 · Only the following schemas are exposed: public,
+graphql_public`. Desde el navegador no se llegaba al esquema `app` de ninguna
+forma. No era un agujero: era un cierre que no cerraba. Bastaría exponer el
+esquema una vez por error para que `app.highlightly` —que lleva la clave de la
+API dentro— quedara al alcance de cualquiera.
+
+Arreglado revocando de PUBLIC, más `alter default privileges` para que no vuelva
+a pasar con lo que se cree en adelante. No se tocan las funciones que usan las
+políticas de RLS (`app.is_admin()` y compañía): una política se evalúa con los
+permisos de quien pregunta, y dejarlas sin EXECUTE cerraría el juego entero.
+Comprobado por suplantación: un jugador ya no puede llamar a `app.ciclo()`,
+`app.highlightly()` ni `app.cargar_partido()`, y sigue pudiendo leer la
+clasificación, los resultados, los partidos y guardar su alineación.
+
 ## De dónde pueden salir los datos
 
 Investigado y probado contra las APIs reales, no leído de su publicidad:
@@ -712,8 +804,12 @@ el esquema `app`, que PostgREST no publica.
    README, que es público: se han cambiado y ya no se documentan aquí.
 5. ~~Cargar las plantillas~~ · hecho. Los 20 clubes tienen plantilla y se
    mantienen solas a partir de los box score.
-6. **Faltan 9 managers** por fichar su plaza. Hasta que la fichen, sus cruces
-   salen contra plazas vacías.
+6. **Faltan 11 managers** por fichar su plaza. Hasta que la fichen, sus cruces
+   salen contra plazas vacías. Es lo único que bloquea el arranque.
+7. ~~Cargar los resultados cada jornada~~ · ya no hace falta: lo hace el ciclo
+   automático. Los botones del panel siguen ahí para cuando haya que forzar algo.
+8. **Cuatro fichas de jugador esperan decisión** en Equipos y jugadores: tres que
+   la API sitúa en otro club (filial o traspaso) y una ya dada de baja.
 
 ## Estado de la verificación
 

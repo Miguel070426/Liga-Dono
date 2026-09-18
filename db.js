@@ -398,6 +398,21 @@ export const DB = {
     return { blocked: !data || data.length === 0 };
   },
 
+  // ------------------------------------------------------------- EL CICLO
+  // Lo que la liga hace sola cada hora, y el parte de lo que ha hecho.
+  async cicloEstado(){
+    const { data, error } = await sb.rpc('ciclo_estado');
+    if(error) throw fail(error, 'No se ha podido leer el estado del automático');
+    return data || {};
+  },
+
+  // Adelantar la pasada de la hora, para no esperar sentado.
+  async cicloAhora(){
+    const { data, error } = await sb.rpc('ciclo_ahora');
+    if(error) throw fail(error, 'No se ha podido lanzar el ciclo');
+    return data || [];
+  },
+
   // ------------------------------------------------------------- DIRECCIÓN
   async setLeague(leagueId, patch){
     const { data, error } = await sb.from('leagues').update(patch).eq('id', leagueId).select('id');

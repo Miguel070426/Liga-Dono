@@ -557,6 +557,27 @@ button.btn.wide{ width:100%; }
     .pl-cuando{ font-size:10px; }
   }
 
+  /* ---------- EL CICLO AUTOMÁTICO ---------- */
+  /* El parte de lo que hace la liga sola. Los fallos en rojo y a la vista: si
+     algo no se ha cargado, enterarse tarde es lo que estropea una jornada. */
+  .ciclo-datos{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px;
+  }
+  .ciclo-datos label{
+    display:block; font-size:10px; letter-spacing:0.6px; text-transform:uppercase;
+    color:var(--chalk-dim); margin-bottom:2px;
+  }
+  .ciclo-datos strong{ font-size:14px; }
+  .ciclo-datos strong.ok{ color:var(--win); }
+  .ciclo-datos strong.off{ color:var(--red-text); }
+  table.avisos{ width:100%; border-collapse:collapse; font-size:12.5px; min-width:420px; }
+  table.avisos td{
+    padding:7px 6px; border-top:1px solid rgba(244,241,230,0.06); vertical-align:top;
+  }
+  table.avisos tr:first-child td{ border-top:none; }
+  tr.av-fallo td{ background:rgba(196,74,58,0.10); }
+  tr.av-exclusion td, tr.av-aviso td{ background:rgba(201,162,77,0.07); }
+
   /* ---------- EL PARTIDO ABIERTO ---------- */
   /* Un partido ya jugado se abre y enseña a sus jugadores. La flecha solo sale
      en los que se pueden abrir, para que no parezca que los demás no responden. */

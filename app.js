@@ -1360,8 +1360,8 @@ async function renderPanel(){
   const seq = newRender();
   const root = $('panelRoot');
   if(!S.isAdmin){ root.innerHTML = '<div class="card"><p class="empty">Zona de la organización.</p></div>'; return; }
-  const secs = [['jornada','Jornada'],['stats','Cargar resultados'],['managers','Managers'],
-                ['equipos','Equipos y jugadores'],['playoffs','Playoffs'],
+  const secs = [['jornada','Jornada'],['ciclo','Automático'],['stats','Cargar resultados'],
+                ['managers','Managers'],['equipos','Equipos y jugadores'],['playoffs','Playoffs'],
                 ['simulador','Simulador'],['cuenta','Cuenta']];
   root.innerHTML = `<div class="subtabs">${secs.map(([k,l]) =>
       `<button data-sec="${k}" class="${panelSec===k?'active':''}">${l}</button>`).join('')}</div>
@@ -1375,12 +1375,105 @@ async function renderPanel(){
   const body = $('panelBody');
   if(stale(seq)) return;
   if(panelSec === 'jornada')       await panelJornada(body, seq);
+  else if(panelSec === 'ciclo')    await panelCiclo(body, seq);
   else if(panelSec === 'stats')    await panelStats(body, seq);
   else if(panelSec === 'managers') panelManagers(body);
   else if(panelSec === 'equipos')  panelEquipos(body);
   else if(panelSec === 'playoffs') await panelPlayoffs(body, seq);
   else if(panelSec === 'simulador') await panelSimulador(body, seq);
   else                             panelCuenta(body);
+}
+
+/* ---------------------------------------------------------- AUTOMÁTICO
+   La liga va sola: cada hora, la base de datos mira el estado real y decide.
+   Carga los partidos que han terminado, cierra los datos de club y pasa de
+   jornada cuando la ronda está entera.
+
+   No va por calendario («los martes»), va por estado. Es lo único que aguanta
+   una jornada intersemanal que acaba un jueves y encadena con otra el viernes.
+
+   Esta pantalla existe porque una automatización sin parte de lo que ha hecho
+   es una automatización en la que no se puede confiar: cuando alguien pregunte
+   por qué su jugador no puntuó, la respuesta tiene que estar escrita.        */
+const CLASE_AVISO = {
+  carga:     {icono:'📥', nombre:'Carga'},
+  avance:    {icono:'▶️', nombre:'Jornada'},
+  exclusion: {icono:'🚫', nombre:'Fuera'},
+  aviso:     {icono:'⚠️', nombre:'Ojo'},
+  fallo:     {icono:'❌', nombre:'Fallo'}
+};
+
+function cuandoCorto(iso){
+  if(!iso) return 'nunca';
+  const d = new Date(iso);
+  const min = Math.round((Date.now() - d) / 60000);
+  if(min < 2)    return 'ahora mismo';
+  if(min < 60)   return `hace ${min} min`;
+  if(min < 1440) return `hace ${Math.round(min / 60)} h`;
+  return d.toLocaleDateString('es-ES', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+}
+
+async function panelCiclo(body, seq){
+  let est;
+  try{ est = await DB.cicloEstado(); }
+  catch(err){ body.innerHTML = '<div class="card"><p class="empty">No se ha podido leer el estado del ciclo.</p></div>'; return; }
+  if(stale(seq)) return;
+
+  const avisos = est.avisos || [];
+  const filas = avisos.length
+    ? avisos.map(a => {
+        const c = CLASE_AVISO[a.clase] || {icono:'·', nombre:a.clase};
+        return `<tr class="av-${esc(a.clase)}">
+          <td style="white-space:nowrap;"><span aria-hidden="true">${c.icono}</span>
+            <span class="club-tag">${cuandoCorto(a.cuando)}</span></td>
+          <td>${a.jornada ? `<span class="club-tag">J${a.jornada}</span> ` : ''}${esc(a.texto)}</td>
+        </tr>`;
+      }).join('')
+    : '<tr><td colspan="2" class="empty" style="padding:14px;">Todavía no ha hecho nada. Normal: hasta que empiece la liga no hay nada que cargar.</td></tr>';
+
+  body.innerHTML = `<div class="card">
+    <h2>La liga, sola</h2>
+    <p class="club-tag" style="margin:0 0 12px;">Cada hora mira el estado real: carga los partidos que han
+      terminado, cierra los datos de club y pasa de jornada cuando la ronda está entera. No va por días
+      de la semana, así que una jornada intersemanal no le afecta.</p>
+
+    <div class="ciclo-datos">
+      <div><label>Estado</label><strong class="${est.automatico ? 'ok' : 'off'}">${
+        est.automatico ? 'Encendido' : 'Apagado'}</strong></div>
+      <div><label>Última pasada</label><strong>${cuandoCorto(est.ultimo)}</strong></div>
+      <div><label>Calendario real</label><strong>${cuandoCorto(est.calendario)}</strong></div>
+      <div><label>Llamadas a la API hoy</label><strong>${est.llamadas_hoy} <span class="club-tag">de 100</span></strong></div>
+      <div><label>Jornada en curso</label><strong>${est.jornada}</strong></div>
+      <div><label>Cierra</label><strong>${est.cierre ? fechaCierre(new Date(est.cierre)) : 'sin hora'}</strong></div>
+    </div>
+
+    <div class="row" style="margin-top:14px;gap:8px;flex-wrap:wrap;">
+      <button class="btn" id="cicloAhora">Hacerlo ahora</button>
+      <button class="btn ghost" id="cicloSwitch">${est.automatico ? 'Apagar el automático' : 'Encender el automático'}</button>
+    </div>
+    ${est.automatico ? '' : `<p class="warn" style="margin:10px 0 0;font-size:12px;">Apagado: no cargará
+      nada ni pasará de jornada. Tendrás que hacerlo tú desde «Cargar resultados» y «Jornada».</p>`}
+  </div>
+
+  <div class="card">
+    <h2>Parte de lo que ha hecho</h2>
+    <div style="overflow-x:auto;"><table class="avisos">${filas}</table></div>
+    <p class="club-tag" style="margin:10px 0 0;">Si saca un partido de una jornada lo dice aquí, y siempre
+      se puede volver a meter desde «Jornada».</p>
+  </div>`;
+
+  $('cicloAhora').addEventListener('click', () => guard(async () => {
+    const pasos = await DB.cicloAhora();
+    toast(pasos.length
+      ? pasos.map(p => p.detalle).join(' · ')
+      : 'No había nada que hacer', 'good');
+    await boot(); switchView('panel');
+  }));
+  $('cicloSwitch').addEventListener('click', () => guard(async () => {
+    await DB.setLeague(S.league.id, { automatico: !est.automatico });
+    toast(est.automatico ? 'Automático apagado' : 'Automático encendido', 'good');
+    await boot(); switchView('panel');
+  }));
 }
 
 /* ---------------------------------------------------------- SIMULADOR
