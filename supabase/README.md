@@ -662,6 +662,41 @@ Verificado después del cambio, con la identidad de un jugador y de la
 organización: el jugador no ve ninguno de los dos códigos pero sí la jornada;
 la organización cierra la jornada pero tampoco toca los códigos.
 
+## Repaso de seguridad del ciclo (migración 0034)
+
+Pasado el analizador de Supabase después de los cambios de hoy. Tres cosas
+reales, dos metidas ese mismo día:
+
+1. **`ciclo_estado()` no comprobaba nada.** Es `security definer` y vive en el
+   esquema público, así que PostgREST la publica y `anon` podía llamarla: sin
+   sesión, con la URL y la clave públicas, se leía el estado del automático, la
+   jornada, la hora de cierre, las llamadas gastadas, el catálogo y todos los
+   avisos. No hay códigos ni contraseñas ahí, pero es información de la liga.
+   Ahora pide ser la organización. Cuando exista el tablón de noticias tendrá su
+   propia función con solo lo que deban ver los doce.
+2. **El disparador `app.marcar_apertura_de_jornada` no fijaba `search_path`.**
+3. **Las tres funciones de fichajes y `ciclo_ahora` las alcanzaba `anon`.** No
+   era aprovechable —comprueban `is_admin()` antes de gastar ninguna llamada a
+   la API— pero se ha revocado.
+
+Comprobado por suplantación: la organización lo ve, alguien sin entrar no, y un
+jugador normal de la liga tampoco.
+
+Lo que el analizador marca y se queda como está, a propósito:
+
+- **`clubes_excluidos` como vista con permisos del dueño.** Lo marca como ERROR
+  y es deliberado: `authenticated` no puede leer `hl_matches`, y una vista de
+  invocador dejaría a los doce sin poder leer la clasificación. Solo expone qué
+  clubes tienen un partido fuera de una jornada, que ya es público.
+- **`hl_matches` y `hl_players` con RLS y sin políticas.** Es el cierre buscado.
+- **El resto de funciones `security definer` del esquema público** son los
+  endpoints del juego, y cada una comprueba por dentro quién la llama.
+
+Queda **sin activar**, y es un interruptor de 30 segundos en el panel de
+Supabase si se quiere: *Leaked Password Protection* (Authentication → Policies),
+que compara la contraseña elegida contra HaveIBeenPwned y evita que alguien use
+una que ya se ha filtrado por ahí.
+
 ## Revisión de seguridad
 
 Hecha a propósito, porque la fuga de los códigos salió de rebote y eso no es un
