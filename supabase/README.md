@@ -378,6 +378,66 @@ partir de dos sitios:
   `app.verificar_plantillas(limite, pausa)` lo hace por tandas, con pausa entre
   llamadas porque el plan gratuito limita también por segundo.
 
+### Los fichajes que aún no han jugado (migración 0033)
+
+El mercado se cierra pero los clubes siguen fichando a gente sin contrato todo
+el año, así que el catálogo se queda corto. Lo primero que se buscó fue una
+forma barata de pedir «la plantilla del Betis». **La API no la tiene.** Probado
+contra la API de verdad, no leído de su documentación:
+
+| Ruta | Respuesta |
+|---|---|
+| `/teams/{id}` | 200, pero solo `id`, `logo`, `name` y `type` |
+| `/teams/{id}/squad` | 404 |
+| `/squads?teamId=` | 404 |
+| `/squad?teamId=` | 404 |
+| `/team-statistics/{id}` | 404 |
+| `/players?teamId=` | 400 · *property teamId should not exist* |
+| `/players?name=X&leagueId=` | 400 · *property leagueId should not exist* |
+
+`/players` solo acepta `name`. Así que hay tres vías, por lo que cuestan:
+
+1. **Gratis, pero tarde.** El que juega entra solo: el acta del partido trae las
+   dos plantillas enteras, así que un fichaje aparece la primera vez que juega
+   sin gastar ni una llamada. Ya funcionaba.
+2. **Gratis, y ahora.** Escribir el nombre a mano en *Equipos y jugadores*. La
+   ficha nace sin enlazar y se enlaza sola por nombre normalizado la primera vez
+   que el jugador sale en un acta.
+3. **Dos llamadas.** Buscarlo en la API desde *Fichajes*. Deja la ficha enlazada
+   desde el primer día, con el nombre y el puesto tal y como los dice la API.
+
+La tercera necesita una pantalla con cuidado: buscar «Vinicius» devuelve diez
+homónimos de medio mundo y **la búsqueda no dice el club**. Por eso el club de
+cada candidato se pide de uno en uno (`mirar_candidato`), lo pide el navegador a
+su ritmo —cada petición es corta, y el rol `authenticated` corta a los 8
+segundos— y el botón de añadir **está desactivado hasta que se ha visto el
+club**. Si el club no es uno de los 20, no se puede añadir y se dice en qué club
+está. El club lo decide la API y no la organización, así que no se puede meter a
+alguien en el equipo equivocado por error de dedo.
+
+`app.pos_desde_perfil` es un traductor aparte de `app.pos_desde_highlightly`: el
+acta dice «Goalkeeper» o «Defender», pero el perfil habla otro idioma
+(«Centre-Back», «Left Winger», «Attacking Midfield»). Leer el perfil con el
+traductor del acta metía a todo el mundo de centrocampista, y eso cambia los
+multiplicadores con los que puntúa.
+
+### El repaso, con los resultados por delante
+
+El repaso del catálogo (traspasos y salidas) cuesta **una llamada por jugador**,
+y es el que daba miedo: quedarse sin llamadas justo cuando hay que cargar una
+jornada. El reparto de las 100 del día queda así:
+
+- Los resultados van **siempre primero**. El ciclo carga partidos antes de mirar
+  plantillas y, si carga alguno, ese turno termina ahí.
+- El repaso **no empieza** si el día lleva ya 40 llamadas, y no pasa de **20
+  fichas al día** (`app.repasar_plantillas`).
+- El ciclo entero no pasa de 80, así que quedan 20 libres para lo que haga falta
+  a mano.
+
+Peor día posible: 4 de calendario + 10 de una jornada + 20 de repaso = **34 de
+100**. Nunca puede faltar una llamada para cargar un resultado por haberla
+gastado en repasar plantillas. Todo esto se ve en *Dirección → Automático*.
+
 **Nadie se da de baja solo.** La primera versión sí lo hacía, y los cuatro
 primeros casos fueron cuatro falsos positivos: el resumen de jugador usa nombres
 distintos de los de la clasificación —«Deportivo A Coruña» frente a «Deportivo de
@@ -808,8 +868,15 @@ el esquema `app`, que PostgREST no publica.
    salen contra plazas vacías. Es lo único que bloquea el arranque.
 7. ~~Cargar los resultados cada jornada~~ · ya no hace falta: lo hace el ciclo
    automático. Los botones del panel siguen ahí para cuando haya que forzar algo.
-8. **Cuatro fichas de jugador esperan decisión** en Equipos y jugadores: tres que
-   la API sitúa en otro club (filial o traspaso) y una ya dada de baja.
+8. ~~Cuatro fichas de jugador esperan decisión~~ · hechas. Se dieron de baja las
+   cinco que la API sitúa fuera de Primera (Rafa Romero → Sevilla Atlético,
+   Carlos Martín → Hajduk Split, Moussa Diarra → Al-Wahda, Ibra Sow → Genoa,
+   Carlos Álvarez → CF América). La regla queda puesta: si la API lo pone fuera
+   de Primera, se da de baja. La ficha no se borra, y si el jugador llega a
+   jugar un partido de Primera el acta lo reactiva solo.
+9. **Los fichajes de este verano no están.** Van entrando solos a medida que
+   juegan; el que se quiera tener antes de su debut se añade desde
+   *Equipos y jugadores → Fichajes*.
 
 ## Estado de la verificación
 

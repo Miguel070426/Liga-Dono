@@ -413,6 +413,28 @@ export const DB = {
     return data || [];
   },
 
+  // ------------------------------------------------------------- FICHAJES
+  // La búsqueda de la API no dice el club, así que el club de cada candidato se
+  // pide aparte. Van en llamadas separadas a propósito: una petición por ficha
+  // es corta y el navegador marca el ritmo.
+  async searchPlayer(nombre){
+    const { data, error } = await sb.rpc('buscar_jugador', { p_nombre: nombre });
+    if(error) throw fail(error, 'No se ha podido buscar');
+    return data || [];
+  },
+
+  async lookCandidate(hlId){
+    const { data, error } = await sb.rpc('mirar_candidato', { p_hl_id: hlId });
+    if(error) throw fail(error, 'No se ha podido mirar esa ficha');
+    return data || {};
+  },
+
+  async addSigning(hlId){
+    const { data, error } = await sb.rpc('anadir_jugador', { p_hl_id: hlId });
+    if(error) throw fail(error, 'No se ha podido añadir');
+    return data || {};
+  },
+
   // ------------------------------------------------------------- DIRECCIÓN
   async setLeague(leagueId, patch){
     const { data, error } = await sb.from('leagues').update(patch).eq('id', leagueId).select('id');

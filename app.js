@@ -1420,6 +1420,7 @@ async function panelCiclo(body, seq){
   if(stale(seq)) return;
 
   const avisos = est.avisos || [];
+  const pl = est.plantillas || null;
   const filas = avisos.length
     ? avisos.map(a => {
         const c = CLASE_AVISO[a.clase] || {icono:'·', nombre:a.clase};
@@ -1446,6 +1447,22 @@ async function panelCiclo(body, seq){
       <div><label>Jornada en curso</label><strong>${est.jornada}</strong></div>
       <div><label>Cierra</label><strong>${est.cierre ? fechaCierre(new Date(est.cierre)) : 'sin hora'}</strong></div>
     </div>
+
+    ${pl ? `<h3 style="margin:18px 0 6px;">Las plantillas</h3>
+      <p class="club-tag" style="margin:0 0 8px;">El catálogo del que eligen los doce. Se repasa poco a poco
+        contra la API, pero <strong>siempre después de los resultados</strong>: el repaso no empieza si el día
+        lleva ya 40 llamadas y no pasa de 20 fichas diarias, así que nunca puede faltar una llamada para cargar
+        una jornada por haberla gastado aquí.</p>
+      <div class="ciclo-datos">
+        <div><label>Fichas</label><strong>${pl.activas} <span class="club-tag">activas de ${pl.fichas}</span></strong></div>
+        <div><label>Enlazadas con la API</label><strong>${pl.enlazadas} <span class="club-tag">· ${pl.sin_enlazar} aún no</span></strong></div>
+        <div><label>Repasadas hoy</label><strong>${pl.repasadas_hoy} <span class="club-tag">de 20</span></strong></div>
+        <div><label>Sin repasar nunca</label><strong>${pl.sin_repasar}</strong></div>
+        <div><label>Repaso más antiguo</label><strong>${pl.mas_antigua ? cuandoCorto(pl.mas_antigua) : '—'}</strong></div>
+        <div><label>Esperando tu decisión</label><strong class="${pl.a_revisar ? 'off' : ''}">${pl.a_revisar}</strong></div>
+      </div>
+      <p class="club-tag" style="margin:8px 0 0;">Las fichas que no están enlazadas son de gente que no ha jugado
+        todavía ninguno de los partidos cargados. Se enlazan solas en cuanto juegan.</p>` : ''}
 
     <div class="row" style="margin-top:14px;gap:8px;flex-wrap:wrap;">
       <button class="btn" id="cicloAhora">Hacerlo ahora</button>
@@ -2164,6 +2181,77 @@ function estadoJugador(p){
 }
 
 let equiposClub = null;
+/* ---------------------------------------------------------- FICHAJES
+   El mercado sigue abierto todo el año para los jugadores sin contrato, así que
+   el catálogo se queda corto. Hay tres formas de arreglarlo y esta es la del
+   medio:
+
+     · gratis, pero tarde  — el que juega entra solo desde el acta del partido
+     · gratis, y ahora     — escribir el nombre a mano, aquí abajo
+     · dos llamadas        — buscarlo en la API, que es esto
+
+   La búsqueda de la API no dice el club (solo acepta `name`: se comprobó que
+   rechaza `leagueId` y `teamId`), así que el club de cada candidato se pide de
+   uno en uno y lo pide el navegador, no el servidor. Así cada petición es corta
+   —el navegador corta a los 8 segundos— y la organización ve el club antes de
+   añadir nada.                                                              */
+function wireFichajes(){
+  const btn = $('fichBuscar'), caja = $('fichRes'), campo = $('fichNombre');
+  if(!btn || !caja) return;
+
+  const pinta = cands => {
+    if(!cands.length){
+      caja.innerHTML = '<p class="empty">Nadie con ese nombre. Prueba con el nombre completo.</p>';
+      return;
+    }
+    caja.innerHTML = `<table class="fich">${cands.map(c => `<tr data-hl="${c.hl_id}">
+      <td>${esc(c.nombre || '—')}${c.nombre_completo && c.nombre_completo !== c.nombre
+            ? `<br><span class="club-tag">${esc(c.nombre_completo)}</span>` : ''}</td>
+      <td class="fich-club">${c.ya_lo_tenemos
+            ? `<span class="pill">ya está · ${esc(c.club_nuestro || 'sin club')}</span>`
+            : '<span class="club-tag">club sin mirar</span>'}</td>
+      <td style="text-align:right;white-space:nowrap;">
+        <button class="btn ghost small fichVer">Ver club</button>
+        <button class="btn small fichAdd" disabled>Añadir</button></td></tr>`).join('')}</table>`;
+
+    caja.querySelectorAll('tr[data-hl]').forEach(fila => {
+      const hl = Number(fila.dataset.hl);
+      const celda = fila.querySelector('.fich-club');
+      const ver = fila.querySelector('.fichVer');
+      const add = fila.querySelector('.fichAdd');
+
+      ver.addEventListener('click', () => guard(async () => {
+        ver.disabled = true; celda.innerHTML = '<span class="club-tag">mirando…</span>';
+        const d = await DB.lookCandidate(hl);
+        celda.innerHTML = d.de_primera
+          ? `<strong>${esc(d.club)}</strong> <span class="pos-tag pos-${esc(d.pos)}">${esc(d.pos)}</span>${
+              d.desde ? `<br><span class="club-tag">en el club desde ${esc(d.desde)}</span>` : ''}`
+          : `<span class="warn">${esc(d.club_api || 'la API no dice club')}</span>
+             <br><span class="club-tag">no es de Primera</span>`;
+        add.disabled = !d.de_primera;
+        ver.remove();
+      }));
+
+      add.addEventListener('click', () => guard(async () => {
+        add.disabled = true;
+        const r = await DB.addSigning(hl);
+        if(!r.ok){ toast(r.motivo || 'No se ha podido añadir', 'bad'); add.disabled = false; return; }
+        toast(`${r.nombre} · ${r.que} al ${r.club} como ${r.pos}`, 'good');
+        await boot(); switchView('panel');
+      }));
+    });
+  };
+
+  const buscar = () => guard(async () => {
+    const n = campo.value.trim();
+    if(n.length < 3){ toast('Escribe al menos tres letras', 'bad'); return; }
+    caja.innerHTML = loadingHtml();
+    pinta(await DB.searchPlayer(n));
+  });
+  btn.addEventListener('click', buscar);
+  campo.addEventListener('keydown', e => { if(e.key === 'Enter') buscar(); });
+}
+
 function panelEquipos(body){
   if(!equiposClub && S.clubs.length) equiposClub = S.clubs[0].id;
   const list = S.players.filter(p => p.club_id === equiposClub)
@@ -2201,6 +2289,20 @@ function panelEquipos(body){
       <div style="margin-top:12px;display:flex;gap:8px;">
         <input type="text" id="newClub" placeholder="Añadir club…" style="max-width:220px;">
         <button class="btn ghost small" id="addClub">+ Añadir</button></div></div>
+    <div class="card"><h2>Fichajes</h2>
+      <p style="font-size:12px;color:var(--chalk-dim);margin-top:0;">Para cuando un club ficha a alguien y
+        quieres que se pueda elegir <strong>antes</strong> de que juegue su primer partido. Si esperas, no hace
+        falta hacer nada: el que juega entra solo, porque el acta del partido trae las dos plantillas enteras.
+        Escribir el nombre a mano más abajo también vale y no gasta ninguna llamada. Esto de aquí es para que la
+        ficha quede bien enlazada desde el primer día, con su nombre y su puesto tal y como los dice la API.</p>
+      <p style="font-size:12px;color:var(--chalk-dim);">Buscar gasta <strong>1 llamada</strong>. Ver el club de
+        un candidato, <strong>1 más</strong>. La búsqueda no dice el club —la API no deja filtrar por liga— así
+        que con nombres muy comunes saldrán homónimos de medio mundo y habrá que mirar alguno.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input type="text" id="fichNombre" placeholder="Nombre del fichaje…" style="max-width:260px;">
+        <button class="btn" id="fichBuscar">Buscar</button></div>
+      <div id="fichRes" style="margin-top:12px;"></div>
+    </div>
     <div class="card"><h2>Plantillas reales</h2>
       <div class="toolbar"><label style="margin:0;" for="clubSel">Club</label>
         <select id="clubSel" style="max-width:250px;">${S.clubs.map(c =>
@@ -2226,6 +2328,7 @@ function panelEquipos(body){
         : '<p class="empty">Sin jugadores. Hasta que cargues alguno, nadie puede elegir de este club.</p>'}
     </div>`;
 
+  wireFichajes();
   $('clubSel').addEventListener('change', e => { equiposClub = e.target.value; renderPanel(); });
   $('addClub').addEventListener('click', () => guard(async () => {
     const v = $('newClub').value.trim();
