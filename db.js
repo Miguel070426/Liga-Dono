@@ -175,7 +175,7 @@ export const DB = {
     const [lg, mgrs, cls, pls] = await Promise.all([
       sb.from('leagues').select('id,name,current_jornada,lineups_locked,admin_user_id').limit(1).single(),
       sb.from('managers').select('id,slot,club_name,owner_name,usuario,user_id,is_admin,escudo').order('slot'),
-      sb.from('clubs').select('id,name').order('name'),
+      sb.from('clubs').select('id,name,highlightly_id').order('name'),
       sb.from('club_players').select('id,club_id,name,pos,activo,revisar,club_segun_api,motivo_baja')
     ]);
     for(const r of [lg, mgrs, cls, pls]){

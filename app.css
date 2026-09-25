@@ -56,9 +56,53 @@
      botón es un balón y conviene que se note que responde. */
   header.top .crest:hover{ filter:brightness(1.12); }
   header.top .crest.on{ outline:2px solid var(--gold); outline-offset:2px; }
-  header.top h1{ font-size:20px; color:var(--gold); margin:0; white-space:nowrap; }
+  /* El título se recorta en su sitio. Sin esto se salía de su caja y se metía
+     por debajo de la píldora de la jornada: no llegaba a taparla, pero leído
+     de un vistazo en un móvil parecen dos cosas montadas una encima de otra. */
+  header.top h1{
+    font-size:20px; color:var(--gold); margin:0;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
   header.top .sub{ font-size:12px; color:var(--chalk-dim); text-transform:none; letter-spacing:0;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  /* En el móvil no cabe todo a este tamaño, y lo que se perdía era tu club y
+     tu puesto —lo único de la cabecera que cambia— mientras el nombre de la
+     liga, que es siempre el mismo, se quedaba entero. Ahora encoge el título
+     y tu línea se parte en dos en vez de cortarse. */
+  @media (max-width:520px){
+    header.top{ padding:12px 14px; gap:8px; }
+    header.top h1{ font-size:16px; }
+    /* Dos líneas como mucho: en un móvil estrecho, dejándola libre, tu línea
+       se iba a tres y la cabecera se comía media pantalla. */
+    header.top .sub{
+      white-space:normal; line-height:1.3;
+      display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+    }
+    header.top .brand{ gap:9px; }
+    .hdr-right{ gap:7px; }
+    .jornada-pill{ padding:5px 10px; font-size:11px; }
+    .gear{ width:29px; height:29px; }
+  }
+  /* Los móviles más estrechos que quedan en uso. El título baja un punto más
+     para que quepa entero: es lo único de la cabecera que no cambia nunca, y
+     verlo cortado da sensación de que algo está roto. */
+  @media (max-width:380px){
+    header.top{ padding:11px 12px; }
+    header.top h1{ font-size:14px; }
+    header.top .crest{ width:34px; height:34px; }
+  }
+  /* Por debajo de 340px al texto de la cabecera le quedaban 72px, porque la
+     píldora y los dos botones se llevaban la mitad del ancho. Encoger la letra
+     no arregla eso: hay que quitar algo.
+
+     Se quita la píldora de la jornada, que es lo que menos aporta de los
+     cuatro: el número de jornada ya sale en el aviso de arriba, en el
+     selector de jornada y en la propia pestaña. Lo único que se pierde es su
+     destello al refrescarse en vivo. A cambio el título y tu club caben
+     enteros, que es lo que la gente lee. */
+  @media (max-width:340px){
+    .jornada-pill{ display:none; }
+  }
   .hdr-right{ display:flex; align-items:center; gap:10px; flex:0 0 auto; }
   .jornada-pill{
     background:rgba(232,184,75,0.14); border:1px solid var(--gold-dim); color:var(--gold);
@@ -353,8 +397,9 @@
   .jnav button:disabled{ opacity:0.25; cursor:not-allowed; }
   .jnav .lbl{ font-size:15px; color:var(--gold); text-transform:uppercase; letter-spacing:1px; min-width:112px; text-align:center; }
 
-  .lineup-row{ display:grid; grid-template-columns:30px 46px 1.4fr 1.4fr; gap:9px; align-items:center; padding:5px 0; }
-  @media (max-width:700px){ .lineup-row{ grid-template-columns:26px 40px 1fr; } .lineup-row .pn{ grid-column:1/-1; } }
+  .lineup-row{ display:grid; grid-template-columns:30px 76px 1.4fr 1.4fr; gap:9px; align-items:center; padding:5px 0; }
+  .lineup-meta{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; min-width:0; }
+  @media (max-width:700px){ .lineup-row{ grid-template-columns:26px 70px 1fr; } .lineup-row .pn{ grid-column:1/-1; } }
   .slot-num{ width:26px; height:26px; border-radius:50%; background:rgba(232,184,75,0.15); color:var(--gold);
     border:1px solid var(--gold-dim); font-weight:bold; font-size:11px; display:flex; align-items:center; justify-content:center; }
   .lineup-block{ margin-bottom:14px; }
@@ -557,14 +602,18 @@ button.btn.wide{ width:100%; }
      dato por el que se mira esta lista. */
   .partidos{ display:flex; flex-direction:column; }
   .pl-fila{
-    display:grid; grid-template-columns:74px 1fr auto 1fr; gap:8px;
+    display:grid; grid-template-columns:70px 1fr auto 1fr; gap:8px;
     align-items:center; padding:9px 2px;
     border-top:1px solid rgba(244,241,230,0.08);
   }
   .pl-fila:first-child{ border-top:none; }
   .pl-cuando{ font-size:11px; color:var(--chalk-dim); text-transform:uppercase; letter-spacing:0.5px; }
-  .pl-eq{ font-size:13.5px; min-width:0; }
-  .pl-fila > .pl-eq:last-child{ text-align:right; }
+  .pl-dia, .pl-hora{ display:block; white-space:nowrap; }
+  .pl-hora{ color:rgba(244,241,230,0.45); }
+  .pl-eq{ font-size:13.5px; min-width:0; display:flex; align-items:center; gap:7px; }
+  .pl-txt{ min-width:0; }
+  .pl-nom{ display:block; overflow-wrap:anywhere; line-height:1.25; }
+  .pl-eq-der{ text-align:right; flex-direction:row-reverse; }
   .pl-mio{ color:var(--gold); font-weight:bold; }
   .pl-jug{ display:block; font-size:11px; font-weight:normal; color:var(--chalk-dim); letter-spacing:0; }
   .pl-vs{ font-size:11px; color:rgba(244,241,230,0.35); }
@@ -572,9 +621,29 @@ button.btn.wide{ width:100%; }
   .pl-fuera .pl-eq{ opacity:0.45; text-decoration:line-through; }
   .pl-fuera .pl-cuando{ color:var(--red-text); }
   @media (max-width:520px){
-    .pl-fila{ grid-template-columns:60px 1fr auto 1fr; gap:6px; }
+    .pl-fila{ grid-template-columns:56px 1fr auto 1fr; gap:6px; }
     .pl-eq{ font-size:12.5px; }
     .pl-cuando{ font-size:10px; }
+  }
+
+  /* ---------- LOS ESCUDOS DE LOS CLUBES DE PRIMERA ---------- */
+  /* No confundir con `.escudo`, que es el que se dibuja cada manager. Estos
+     vienen de fuera, así que pueden tardar o no llegar: el hueco se reserva
+     siempre para que la fila no dé un salto cuando por fin carga, y si la
+     imagen falla se esconde y queda el nombre, que nunca se quitó. */
+  .esc-club{
+    width:22px; height:22px; object-fit:contain; flex:0 0 auto;
+    vertical-align:middle;
+  }
+  .esc-club.sin-carga{ display:none; }
+  .esc-hueco{ width:22px; height:22px; flex:0 0 auto; display:inline-flex;
+    align-items:center; justify-content:center; }
+  .esc-mini{ width:14px; height:14px; margin-right:4px; }
+  .esc-h4{ width:18px; height:18px; margin-right:6px; }
+  .pj-grid h4{ display:flex; align-items:center; }
+  @media (max-width:520px){
+    .esc-club{ width:19px; height:19px; }
+    .esc-hueco{ width:19px; height:19px; }
   }
 
   /* ---------- EL CICLO AUTOMÁTICO ---------- */
@@ -637,7 +706,7 @@ button.btn.wide{ width:100%; }
      en los que se pueden abrir, para que no parezca que los demás no responden. */
   .pl-det > summary{ list-style:none; cursor:pointer; }
   .pl-det > summary::-webkit-details-marker{ display:none; }
-  summary.pl-fila{ grid-template-columns:74px 1fr auto 1fr 14px; }
+  summary.pl-fila{ grid-template-columns:70px 1fr auto 1fr 14px; }
   .pl-abrir{ font-size:10px; color:var(--chalk-dim); transition:transform 0.15s; }
   .pl-det[open] > summary .pl-abrir{ transform:rotate(180deg); display:inline-block; }
   .pl-det[open] > summary{ background:rgba(244,241,230,0.03); }
@@ -652,7 +721,7 @@ button.btn.wide{ width:100%; }
   table.pj td.num{ text-align:right; color:var(--chalk-dim); font-variant-numeric:tabular-nums; }
   tr.pj-mio td{ background:rgba(201,162,77,0.07); }
   @media (max-width:520px){
-    summary.pl-fila{ grid-template-columns:60px 1fr auto 1fr 12px; }
+    summary.pl-fila{ grid-template-columns:56px 1fr auto 1fr 12px; }
     .pj-grid{ grid-template-columns:1fr; gap:14px; }
   }
 

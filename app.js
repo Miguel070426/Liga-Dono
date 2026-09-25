@@ -61,6 +61,31 @@ function initials(name){
 }
 const mgr       = id => S.managers.find(m => m.id === id) || {club_name:'—', owner_name:'', slot:0};
 const clubName  = id => (S.clubs.find(c => c.id === id) || {}).name || '';
+const clubHl    = id => (S.clubs.find(c => c.id === id) || {}).highlightly_id || null;
+
+/* El escudo de un club de Primera.
+
+   No es un archivo nuestro: la dirección se construye con el identificador
+   que ya guardamos de cada club, así que los veinte escudos no cuestan ni
+   una llamada a la API ni un byte en el repositorio. Comprobados los 20.
+
+   Es decoración: el nombre del club va al lado en todos los sitios donde se
+   usa esto, y por eso el alt va vacío — quien navega a oídas ya oye el
+   nombre y no necesita oírlo dos veces. Si la imagen no carga, el listener
+   de abajo la esconde y queda el nombre solo, que es lo que había antes.  */
+function escudoClub(clubId, clase = ''){
+  const hl = clubHl(clubId);
+  if(!hl) return '';
+  return `<img class="esc-club ${clase}" alt="" aria-hidden="true" loading="lazy" decoding="async"
+    src="https://highlightly.net/soccer/images/teams/${hl}.png">`;
+}
+
+// `error` no burbujea, así que se escucha en captura. Un solo listener para
+// toda la página en vez de un onerror por escudo.
+addEventListener('error', e => {
+  const t = e.target;
+  if(t && t.tagName === 'IMG' && t.classList.contains('esc-club')) t.classList.add('sin-carga');
+}, true);
 const clamp     = j => Math.max(1, Math.min(N_JORNADAS, j|0));
 const isMine    = id => S.me && id === S.me.id;
 // Abierta = ni cerrada a mano, ni pasada la hora del primer partido. La
@@ -517,16 +542,23 @@ function renderHeader(){
   pintarClubesFuera();
 }
 
+const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const MESES = ['enero','febrero','marzo','abril','mayo','junio',
+               'julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
 // La hora del cierre, escrita como la diría una persona.
+//
+// El mes va siempre. Sin él ponía «el viernes 9», y con la liga empezando en
+// octubre nadie sabía si ese 9 era de este mes o del siguiente. «Hoy» y
+// «mañana» se quedan sin fecha porque ahí no hay nada que confundir.
 function fechaCierre(d){
-  const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
   const hoy = new Date();
   const mismoDia = d.toDateString() === hoy.toDateString();
   const hora = d.toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'});
   if(mismoDia) return `hoy a las ${hora}`;
   const manana = new Date(hoy); manana.setDate(hoy.getDate() + 1);
   if(d.toDateString() === manana.toDateString()) return `mañana a las ${hora}`;
-  return `el ${dias[d.getDay()]} ${d.getDate()} a las ${hora}`;
+  return `el ${DIAS[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]} a las ${hora}`;
 }
 
 // Las últimas horas se avisan con color, que es cuando la gente se despista.
@@ -668,7 +700,7 @@ function lineupsHtml(fr, lineups){
       if(ps.minutes)       bits.push(`${ps.minutes}'`);
       return `<tr${out ? ' style="opacity:.45;"' : ''}>
         <td><span class="pos-tag pos-${s.pos}">${s.pos}</span></td>
-        <td>${esc(s.player_name || '—')}<br><span class="club-tag">${esc(clubName(s.club_id) || 'sin club')}${out ? ' · no jugó' : ''}</span></td>
+        <td>${esc(s.player_name || '—')}<br><span class="club-tag">${escudoClub(s.club_id, 'esc-mini')}${esc(clubName(s.club_id) || 'sin club')}${out ? ' · no jugó' : ''}</span></td>
         <td style="text-align:right;white-space:nowrap;">${bits.join(' ') || '<span class="club-tag">—</span>'}</td>
       </tr>`;
     }).join('');
@@ -1163,8 +1195,9 @@ async function renderPlantilla(){
     const esCambio = hayLimite && s.club_player_id && !anteriores.has(s.club_player_id);
     blocks += `<div class="lineup-row${esCambio ? ' es-cambio' : ''}">
       <div class="slot-num">${i+1}</div>
-      <span class="pos-tag pos-${s.pos}">${s.pos}</span>
-      ${esCambio ? '<span class="chip-cambio" title="Cuenta como cambio">nuevo</span>' : ''}
+      <span class="lineup-meta"><span class="pos-tag pos-${s.pos}">${s.pos}</span>
+        <span class="esc-hueco">${escudoClub(s.club_id, 'esc-fila')}</span>
+        ${esCambio ? '<span class="chip-cambio" title="Cuenta como cambio">nuevo</span>' : ''}</span>
       <select class="slotClub" data-i="${i}" aria-label="Hueco ${i+1}, ${POS_LABEL[s.pos]}: club" ${editable?'':'disabled'}>${clubOpts(s.club_id)}</select>
       <select class="slotPlayer pn" data-i="${i}" aria-label="Hueco ${i+1}, ${POS_LABEL[s.pos]}: jugador" ${(!s.club_id || !editable)?'disabled':''}>${playerOpts(s.club_id, s.pos, s.club_player_id, s.player_name)}</select>
     </div>${empty ? `<div class="club-tag" style="margin:-4px 0 6px 84px;">No hay ${s.pos} cargados para ${esc(clubName(s.club_id))}. La organización tiene que subir esa plantilla.</div>` : ''}`;
@@ -1641,12 +1674,21 @@ async function panelSimulador(body, seq){
    de cada partido: eso delataría los onces. Cada uno solo ve los suyos, que
    ya se los sabe.                                                          */
 const DIA_CORTO = ['dom','lun','mar','mié','jue','vie','sáb'];
+const MES_CORTO = ['ene','feb','mar','abr','may','jun',
+                   'jul','ago','sep','oct','nov','dic'];
 
+// Aquí el mes también va siempre. Una jornada puede caer a caballo entre dos
+// meses, así que ni siquiera vale deducirlo del resto de partidos de la lista.
+//
+// Día y hora van en dos líneas a propósito. En una sola, con el mes dentro, la
+// columna necesitaba veinte píxeles más y se los quitaba a los nombres de los
+// clubes, que salían como «Atlético de …». El nombre del club es el dato; la
+// hora es el apunte.
 function partidoHora(p){
   if(!p.comienza) return esc(p.fecha || '');
   const d = new Date(p.comienza);
-  return `${DIA_CORTO[d.getDay()]} ${d.getDate()} · ${
-    d.toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'})}`;
+  return `<span class="pl-dia">${DIA_CORTO[d.getDay()]} ${d.getDate()} ${MES_CORTO[d.getMonth()]}</span>
+    <span class="pl-hora">${d.toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'})}</span>`;
 }
 
 // `mios` es un mapa club_id -> nombre del jugador que tienes ahí.
@@ -1654,10 +1696,13 @@ function partidosHtml(partidos, mios = {}, opciones = {}){
   if(!partidos || !partidos.length){
     return '<p class="empty">No hay partidos cargados para esta jornada.</p>';
   }
-  const lado = (nombre, clubId) => {
+  // El lado se dice a mano, no por posición: en las filas que se pueden abrir
+  // hay una flecha detrás del visitante, así que un «el último» se la comía a
+  // él y alineaba mal al equipo de fuera.
+  const lado = (nombre, clubId, der) => {
     const mio = mios[clubId];
-    return `<span class="pl-eq${mio ? ' pl-mio' : ''}">${esc(nombre)}${
-      mio ? `<span class="pl-jug">${esc(mio)}</span>` : ''}</span>`;
+    return `<span class="pl-eq${der ? ' pl-eq-der' : ''}${mio ? ' pl-mio' : ''}">${escudoClub(clubId)}<span class="pl-txt"><span class="pl-nom">${
+      esc(nombre)}</span>${mio ? `<span class="pl-jug">${esc(mio)}</span>` : ''}</span></span>`;
   };
   const abrible = opciones.abrir !== false;
   return `<div class="partidos">${partidos.map(p => {
@@ -1668,7 +1713,7 @@ function partidosHtml(partidos, mios = {}, opciones = {}){
     const dentro = `<span class="pl-cuando">${p.excluido ? 'fuera' : partidoHora(p)}</span>
       ${lado(p.local, p.local_club)}
       ${marcador}
-      ${lado(p.visitante, p.visitante_club)}`;
+      ${lado(p.visitante, p.visitante_club, true)}`;
     // Solo se puede abrir lo que tiene números detrás. Un partido sin cargar
     // que se abriera para no enseñar nada es peor que uno que no se abre.
     if(!abrible || !p.cargado){
@@ -1708,7 +1753,7 @@ function jugadoresDelClub(clubId, cache, mis){
 function ladoDelPartidoHtml(clubId, cache, mis){
   const js = clubId ? jugadoresDelClub(clubId, cache, mis) : [];
   if(!js.length){
-    return `<div><h4>${esc(clubName(clubId) || '—')}</h4>
+    return `<div><h4>${escudoClub(clubId, 'esc-h4')}${esc(clubName(clubId) || '—')}</h4>
       <p class="empty" style="padding:10px;">Sin datos de este equipo.</p></div>`;
   }
   const filas = js.map(p => {
@@ -1727,7 +1772,7 @@ function ladoDelPartidoHtml(clubId, cache, mis){
       <td style="text-align:right;white-space:nowrap;">${bits.join(' ') || '<span class="club-tag">—</span>'}</td>
     </tr>`;
   }).join('');
-  return `<div><h4>${esc(clubName(clubId) || '—')}</h4><table class="pj">${filas}</table></div>`;
+  return `<div><h4>${escudoClub(clubId, 'esc-h4')}${esc(clubName(clubId) || '—')}</h4><table class="pj">${filas}</table></div>`;
 }
 
 // Rellena cada partido la primera vez que se abre. Si falla, se dice ahí mismo

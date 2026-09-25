@@ -832,6 +832,108 @@ accidente esperando.
 después de esa copia, se queda sin ella y tendría que volver a fichar; su cuenta
 sigue existiendo. La pantalla lo avisa antes.
 
+## Los escudos de los veinte clubes
+
+Salieron de una revisión de un amigo de Miguel que sabe de interfaces. Pedía
+imágenes: escudos y fotos de jugador. Los escudos **sí**; las fotos **no**, y
+conviene dejar escrito por qué.
+
+**Los escudos no cuestan nada.** La dirección se construye con el
+`highlightly_id` que ya guardábamos de cada club:
+
+```
+https://highlightly.net/soccer/images/teams/{highlightly_id}.png
+```
+
+Cero llamadas a la API, cero bytes en el repositorio, y la cuota diaria
+intacta. Comprobados los veinte, uno a uno: los veinte responden 200. El
+cliente ya los pide en `bootstrap` —`highlightly_id` estaba en el `grant` de
+`authenticated` desde el principio— así que no hizo falta ni una migración.
+
+Van en las filas de partido, en el partido desglosado, en la fila del once y
+en el detalle de cada cruce. Detalles que importan:
+
+- **Son decoración**, con `alt` vacío y `aria-hidden`. El nombre del club está
+  al lado en todos los sitios: quien navega a oídas no tiene que oírlo dos
+  veces.
+- **El hueco se reserva** aunque no haya escudo, para que la fila no pegue un
+  salto cuando la imagen llega tarde.
+- **Si una imagen falla se esconde** y queda el nombre, que nunca se quitó. Lo
+  hace un solo `addEventListener('error', …, true)` para toda la página: el
+  evento `error` no burbujea, así que se escucha en captura, y así no hay un
+  `onerror` por escudo.
+- **Con los partidos plegados no se descarga ninguno.** `loading="lazy"` más
+  el pliegue de la pestaña Jornada: veinte peticiones que la mayoría de las
+  visitas no llegan a necesitar. Medido: 0 peticiones plegado, 20 al abrir.
+
+### Por qué no hay fotos de jugador
+
+La API que usamos **no las tiene**: `/players/{id}` devuelve el campo de
+imagen vacío, y no es que falten los suplentes — también está vacío el de
+Mbappé. Pedir la imagen por dirección directa da 404.
+
+Se investigó **TheSportsDB**, que sí tiene fotos y hasta recortes con fondo
+transparente. Se descartó, y no por prudencia sino por lo que dicen ellos
+mismos. Sus condiciones, actualizadas el 17/09/2026: «la mayoría de nuestras
+imágenes las crean nuestros usuarios», y cada jugador lleva un campo
+`strCreativeCommons` cuyo valor `No` significa literalmente «no trates la
+imagen como apta para reutilizar», con la instrucción de no usarlas
+públicamente, webs incluidas.
+
+**Medido en 50 jugadores de La Liga: 41 marcados `No`, 9 marcados `Yes`.** El
+82% de las fotos las marca como no autorizadas quien las aloja. Pagar sus 9 $
+al mes no lo cambia: sus propias condiciones dicen que la suscripción «no
+otorga derechos sobre imágenes de terceros».
+
+Aparte, su clave gratuita corta las plantillas a 10 jugadores, y sus datos de
+plantilla son colaborativos y flojos: devuelve a Gordon y a Livaković como
+jugadores del Barça.
+
+La conclusión de diseño es que las fotos no hacían falta. Lo que pedía esa
+revisión era **reconocer en vez de recordar** —que no haya que acordarse de
+dónde juega Laporte— y eso lo resuelve el escudo. La cara era el adorno.
+
+## La cabecera, medida en cinco anchos
+
+Venía de un aviso de que «en el móvil hay botones que se solapan». Buscado a
+ojo no aparecía, y una vez llegué a decir que no existía. Existía, y la forma
+de encontrarlo fue medir en vez de mirar:
+
+- `header.top h1` tenía `white-space:nowrap` y **ningún recorte**, así que se
+  salía de su caja y se colaba por debajo de la píldora de la jornada. No
+  llegaba a taparla, pero de un vistazo en un móvil son dos cosas montadas.
+- El subtítulo —**tu club y tu puesto, lo único de la cabecera que cambia**—
+  salía cortado en «Dono FC · 2º co…», mientras el nombre de la liga, que es
+  siempre el mismo, se quedaba entero.
+
+Ahora el título se recorta en su sitio, y por debajo de 520px encoge y tu
+línea se parte en dos en vez de cortarse.
+
+A **320px** no había arreglo por tamaño de letra: al texto le quedaban 72px
+porque la píldora y los dos botones se llevaban la mitad del ancho. Se quitó
+**la píldora de la jornada**, que es lo que menos aporta de los cuatro —el
+número sale además en el aviso, en el selector y en la propia pestaña—. Se
+pierde su destello al refrescar en vivo; a cambio caben el título y tu club.
+
+`t-cabecera.mjs` lo vigila en 320, 360, 390, 430 y 1100px, y lo hace con el
+club llamado «Deportivo Siuuu FC»: con «Null City» no habría fallado nunca.
+
+## El mes en las fechas
+
+El juego escribía «el viernes 9 a las 21:00» y «vie 9 · 21:00», sin mes en
+ningún sitio. Con la liga empezando en octubre, nadie sabía si ese 9 era de
+este mes o del siguiente.
+
+Ahora el mes va siempre. «Hoy» y «mañana» se quedan sin fecha, que ahí no hay
+nada que confundir. En las filas de partido el día y la hora van en **dos
+líneas**: en una sola, con el mes dentro, la columna necesitaba veinte píxeles
+más y se los quitaba a los nombres, que salían como «Atlético de …». Y el
+nombre del club ahora **se parte en dos líneas antes que cortarse**, porque un
+club leído a medias no se reconoce, que es justo para lo que está el escudo.
+
+Ni siquiera valía deducir el mes del primer partido: una jornada puede caer a
+caballo entre dos meses, y la jornada de pruebas lo hace a propósito.
+
 ## Repaso de seguridad del ciclo (migración 0034)
 
 Pasado el analizador de Supabase después de los cambios de hoy. Tres cosas
