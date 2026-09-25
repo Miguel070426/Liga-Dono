@@ -348,6 +348,16 @@ export const DB = {
   // Contra qué once se cuentan los cambios y cuántos caben. La pantalla lo usa
   // para ir contando mientras editas; el recuento que manda lo rehace el
   // servidor al guardar.
+  // Lo que lleva hecho cada jugador en toda la temporada. Alimenta la lista de
+  // elegir jugador: sin esto es una lista de nombres y hay que saberse la liga
+  // de memoria. Se pide una vez y se guarda; no cambia mientras alineas.
+  async seasonStats(){
+    const { data, error } = await sb.from('player_season_stats')
+      .select('club_player_id,goals,assists,yellow,red,shots,minutes,partidos');
+    if(error) throw fail(error, 'No se han podido cargar las estadísticas de los jugadores');
+    return data || [];
+  },
+
   async onceReferencia(jornada){
     const { data, error } = await sb.rpc('once_referencia', { p_jornada: jornada });
     if(error) throw fail(error, 'No se ha podido consultar tu once anterior');

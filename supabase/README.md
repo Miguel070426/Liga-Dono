@@ -934,6 +934,81 @@ club leído a medias no se reconoce, que es justo para lo que está el escudo.
 Ni siquiera valía deducir el mes del primer partido: una jornada puede caer a
 caballo entre dos meses, y la jornada de pruebas lo hace a propósito.
 
+## Elegir jugador: reconocer en vez de recordar (migración 0036)
+
+Era el fallo de diseño más caro del juego y llevaba ahí desde el principio.
+
+Para poner a alguien en tu once había que elegir **primero el club**, y solo
+entonces se desbloqueaba el desplegable de jugadores de ese club. Eso obliga a
+recordar dónde juega cada futbolista. Y no es así como funciona la cabeza de
+nadie: sabes que quieres a Laporte, no sabes que juega en el Athletic.
+
+La regla que se aplicó es la de **reconocer antes que recordar**: no obligues a
+nadie a acordarse de algo que puedes enseñarle.
+
+Ahora cada hueco es un botón que abre la lista completa de esa posición, con
+buscador. Escribes «Laporte» y aparece, con su escudo, su club y lo que lleva
+hecho. **El club sigue estando**, pero como filtro opcional dentro de la lista,
+no como peaje obligatorio — y ahí tiene trabajo de verdad: «esta jornada quiero
+a alguien del Betis, que juega en casa» es una forma legítima de elegir.
+
+Lo que la lista tiene que resolver, y cómo:
+
+- **Son muchos.** 190 defensas, 170 delanteros, 160 centrocampistas. Sin
+  buscador la lista no sirve, así que va lo primero.
+- **Sigue habiendo un jugador por club.** Los de clubes ya usados salen **en
+  gris y a la vista**, con el motivo («ya tienes a X»), nunca escondidos. Si
+  desaparecieran, buscarías a tu jugador, no lo encontrarías y pensarías que
+  falta de la base en vez de entender la regla. Lo mismo para un club sacado
+  de la jornada.
+- **Ordenada por quien más juega.** Es lo que de verdad ayuda: un jugador con
+  40 minutos en toda la liga es un suplente, y eso no se deduce de que no haya
+  marcado. Sin datos cae al alfabético, que es lo correcto — cualquier otro
+  orden sería una opinión disfrazada de dato.
+- **El buscador no se enfoca solo en el móvil.** Levantaría el teclado encima
+  de la lista antes de que hayas visto lo que hay, que es justo lo que se
+  quería enseñar. En el ordenador sí.
+
+### No hay «puntos por jugador», y no se inventan
+
+La revisión pedía un resumen de puntos por jugador. En esta liga **eso no
+existe**: los puntos son de tu club y salen de comparar tus ocho categorías con
+las del rival. Un delantero no vale 12 puntos; aporta goles, que cuentan o no
+según lo que haya hecho el delantero del otro.
+
+Poner un número ahí habría sido inventarse un dato con pinta de oficial. Lo que
+se enseña es lo que el jugador **hizo**, en crudo: `3⚽ 1🎯 2🟨 · 540′ en 6`.
+Los minutos van siempre, porque son el dato que más salva al elegir.
+
+La migración **0036** crea `player_season_stats`, que suma
+`player_jornada_stats` por jugador. Va con `security_invoker = true` a
+propósito: se lee con los permisos de quien pregunta. Aquí es seguro porque la
+tabla de debajo ya es legible por `authenticated` con `using (true)` —son datos
+de partidos reales, no alineaciones—. Una vista con derechos de dueño encima de
+una tabla con RLS es justo la forma de colar datos que la política pretendía
+filtrar, y eso ya estuvo a punto de pasar con `clubes_excluidos`.
+
+**Hoy la vista devuelve 0 filas**, porque la liga no ha empezado. La lista lo
+dice («aún no hay estadísticas») en vez de enseñar ceros, que parecerían malos
+jugadores en vez de ausencia de datos.
+
+### De paso
+
+- **Dos avisos que decían lo mismo.** `validate` contaba por separado los
+  clubes sin asignar y los jugadores sin elegir. Con dos desplegables eran dos
+  pasos; ahora eliges jugador y el club viene con él, así que salían los dos
+  mensajes con el mismo número. Se quedó uno.
+- **`input[type=search]` no estaba en la lista de campos con estilo** y el
+  buscador salía con el fondo blanco del navegador en medio de una pantalla
+  oscura. También se ha estilado la cruz de limpiar.
+- **`POS_LABEL` va en plural** porque encabeza un bloque del once, y para un
+  hueco suelto hacía falta el singular: «Elegir defensas» para un hueco suena a
+  que caben varios. Se añadió `POS_UNO`.
+
+Lo vigila `t-elegir.mjs`, que comprueba lo que de verdad importa: que se llega
+a un jugador escribiendo solo su nombre y **sin haber tocado el filtro de club
+en ningún momento**.
+
 ## Repaso de seguridad del ciclo (migración 0034)
 
 Pasado el analizador de Supabase después de los cambios de hoy. Tres cosas

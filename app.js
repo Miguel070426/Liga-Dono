@@ -35,6 +35,10 @@ const CATS = [
   {key:'tiros',       label:'Tiros a puerta',    icon:'🥅', h:'hs', a:'as2'}
 ];
 const POS_LABEL = {GK:'Portero', DF:'Defensas', MF:'Centro del campo', FW:'Delanteros'};
+// POS_LABEL encabeza un bloque del once y por eso va en plural. Cuando se
+// habla de un solo hueco hace falta el singular: «Elegir defensas» para un
+// hueco suena a que caben varios.
+const POS_UNO = {GK:'portero', DF:'defensa', MF:'centrocampista', FW:'delantero'};
 const POS_ORDER = {GK:0, DF:1, MF:2, FW:3};
 const CLUB_NOISE = new Set(['fc','cf','cd','ud','sd','ad','ac','ca','rc','rcd','sad','afc','club','de','del','la','el','los','las']);
 
@@ -42,7 +46,9 @@ const S = {
   league:null, managers:[], clubs:[], players:[], me:null, isAdmin:false,
   standings:[], form:{}, playoffs:null,
   view:'inicio', viewPrev:'inicio', clasSec:'tabla', viewJornada:1, plantillaJornada:1,
-  cache:{}, draft:null, busy:false
+  cache:{}, draft:null, busy:false,
+  // Lo que lleva cada jugador en la temporada, y el hueco que se está eligiendo.
+  temporada:{}, eligiendo:null
 };
 
 /* ---------------------------------------------------------------- utilidades */
@@ -93,13 +99,6 @@ const isMine    = id => S.me && id === S.me.id;
 // pantalla no te deje escribir un once que luego no se va a guardar.
 const jornadaOpen = () =>
   S.league && !S.league.lineups_locked && !(S.jEstado && S.jEstado.cerrada);
-
-// Quien ya no está en el club no se ofrece para alinear. Sigue existiendo:
-// el panel lo ve y una alineación vieja conserva su nombre.
-function playersOf(clubId, pos){
-  return S.players.filter(p => p.club_id === clubId && p.pos === pos && p.activo !== false)
-                  .sort((a,b) => a.name.localeCompare(b.name));
-}
 
 // Cada render asíncrono coge un número. Si mientras esperaba a la red han
 // pedido otro render, el viejo se calla en vez de pisar la pantalla.
@@ -363,12 +362,17 @@ async function boot(){
   S.plantillaJornada = clamp(S.league.current_jornada);
   S.draft = null;
 
-  const [st, fm, je] = await Promise.all([
+  const [st, fm, je, tmp] = await Promise.all([
     DB.standings(), DB.form(),
     // Si esto falla no se cae el juego: se pierde la cuenta atrás, nada más.
     // El cierre de verdad lo aplica la base de datos, no esta consulta.
-    DB.jornadaEstado(clamp(S.league.current_jornada)).catch(() => null)
+    DB.jornadaEstado(clamp(S.league.current_jornada)).catch(() => null),
+    // Tampoco: sin esto la lista de elegir jugador sale sin números, que es
+    // como estaba antes. No es motivo para no dejar alinear.
+    DB.seasonStats ? DB.seasonStats().catch(() => []) : Promise.resolve([])
   ]);
+  S.temporada = {};
+  (tmp || []).forEach(r => { S.temporada[r.club_player_id] = r; });
   S.jEstado = je;
   S.standings = st;
   S.form = {};
@@ -1057,14 +1061,18 @@ function buildSlots(formation){
 }
 function validate(slots){
   const errors = [], used = {};
-  let noClub = 0, noName = 0;
+  // Un solo recuento. Antes se avisaba por separado de los clubes sin asignar
+  // y de los jugadores sin elegir, que con dos desplegables eran dos pasos
+  // distintos. Ya no lo son: eliges jugador y el club viene con él, así que
+  // los dos mensajes decían lo mismo y con el mismo número.
+  let faltan = 0;
   slots.forEach(s => {
-    if(!s.club_id) noClub++;
-    if(!s.club_player_id) noName++;
+    if(!s.club_player_id) faltan++;
     if(s.club_id) used[s.club_id] = (used[s.club_id]||0) + 1;
   });
-  if(noClub) errors.push(`Faltan ${noClub} club(es) por asignar.`);
-  if(noName) errors.push(`Faltan ${noName} jugador(es) por elegir.`);
+  if(faltan) errors.push(faltan === 1
+    ? 'Falta 1 jugador por elegir.'
+    : `Faltan ${faltan} jugadores por elegir.`);
   Object.entries(used).forEach(([id,n]) => {
     if(n > 1) errors.push(`"${clubName(id)}" aparece ${n} veces — máximo 1 jugador por club.`);
   });
@@ -1085,6 +1093,153 @@ async function ensureDraft(){
                 lineupId:null, confirmed:false, simulada:false, dirty:false };
   }
   return S.draft;
+}
+
+/* ============================================================
+   ELEGIR JUGADOR · reconocer en vez de recordar
+   ============================================================
+   La regla de interfaz que hay detrás: no obligues a nadie a acordarse de
+   algo que puedes enseñarle. El diseño anterior pedía el club primero, o sea
+   pedía recordar dónde juega cada futbolista. Este enseña la lista.
+
+   Lo que la lista tiene que resolver:
+     · son muchos — 190 defensas, 170 delanteros. Sin buscador no sirve.
+     · sigue habiendo un jugador por club. Los clubes ya usados salen en gris
+       con el motivo, no desaparecidos: si desaparecen, buscas a tu jugador,
+       no lo encuentras y piensas que falta de la base.
+     · un club sacado de la jornada tampoco vale, y por la misma razón se
+       enseña tachado en vez de esconderse.                                 */
+
+// Lo que lleva hecho un jugador esta temporada, en corto. Sin puntos: en esta
+// liga los jugadores no tienen puntos, los tiene tu club al comparar sus ocho
+// categorías con las del rival. Inventar un número aquí sería mentir.
+function lineaTemporada(playerId){
+  const t = S.temporada[playerId];
+  if(!t || !t.partidos) return '<span class="pick-sin">sin datos aún</span>';
+  const bits = [];
+  if(t.goals)   bits.push(`${t.goals}⚽`);
+  if(t.assists) bits.push(`${t.assists}🎯`);
+  if(t.yellow)  bits.push(`${t.yellow}🟨`);
+  if(t.red)     bits.push(`${t.red}🟥`);
+  // Los minutos van siempre: es el dato que más salva a la hora de elegir.
+  // Un jugador con 40 minutos en toda la liga es un suplente, y eso no se
+  // deduce de que no haya marcado.
+  bits.push(`<span class="pick-min">${t.minutes}′ en ${t.partidos}</span>`);
+  return `<span class="pick-stats">${bits.join(' ')}</span>`;
+}
+
+// Por qué no puedes coger a este jugador, o null si sí puedes.
+function motivoVetado(jug, i, d, fuera){
+  if(fuera[jug.club_id]) return fuera[jug.club_id];
+  const otro = d.slots.findIndex((s, k) => k !== i && s.club_id === jug.club_id);
+  if(otro >= 0) return `ya tienes al ${esc(d.slots[otro].player_name || 'de este club')}`;
+  return null;
+}
+
+function abrirSelector(i, d, fuera){
+  S.eligiendo = { i, d, fuera, texto:'', club:'' };
+  const sl = d.slots[i];
+  $('pickTitulo').textContent = `${POS_LABEL[sl.pos]} · hueco ${i + 1}`;
+  $('pickBuscar').value = '';
+  $('pickClub').innerHTML = '<option value="">Todos los clubes</option>' +
+    S.clubs.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  $('pickClub').value = '';
+  pintarSelector();
+  $('selector').classList.remove('hidden');
+  document.body.classList.add('con-selector');
+  // El buscador no se enfoca solo en el móvil: levantaría el teclado encima de
+  // la lista antes de que hayas visto lo que hay, que es justo lo que se
+  // quería enseñar. En el ordenador sí, que ahí escribir es lo natural.
+  if(innerWidth > 700) $('pickBuscar').focus();
+}
+
+function cerrarSelector(){
+  S.eligiendo = null;
+  $('selector').classList.add('hidden');
+  document.body.classList.remove('con-selector');
+}
+
+function pintarSelector(){
+  const e = S.eligiendo;
+  if(!e) return;
+  const sl = e.d.slots[e.i];
+  const norm = t => String(t || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const busca = norm(e.texto);
+
+  let lista = S.players.filter(p => p.pos === sl.pos && p.activo !== false);
+  if(e.club) lista = lista.filter(p => p.club_id === e.club);
+  if(busca)  lista = lista.filter(p => norm(p.name).includes(busca)
+                                    || norm(clubName(p.club_id)).includes(busca));
+
+  // Ordena por lo que más ayuda a decidir: primero los que juegan. Con la liga
+  // sin empezar no hay minutos y cae al alfabético, que es lo correcto —sin
+  // datos, cualquier otro orden sería una opinión disfrazada de dato.
+  lista.sort((a, b) => {
+    const ma = (S.temporada[a.id] || {}).minutes || 0;
+    const mb = (S.temporada[b.id] || {}).minutes || 0;
+    return mb - ma || a.name.localeCompare(b.name);
+  });
+
+  const hayDatos = Object.keys(S.temporada).length > 0;
+  const cuerpo = $('pickLista');
+  if(!lista.length){
+    cuerpo.innerHTML = `<p class="empty">Ningún ${POS_UNO[sl.pos]} coincide${
+      e.texto ? ' con «' + esc(e.texto) + '»' : ''}.</p>`;
+  }else{
+    cuerpo.innerHTML = lista.map(p => {
+      const veto = motivoVetado(p, e.i, e.d, e.fuera);
+      const elegido = p.id === sl.club_player_id;
+      return `<button type="button" class="pick-fila${veto ? ' vetada' : ''}${elegido ? ' elegida' : ''}"
+        data-p="${p.id}" ${veto ? 'disabled' : ''}>
+        ${escudoClub(p.club_id, 'esc-fila')}
+        <span class="pick-txt">
+          <span class="pick-nom">${esc(p.name)}</span>
+          <span class="pick-sub">${esc(clubName(p.club_id))}${
+            // A quien no puedes elegir no le hacen falta sus números: el hueco
+            // se lo queda el motivo, que es lo único que necesitas leer.
+            veto ? ` · <span class="pick-veto">${veto}</span>` : ' ' + lineaTemporada(p.id)}</span>
+        </span>
+        ${elegido ? '<span class="pick-tic" aria-hidden="true">✓</span>' : ''}
+      </button>`;
+    }).join('');
+  }
+  $('pickCuenta').textContent = lista.length === 1
+    ? '1 jugador' : `${lista.length} jugadores`;
+  $('pickAviso').classList.toggle('hidden', hayDatos);
+}
+
+function wireSelector(){
+  $('pickCerrar').addEventListener('click', cerrarSelector);
+  $('selector').addEventListener('click', ev => {
+    if(ev.target.id === 'selector') cerrarSelector();
+  });
+  addEventListener('keydown', ev => {
+    if(ev.key === 'Escape' && S.eligiendo) cerrarSelector();
+  });
+  $('pickBuscar').addEventListener('input', () => {
+    if(!S.eligiendo) return;
+    S.eligiendo.texto = $('pickBuscar').value;
+    pintarSelector();
+  });
+  $('pickClub').addEventListener('change', () => {
+    if(!S.eligiendo) return;
+    S.eligiendo.club = $('pickClub').value;
+    pintarSelector();
+  });
+  $('pickLista').addEventListener('click', ev => {
+    const b = ev.target.closest('.pick-fila');
+    if(!b || b.disabled || !S.eligiendo) return;
+    const { i, d } = S.eligiendo;
+    const p = S.players.find(x => x.id === b.dataset.p);
+    if(!p) return;
+    d.slots[i].club_id = p.club_id;
+    d.slots[i].club_player_id = p.id;
+    d.slots[i].player_name = p.name;
+    d.dirty = true;
+    cerrarSelector();
+    renderPlantilla();
+  });
 }
 
 async function renderPlantilla(){
@@ -1147,41 +1302,25 @@ async function renderPlantilla(){
     return;
   }
 
-  const used = {};
-  d.slots.forEach(s => { if(s.club_id) used[s.club_id] = true; });
-
-  // Los clubes sacados de la jornada no se pueden elegir. El aviso va en la
-  // propia opción y no en un mensaje aparte: si solo se avisara después de
-  // guardar, alguien gastaría un hueco de su once en un jugador que no va a
-  // puntuar, que es justo lo que esto evita.
+  // Los clubes sacados de la jornada no se pueden elegir. El motivo viaja
+  // hasta la propia fila de la lista: si solo se avisara después de guardar,
+  // alguien gastaría un hueco de su once en un jugador que no va a puntuar.
   const fuera = {};
   ((j === clamp(S.league.current_jornada) && S.jEstado && S.jEstado.clubes_fuera) || [])
     .forEach(c => { fuera[c.club_id] = c.motivo || 'fuera de esta jornada'; });
 
-  const clubOpts = sel => `<option value="">— club —</option>` + S.clubs.map(c => {
-    const clash = used[c.id] && c.id !== sel;
-    const bloqueado = !!fuera[c.id];
-    // Si ya lo tenías elegido se sigue viendo, con el aviso, para que sepas
-    // que tienes que cambiarlo. Lo que no se puede es elegirlo de nuevo.
-    const nota = bloqueado ? ' · no juega esta jornada' : (clash ? ' · ya usado' : '');
-    return `<option value="${c.id}" ${c.id===sel?'selected':''}${
-      ((clash || bloqueado) && c.id !== sel)?' disabled':''}>${esc(c.name)}${nota}</option>`;
-  }).join('');
-  const playerOpts = (clubId, pos, selId, selName) => {
-    const list = playersOf(clubId, pos);
-    let o = `<option value="">— jugador —</option>`
-      + list.map(p => `<option value="${p.id}" ${p.id===selId?'selected':''}>${esc(p.name)}</option>`).join('');
-    // Un elegido que ya no se ofrece sigue viéndose, con el motivo: si no,
-    // la alineación guardada aparecería vacía sin que nadie la haya tocado.
-    if(selId && !list.some(p => p.id === selId)){
-      const baja = S.players.find(p => p.id === selId);
-      o += baja
-        ? `<option value="${baja.id}" selected>${esc(baja.name)} · ya no está en el club</option>`
-        : `<option value="" selected>${esc(selName || '—')} · ficha ya no disponible</option>`;
-    }
-    return o;
-  };
+  // Cuántos clubes distintos llevas. Es el contador de la barra de arriba.
+  const clubesUsados = new Set(d.slots.filter(s => s.club_id).map(s => s.club_id));
 
+  /* Cada hueco es un botón que abre la lista, no dos desplegables encadenados.
+
+     Antes había que elegir **primero el club** y solo entonces se desbloqueaba
+     el de jugador. Eso obliga a acordarse de dónde juega cada uno, y nadie se
+     acuerda: sabes que quieres a Laporte, no que juega en el Athletic. Ahora
+     se busca por nombre y el club es un filtro opcional dentro de la lista.
+
+     El botón enseña ya elegido lo que hacía falta abrir un desplegable para
+     ver: escudo, jugador, club y lo que lleva hecho. */
   let blocks = '', lastPos = null;
   d.slots.forEach((s, i) => {
     if(s.pos !== lastPos){
@@ -1189,18 +1328,28 @@ async function renderPlantilla(){
       blocks += `<div class="lineup-block"><div class="lineup-block-h">${POS_LABEL[s.pos]}</div>`;
       lastPos = s.pos;
     }
-    const empty = s.club_id && playersOf(s.club_id, s.pos).length === 0;
-    // Marca quién cuenta como cambio respecto a tu once anterior. Sin esto el
-    // contador dice «5 de 7» y no sabes cuáles son los cinco.
     const esCambio = hayLimite && s.club_player_id && !anteriores.has(s.club_player_id);
+    const puesto = !!s.club_player_id;
+    // Un elegido que ya no está en su club se sigue enseñando, con el motivo:
+    // si desapareciera, tu once parecería vacío sin que lo hayas tocado.
+    const fuera = puesto && !S.players.some(p => p.id === s.club_player_id && p.activo !== false);
     blocks += `<div class="lineup-row${esCambio ? ' es-cambio' : ''}">
       <div class="slot-num">${i+1}</div>
       <span class="lineup-meta"><span class="pos-tag pos-${s.pos}">${s.pos}</span>
-        <span class="esc-hueco">${escudoClub(s.club_id, 'esc-fila')}</span>
         ${esCambio ? '<span class="chip-cambio" title="Cuenta como cambio">nuevo</span>' : ''}</span>
-      <select class="slotClub" data-i="${i}" aria-label="Hueco ${i+1}, ${POS_LABEL[s.pos]}: club" ${editable?'':'disabled'}>${clubOpts(s.club_id)}</select>
-      <select class="slotPlayer pn" data-i="${i}" aria-label="Hueco ${i+1}, ${POS_LABEL[s.pos]}: jugador" ${(!s.club_id || !editable)?'disabled':''}>${playerOpts(s.club_id, s.pos, s.club_player_id, s.player_name)}</select>
-    </div>${empty ? `<div class="club-tag" style="margin:-4px 0 6px 84px;">No hay ${s.pos} cargados para ${esc(clubName(s.club_id))}. La organización tiene que subir esa plantilla.</div>` : ''}`;
+      <button type="button" class="slotPick${puesto ? '' : ' vacio'}" data-i="${i}" ${editable ? '' : 'disabled'}
+        aria-label="Hueco ${i+1}, ${POS_UNO[s.pos]}${puesto ? ': ' + esc(s.player_name) : ': sin elegir'}. Pulsa para elegir jugador">
+        <span class="esc-hueco">${escudoClub(s.club_id, 'esc-fila')}</span>
+        <span class="pick-txt">${puesto
+          ? `<span class="pick-nom">${esc(s.player_name)}</span>
+             <span class="pick-sub">${esc(clubName(s.club_id) || 'sin club')}${
+               fuera ? ' · ya no está en el club' : ''} ${lineaTemporada(s.club_player_id)}</span>`
+          : `<span class="pick-nom vacio">Elegir ${POS_UNO[s.pos]}</span>`}</span>
+      </button>
+      ${puesto && editable
+        ? `<button type="button" class="slotClear" data-i="${i}" title="Quitar" aria-label="Quitar a ${esc(s.player_name)} del hueco ${i+1}">×</button>`
+        : '<span class="slotClear-hueco" aria-hidden="true"></span>'}
+    </div>`;
   });
   if(lastPos !== null) blocks += '</div>';
 
@@ -1213,7 +1362,7 @@ async function renderPlantilla(){
       <select id="formSel" style="max-width:150px;" ${editable?'':'disabled'}>
         ${Object.keys(FORMATIONS).map(f => `<option value="${f}" ${f===d.formation?'selected':''}>${f}</option>`).join('')}
       </select>
-      <span class="pill">${Object.keys(used).length}/11 clubes</span>
+      <span class="pill">${clubesUsados.size}/11 clubes</span>
       ${hayLimite ? `<span class="pill ${restantes < 0 ? 'warn' : ''}" id="pillCambios">${
         restantes < 0
           ? `Te pasas por ${-restantes}`
@@ -1261,19 +1410,14 @@ async function renderPlantilla(){
     d.formation = nf; d.slots = ns; d.dirty = true;
     renderPlantilla();
   });
-  el.querySelectorAll('.slotClub').forEach(sel => sel.addEventListener('change', () => {
-    const i = +sel.dataset.i;
-    d.slots[i].club_id = sel.value || null;
+  el.querySelectorAll('.slotPick').forEach(b => b.addEventListener('click', () => {
+    abrirSelector(+b.dataset.i, d, fuera);
+  }));
+  el.querySelectorAll('.slotClear').forEach(b => b.addEventListener('click', () => {
+    const i = +b.dataset.i;
+    d.slots[i].club_id = null;
     d.slots[i].club_player_id = null;
     d.slots[i].player_name = '';
-    d.dirty = true;
-    renderPlantilla();
-  }));
-  el.querySelectorAll('.slotPlayer').forEach(sel => sel.addEventListener('change', () => {
-    const i = +sel.dataset.i;
-    const p = S.players.find(x => x.id === sel.value);
-    d.slots[i].club_player_id = p ? p.id : null;
-    d.slots[i].player_name    = p ? p.name : '';
     d.dirty = true;
     renderPlantilla();
   }));
@@ -2663,6 +2807,10 @@ document.querySelectorAll('#clasSubtabs button').forEach(b =>
     $('clasSec-playoffs').classList.toggle('hidden', S.clasSec !== 'playoffs');
     renderAll();
   }));
+
+// El selector de jugador se cablea una vez: vive fuera de la pantalla de
+// alinear, que se repinta entera cada vez que tocas algo.
+wireSelector();
 
 // Mi cuenta se abre con tu propio escudo. Solo con plaza fichada: sin ella no
 // hay nada tuyo que ajustar.

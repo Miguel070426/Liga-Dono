@@ -174,7 +174,7 @@
 
 
   label{ font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:var(--chalk-dim); display:block; margin-bottom:4px; }
-  input[type=text], input[type=number], input[type=password], select, textarea{
+  input[type=text], input[type=number], input[type=password], input[type=search], select, textarea{
     width:100%; background:var(--panel-2); border:1px solid rgba(244,241,230,0.15);
     color:var(--chalk); padding:7px 9px; border-radius:6px; font-family:inherit; font-size:13px;
   }
@@ -189,11 +189,20 @@
   button.btn:not(.ghost):not(.danger):focus-visible,
   .aviso-vivo:focus-visible{ outline-color:var(--chalk); }
   input[type=number]{ text-align:center; }
+  input[type=search]::-webkit-search-cancel-button{
+    -webkit-appearance:none; appearance:none;
+    width:14px; height:14px; cursor:pointer;
+    background:var(--chalk-dim);
+    -webkit-mask:linear-gradient(45deg,transparent 44%,#000 44%,#000 56%,transparent 56%),
+            linear-gradient(-45deg,transparent 44%,#000 44%,#000 56%,transparent 56%);
+            mask:linear-gradient(45deg,transparent 44%,#000 44%,#000 56%,transparent 56%),
+            linear-gradient(-45deg,transparent 44%,#000 44%,#000 56%,transparent 56%);
+  }
   /* Safari en iPhone hace zoom solo al enfocar un campo de menos de 16px, y
      te deja la pantalla descolocada. Alinear los doce desde el móvil con eso
      es un suplicio, así que en pantalla pequeña los campos van a 16. */
   @media (max-width:860px){
-    input[type=text], input[type=number], input[type=password], select, textarea{
+    input[type=text], input[type=number], input[type=password], input[type=search], select, textarea{
       font-size:16px; padding:9px 11px;
     }
   }
@@ -397,9 +406,84 @@
   .jnav button:disabled{ opacity:0.25; cursor:not-allowed; }
   .jnav .lbl{ font-size:15px; color:var(--gold); text-transform:uppercase; letter-spacing:1px; min-width:112px; text-align:center; }
 
-  .lineup-row{ display:grid; grid-template-columns:30px 76px 1.4fr 1.4fr; gap:9px; align-items:center; padding:5px 0; }
-  .lineup-meta{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; min-width:0; }
-  @media (max-width:700px){ .lineup-row{ grid-template-columns:26px 70px 1fr; } .lineup-row .pn{ grid-column:1/-1; } }
+  /* Número, posición, y un botón que abre la lista. Una sola línea en todos
+     los anchos: el botón crece y encoge, y ya no hay un segundo desplegable
+     que tuviera que bajarse a su propia línea en el móvil. */
+  .lineup-row{ display:grid; grid-template-columns:30px 52px 1fr 30px; gap:9px; align-items:center; padding:4px 0; }
+  .lineup-meta{ display:flex; align-items:center; gap:6px; min-width:0; }
+  @media (max-width:700px){ .lineup-row{ grid-template-columns:26px 46px 1fr 28px; gap:7px; } }
+
+  /* El hueco, puesto o por poner. Es un botón entero para que el dedo tenga
+     dónde caer: en el móvil la mitad de los fallos son botones pequeños. */
+  .slotPick{
+    display:flex; align-items:center; gap:9px; width:100%; min-width:0;
+    background:rgba(244,241,230,0.04); border:1px solid rgba(244,241,230,0.12);
+    border-radius:10px; padding:7px 10px; cursor:pointer; text-align:left;
+    color:var(--chalk); font-family:inherit; font-size:13.5px; min-height:44px;
+  }
+  .slotPick:hover:not(:disabled){ border-color:var(--gold-dim); background:rgba(232,184,75,0.07); }
+  .slotPick:disabled{ cursor:default; opacity:0.75; }
+  .slotPick.vacio{ border-style:dashed; }
+  .pick-txt{ min-width:0; flex:1; }
+  .pick-nom{ display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pick-nom.vacio{ color:var(--chalk-dim); }
+  .pick-sub{ display:block; font-size:11px; color:var(--chalk-dim); margin-top:1px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pick-stats{ color:var(--gold-dim); }
+  .pick-min{ color:rgba(244,241,230,0.4); }
+  .pick-sin{ color:rgba(244,241,230,0.3); }
+  .pick-veto{ color:var(--red-text); }
+  .slotClear{
+    background:transparent; border:none; color:rgba(244,241,230,0.35);
+    font-size:20px; line-height:1; cursor:pointer; padding:6px; border-radius:50%;
+    width:30px; height:30px; font-family:inherit;
+  }
+  .slotClear:hover{ color:var(--red-text); background:rgba(255,255,255,0.05); }
+
+  /* ---------- LA LISTA DE ELEGIR JUGADOR ---------- */
+  .selector{
+    position:fixed; inset:0; z-index:80; display:flex; align-items:flex-end; justify-content:center;
+    background:rgba(0,0,0,0.6); padding:0;
+  }
+  .selector.hidden{ display:none; }
+  body.con-selector{ overflow:hidden; }
+  .selector-caja{
+    background:var(--panel); border:1px solid var(--gold-dim);
+    border-radius:16px 16px 0 0; width:100%; max-width:560px;
+    display:flex; flex-direction:column; max-height:88vh; overflow:hidden;
+  }
+  .selector-cab{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:14px 16px 10px; border-bottom:1px solid rgba(244,241,230,0.08);
+  }
+  .selector-cab strong{ color:var(--gold); text-transform:uppercase; letter-spacing:0.8px; font-size:13px; }
+  .selector-filtros{ display:grid; grid-template-columns:1fr 150px; gap:8px; padding:10px 16px 6px; }
+  .selector-filtros input, .selector-filtros select{ margin:0; }
+  .selector-cuenta{
+    display:flex; gap:10px; align-items:baseline; flex-wrap:wrap;
+    padding:2px 16px 8px; font-size:11px; color:var(--chalk-dim);
+  }
+  .selector-lista{ overflow-y:auto; -webkit-overflow-scrolling:touch; padding:0 8px 12px; }
+  .pick-fila{
+    display:flex; align-items:center; gap:10px; width:100%; min-width:0;
+    background:transparent; border:none; border-radius:9px; padding:9px 8px;
+    cursor:pointer; text-align:left; color:var(--chalk); font-family:inherit;
+    font-size:13.5px; min-height:48px;
+  }
+  .pick-fila:hover:not(:disabled){ background:rgba(232,184,75,0.09); }
+  /* Vetado, no escondido: si desaparece, buscas a tu jugador, no lo encuentras
+     y piensas que falta de la base en vez de entender la regla. */
+  .pick-fila.vetada{ opacity:0.4; cursor:default; }
+  .pick-fila.elegida{ background:rgba(232,184,75,0.13); }
+  .pick-tic{ color:var(--gold); font-size:15px; flex:0 0 auto; }
+  @media (max-width:520px){
+    .selector-filtros{ grid-template-columns:1fr; }
+    .selector-caja{ max-height:92vh; }
+  }
+  @media (min-width:701px){
+    .selector{ align-items:center; padding:20px; }
+    .selector-caja{ border-radius:16px; }
+  }
   .slot-num{ width:26px; height:26px; border-radius:50%; background:rgba(232,184,75,0.15); color:var(--gold);
     border:1px solid var(--gold-dim); font-weight:bold; font-size:11px; display:flex; align-items:center; justify-content:center; }
   .lineup-block{ margin-bottom:14px; }

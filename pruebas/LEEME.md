@@ -29,6 +29,8 @@ pasó una vez y no se notó en dos días.
 | `sitio.sh` | Monta `prueba.html`. |
 | `t-escudos.mjs` | Los escudos de los clubes y el mes en las fechas. |
 | `t-cabecera.mjs` | La cabecera, medida en cinco anchos. |
+| `t-elegir.mjs` | Elegir jugador sin elegir club antes. |
+| `capturas.mjs` | Solo retrata, no comprueba. Para enseñar cómo va quedando. |
 
 ## Cómo se escriben
 

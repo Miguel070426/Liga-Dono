@@ -126,45 +126,45 @@ await p.waitForSelector('.lineup-row', { timeout: 8000 });
 await p.waitForTimeout(400);
 
 const vacio = await p.$$eval('.lineup-row .esc-hueco', ns => ns.map(n => n.innerHTML.trim()));
-check('sin club elegido el hueco del escudo está vacío pero reservado',
+check('sin jugador elegido el hueco del escudo está vacío pero reservado',
   vacio.every(v => v === ''), vacio.filter(v => v).length + ' con escudo');
 const reserva = await p.$eval('.lineup-row .esc-hueco',
   n => Math.round(n.getBoundingClientRect().width));
 check('y el hueco mide lo mismo que medirá el escudo', reserva >= 18, reserva + ' px');
 
-// Se elige un club y el escudo tiene que aparecer en esa fila.
-const idReal = await p.evaluate(() =>
-  window.__LIGA_FAKE_DB__.__D.clubs.find(c => c.name === 'Real Madrid').id);
-await p.selectOption('.lineup-row .slotClub', idReal);
+// Se elige un jugador del Real Madrid desde la lista y su escudo tiene que
+// aparecer en la fila.
+await p.click('.lineup-row .slotPick');
+await p.waitForSelector('#selector:not(.hidden)', { timeout: 8000 });
+await p.waitForTimeout(300);
+await p.fill('#pickBuscar', 'Real Madrid');
+await p.waitForTimeout(400);
+await p.click('.pick-fila:not([disabled])');
 await p.waitForTimeout(500);
 const puesto = await p.evaluate(() => {
   const img = document.querySelector('.lineup-row .esc-hueco .esc-club');
   return img ? img.getAttribute('src') : null;
 });
-check('al elegir club aparece su escudo en la fila', !!puesto && puesto.includes('461175'),
-  puesto ? puesto.split('/').pop() : 'ninguno');
+check('al elegir jugador aparece el escudo de su club en la fila',
+  !!puesto && puesto.includes('461175'), puesto ? puesto.split('/').pop() : 'ninguno');
 
-// La rejilla no se descoloca por el hijo nuevo. En el móvil esa fila son dos
-// líneas por diseño —el selector de jugador se lleva la suya— y en el
-// ordenador una sola. Se mide en los dos anchos porque el fallo que se busca
-// es justo que el escudo empuje algo a una línea de más.
-// Los hijos van centrados verticalmente, así que sus topes difieren aunque
-// compartan línea: contar topes distintos no sirve. Lo que de verdad importa
-// es si el selector de jugador comparte línea con el de club.
-const dosSelectores = () => {
+// La fila del once es de una sola línea en todos los anchos: con el selector
+// ya no hay un segundo desplegable que bajarse en el móvil.
+const unaLinea = () => {
   const r = document.querySelector('.lineup-row');
-  const c = r.querySelector('.slotClub').getBoundingClientRect();
-  const j = r.querySelector('.slotPlayer').getBoundingClientRect();
-  return { mismaLinea: Math.abs(c.top - j.top) < 4, alto: Math.round(r.getBoundingClientRect().height) };
+  const b = r.getBoundingClientRect();
+  const dentro = [...r.children].every(c => {
+    const cb = c.getBoundingClientRect();
+    return cb.top >= b.top - 1 && cb.bottom <= b.bottom + 1;
+  });
+  return { dentro, alto: Math.round(b.height) };
 };
-const movil = await p.evaluate(dosSelectores);
-check('en el móvil el jugador va en su línea, como antes', !movil.mismaLinea, movil.alto + ' px');
-
+const movil = await p.evaluate(unaLinea);
+check('en el móvil la fila del once cabe en una línea', movil.dentro, movil.alto + ' px');
 await p.setViewportSize({ width: 1100, height: 900 });
 await p.waitForTimeout(400);
-const orde = await p.evaluate(dosSelectores);
-check('y en el ordenador club y jugador comparten línea', orde.mismaLinea, orde.alto + ' px');
-check('sin que el escudo haya engordado la fila', orde.alto <= 46, orde.alto + ' px');
+const orde = await p.evaluate(unaLinea);
+check('y en el ordenador también', orde.dentro, orde.alto + ' px');
 await p.setViewportSize({ width: 390, height: 844 });
 await p.waitForTimeout(400);
 

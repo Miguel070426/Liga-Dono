@@ -8,7 +8,7 @@
      Sin ella el navegador puede quedarse con la versión de antes durante días:
      a un manager le creó dos cuentas a medias porque su móvil seguía con el
      JavaScript viejo hablando con la base de datos nueva. -->
-<link rel="stylesheet" href="app.css?v=202609251200">
+<link rel="stylesheet" href="app.css?v=202609251900">
 </head>
 <body>
 
@@ -254,6 +254,26 @@
 
 <footer class="foot" id="footNote">Liga Fantasy</footer>
 
-<script type="module" src="app.js?v=202609251200"></script>
+<!-- Elegir jugador. Vive fuera de las vistas porque se abre encima de Mi
+     Plantilla, que se repinta entera cada vez que cambias algo. -->
+<div class="selector hidden" id="selector" role="dialog" aria-modal="true" aria-labelledby="pickTitulo">
+  <div class="selector-caja">
+    <div class="selector-cab">
+      <strong id="pickTitulo">Elegir jugador</strong>
+      <button type="button" class="gear" id="pickCerrar" title="Cerrar" aria-label="Cerrar">×</button>
+    </div>
+    <div class="selector-filtros">
+      <input type="search" id="pickBuscar" placeholder="Buscar por nombre…"
+             autocomplete="off" spellcheck="false" aria-label="Buscar jugador por nombre">
+      <select id="pickClub" aria-label="Filtrar por club"></select>
+    </div>
+    <div class="selector-cuenta"><span id="pickCuenta"></span>
+      <span class="club-tag hidden" id="pickAviso">Aún no hay estadísticas: la liga no ha empezado.</span>
+    </div>
+    <div class="selector-lista" id="pickLista"></div>
+  </div>
+</div>
+
+<script type="module" src="app.js?v=202609251900"></script>
 </body>
 </html>

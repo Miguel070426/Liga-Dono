@@ -81,7 +81,7 @@
       managers, clubs, players, partidos,
       lineups: [], standings: [], form: [], results: [],
       playerStats: [], clubStats: [], picked: [],
-      session: null, usuarios: {}, latidos: [],
+      session: null, usuarios: {}, latidos: [], temporada: [],
       jornadaCerrada: false, clubesFuera: [], cierre: partidos[0].comienza,
       joinCode: 'DONO-2026'
     };
@@ -168,6 +168,11 @@
     },
     async onceReferencia(){ return {limite: null, jornada_ref: null, jugadores: []}; },
 
+    // Lo que lleva cada jugador en la temporada. Por defecto vacío, como está
+    // la liga de verdad hasta octubre; `__conTemporada()` lo rellena para
+    // poder probar la lista con números y sin ellos.
+    async seasonStats(){ return esperar(D.temporada); },
+
     // ------------------------------------------------------------ alineación
     async saveLineup(leagueId, jornada, managerId, formation, slots){
       let l = D.lineups.find(x => x.jornada === jornada && x.manager_id === managerId);
@@ -243,6 +248,29 @@
     async freeSlot(){ return {}; },
     async generateBrackets(){ return {}; },
     async saveGame(){ return {}; }
+  };
+
+  // Reparte estadísticas de temporada de mentira, pero verosímiles: unos
+  // titulares con muchos minutos, unos suplentes con pocos y unos cuantos sin
+  // jugar. Sin esa mezcla no se puede comprobar que la lista ordene por quien
+  // juega, que es de lo que sirve el orden.
+  FALSA.__conTemporada = function(){
+    D.temporada = D.players.map((p, i) => {
+      if(i % 7 === 0) return null;                    // uno de cada siete no juega
+      const titular = i % 3 !== 0;
+      const partidos = titular ? 3 + (i % 3) : 1 + (i % 2);
+      return {
+        club_player_id: p.id,
+        goals:   p.pos === 'FW' ? (i % 4) : (i % 9 === 0 ? 1 : 0),
+        assists: i % 5 === 0 ? 1 : 0,
+        yellow:  i % 6 === 0 ? 1 : 0,
+        red:     i % 47 === 0 ? 1 : 0,
+        shots:   i % 3,
+        minutes: partidos * (titular ? 85 : 22),
+        partidos
+      };
+    }).filter(Boolean);
+    return D.temporada.length;
   };
 
   // Ayudas para montar escenarios desde las pruebas.
