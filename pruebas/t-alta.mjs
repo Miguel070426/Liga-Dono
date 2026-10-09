@@ -170,6 +170,45 @@ check('y el club tampoco se pierde',
   await p.inputValue('#claimClub') === 'Real Paskdrid',
   await p.inputValue('#claimClub'));
 
+// ── DOS AMIGOS QUE SE LLAMAN IGUAL ────────────────────────────────────────
+// El caso del día del lanzamiento: diez personas entrando a la vez desde el
+// mismo mensaje. El usuario se propone a partir del nombre, así que dos
+// Javier reciben los dos «javier». El segundo se entera en el paso 2, donde
+// no hay campo de usuario — y ahí se quedaba atascado.
+await p.close();
+p = await nueva(b);
+await p.selectOption('#claimSlot', '3');
+await p.fill('#claimOwner', 'Javier');
+await p.fill('#claimPass', 'abc123');
+await p.fill('#claimJoin', 'DONO-2026');
+await p.click('#doClaimNext');
+await p.waitForSelector('#stepClub:not(.hidden)');
+// Mientras elige escudo, otro Javier termina antes.
+await p.evaluate(() => { window.__LIGA_FAKE_DB__.__D.usuarios['javier'] = { clave:'x', user_id:'uX' }; });
+await p.fill('#claimClub', 'Javi FC');
+await p.click('#doClaim');
+await p.waitForTimeout(800);
+const pisado = await p.evaluate(() => ({
+  vuelveAlPaso1: !document.getElementById('stepClaim').classList.contains('hidden'),
+  aviso: document.getElementById('claimErr').textContent.trim(),
+  campoAbierto: !document.getElementById('claimUser').classList.contains('hidden'),
+  enfocado: document.activeElement?.id
+}));
+check('si otro te pisa el usuario, vuelves al paso 1', pisado.vuelveAlPaso1);
+check('con el aviso puesto', /usuario/i.test(pisado.aviso), pisado.aviso);
+check('y el campo abierto para cambiarlo', pisado.campoAbierto);
+check('y el cursor dentro, sin tener que buscarlo', pisado.enfocado === 'claimUser', pisado.enfocado);
+
+// Y se puede terminar cambiándolo.
+await p.fill('#claimUser', 'javi2');
+await p.click('#doClaimNext');
+await p.waitForSelector('#stepClub:not(.hidden)', { timeout: 8000 });
+await p.fill('#claimClub', 'Javi FC');
+await p.click('#doClaim');
+await p.waitForSelector('.hero-team', { timeout: 10000 });
+check('cambiando el usuario, entra sin empezar de cero',
+  await p.evaluate(() => window.__LIGA_FAKE_DB__.__D.managers[2].usuario) === 'javi2');
+
 const desborde = await p.evaluate(() =>
   document.documentElement.scrollWidth - document.documentElement.clientWidth);
 check('nada desborda el móvil', desborde <= 0, desborde + ' px');

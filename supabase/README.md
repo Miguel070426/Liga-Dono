@@ -934,6 +934,72 @@ club leído a medias no se reconoce, que es justo para lo que está el escudo.
 Ni siquiera valía deducir el mes del primer partido: una jornada puede caer a
 caballo entre dos meses, y la jornada de pruebas lo hace a propósito.
 
+## El jugador que nunca puntuaba (migración 0037)
+
+El fallo más caro que ha tenido el juego, y era silencioso.
+
+La lista de jugadores se metió a mano con los nombres completos. La API, para
+algunos, usa «inicial. apellido». Al cargar un acta, `app.cargar_partido`
+enlazaba por nombre normalizado, así que **«Aurélien Tchouaméni» nunca casaba
+con «A. Tchouaméni»**. Lo que pasaba entonces:
+
+1. No se reconoce al jugador que ya teníamos.
+2. Se crea una ficha nueva con el nombre de la API.
+3. La original se queda sin enlazar: **cero puntos, para siempre**.
+
+Y nadie se entera. Quien la hubiera elegido vería a su jugador marcar en la
+tele y un cero en el juego, con un duplicado al lado en la lista.
+
+Eran **13 jugadores**, y no precisamente suplentes: Tchouaméni, Lo Celso,
+Kumbulla, Ezzalzouli, Leandro Cabrera, Cristian Romero, Obed Vargas, Abiel
+Osorio, Adrián Niño, Rockson Yeboah, Giorgi Guliashvili, Alassane Diatta y
+Nathan Saliba.
+
+### La clave corta
+
+`app.clave_corta(text)` devuelve **inicial + último apellido**: los dos nombres
+de arriba dan `a tchouameni`. Se usa como **segundo intento**, nunca como
+primero, y con la misma guarda de uno a uno que ya tenía el emparejado por
+nombre completo: si la clave da más de un candidato por cualquiera de los dos
+lados, no se enlaza nada. Un enlace equivocado es peor que ninguno.
+
+Una pasada de una vez arregló lo que ya estaba desemparejado: **93 fichas sin
+enlazar pasaron a 67**. 25 por la clave corta y una, «Adrián Niño», a mano —
+la API lo llama «Adrián Niño Heredia», que no es una inicial sino un apellido
+de más, y ahí la regla no llega.
+
+Las 67 que quedan son jugadores que no han salido todavía en ningún acta. Se
+enlazarán solos cuando jueguen, y ahora con dos oportunidades en vez de una.
+
+### El guardia va en el disparador, no en la función
+
+El segundo intento se podría haber metido dentro de `app.cargar_partido`.
+Está mejor donde está: un disparador `before insert` sobre `club_players` que
+mira, **justo cuando nacería el duplicado**, si hay una ficha sin enlazar del
+mismo club con la misma clave corta. Si hay exactamente una, le pone el
+identificador y cancela el alta.
+
+Así protege todos los caminos que crean jugadores, no solo la carga de actas:
+también los fichajes de media temporada.
+
+**La prueba encontró un fallo antes de que llegara a producción.** La primera
+versión usaba `min(cp.id)` sobre un `uuid`, y en Postgres `min()` no existe
+para ese tipo. El disparador habría reventado **en cada carga de acta**, o sea
+habría roto la jornada entera. Se vio porque se probó con un alta de verdad y
+su marcha atrás, no leyendo el código.
+
+### El callejón del usuario repetido
+
+El alta en dos pasos trajo un fallo propio. El usuario se propone a partir del
+nombre, así que **dos amigos que se llamen Javier reciben los dos `javier`**.
+Con diez personas entrando a la vez desde el mismo mensaje de WhatsApp, eso
+pasa.
+
+El segundo se enteraba en el **paso 2**, donde no hay campo de usuario: un
+callejón sin salida. Ahora ese error devuelve al paso 1, con el aviso puesto,
+el campo abierto y el cursor dentro. Lo mismo que ya se hacía cuando otro te
+quita la plaza.
+
 ## El alta, en dos pasos
 
 Era un formulario de **siete campos de golpe**, con el selector de escudo

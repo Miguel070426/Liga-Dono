@@ -349,14 +349,34 @@ function wireAuth(){
       await boot();
       toast('Plaza fichada. Ya puedes poner tu once', 'good');
     }catch(err){
-      // Si lo que falla es la plaza —que otro la haya cogido mientras
-      // elegías escudo— hay que volver al paso 1, que es donde se elige.
-      if(/plaza/i.test(err.message || '')){
-        stepErr('claimErr', err.message);
-        showStep('stepClaim');
-        await fillFreeSlots();
+      /* Hay dos fallos que no se pueden arreglar desde aquí, porque lo que
+         hay que cambiar está en el paso 1:
+
+         · la plaza, si otro la ha cogido mientras elegías escudo;
+         · el usuario, si otro se ha quedado con el mismo. Y esto pasa más de
+           lo que parece: el usuario se propone a partir del nombre, así que
+           dos amigos que se llamen Javier reciben los dos «javier». Con diez
+           personas entrando a la vez desde el mismo mensaje, es cuestión de
+           minutos.
+
+         En los dos casos se vuelve al paso 1 con el aviso puesto. Dejar el
+         error aquí sería un callejón sin salida: el campo que hay que
+         corregir no está en esta pantalla. */
+      const esDePaso1 = /plaza|usuario/i.test(err.message || '');
+      if(!esDePaso1){ stepErr('clubErr', err.message); return; }
+      stepErr('claimErr', err.message);
+      showStep('stepClaim');
+      if(/usuario/i.test(err.message)){
+        // Y se abre el campo, que viene plegado: si no, le estás diciendo que
+        // cambie algo que no puede ni ver.
+        $('claimUser').classList.remove('hidden');
+        $('claimUserAyuda').classList.remove('hidden');
+        $('claimUserCambiar').classList.add('hidden');
+        $('claimUser').dataset.tocado = '1';
+        $('claimUser').focus();
+        $('claimUser').select();
       }else{
-        stepErr('clubErr', err.message);
+        await fillFreeSlots();
       }
     }finally{ $('doClaim').disabled = false; }
   }));
