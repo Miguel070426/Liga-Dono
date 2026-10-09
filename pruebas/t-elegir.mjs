@@ -9,6 +9,7 @@
 // su nombre y nada más, sin tocar el filtro de club.
 import pkg from '/opt/node22/lib/node_modules/playwright/index.js';
 const { chromium } = pkg;
+import { fichar } from './alta.mjs';
 const URL = 'http://127.0.0.1:8791/prueba.html';
 const errores = [];
 const check = (q, ok, extra = '') => {
@@ -25,18 +26,11 @@ p.on('console', m => {
 await p.route('**://highlightly.net/**', r => r.abort());   // sin red, da igual
 
 await p.goto(URL);
+// Las estadísticas se siembran antes de entrar: el juego las lee al cargar,
+// así que hacerlo después no llegaría a tiempo.
 await p.evaluate(() => window.__LIGA_FAKE_DB__.__conTemporada());
-await p.reload();
-await p.waitForSelector('#stepWelcome:not(.hidden)');
-await p.evaluate(() => window.__LIGA_FAKE_DB__.__conTemporada());
-await p.click('#goClaim');
-await p.waitForFunction(() => document.querySelector('#claimSlot option')?.value);
-await p.selectOption('#claimSlot', '1');
-await p.fill('#claimOwner', 'Miguel'); await p.fill('#claimClub', 'Deportivo Siuuu FC');
-await p.fill('#claimUser', 'miguel'); await p.fill('#claimPass', 'contrasena1');
-await p.fill('#claimJoin', 'DONO-2026');
-await p.click('#doClaim');
-await p.waitForSelector('.hero-team', { timeout: 10000 });
+await fichar(p, { slot: '1', owner: 'Miguel', club: 'Deportivo Siuuu FC',
+                  user: 'miguel', pass: 'contrasena1', join: 'DONO-2026' });
 await p.click('nav.tabs button[data-view="plantilla"]');
 await p.waitForSelector('.lineup-row', { timeout: 8000 });
 await p.waitForTimeout(500);
@@ -192,15 +186,7 @@ const p2 = await b.newPage({ viewport: { width: 390, height: 844 } });
 p2.on('pageerror', e => errores.push('JS (sin datos): ' + e.message));
 await p2.route('**://highlightly.net/**', r => r.abort());
 await p2.goto(URL);
-await p2.waitForSelector('#stepWelcome:not(.hidden)');
-await p2.click('#goClaim');
-await p2.waitForFunction(() => document.querySelector('#claimSlot option')?.value);
-await p2.selectOption('#claimSlot', '2');
-await p2.fill('#claimOwner', 'Pask'); await p2.fill('#claimClub', 'Real Paskdrid');
-await p2.fill('#claimUser', 'pask'); await p2.fill('#claimPass', 'contrasena1');
-await p2.fill('#claimJoin', 'DONO-2026');
-await p2.click('#doClaim');
-await p2.waitForSelector('.hero-team', { timeout: 10000 });
+await fichar(p2, { slot: '2', owner: 'Pask', club: 'Real Paskdrid', user: 'pask', pass: 'contrasena1', join: 'DONO-2026' });
 await p2.click('nav.tabs button[data-view="plantilla"]');
 await p2.waitForSelector('.lineup-row');
 await p2.waitForTimeout(400);

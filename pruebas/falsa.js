@@ -105,10 +105,42 @@
                             club_player_id: null, player_name: ''}));
   }
 
+  // Las mismas reglas que db.js. Si se separan, una prueba en verde no dice
+  // nada: estaría probando contra reglas que el juego de verdad no aplica.
+  const MIN_USUARIO = 3, MIN_CLAVE = 6;
+  const canon = u => String(u || '').trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
+
   const FALSA = {
     // Lo que las pruebas manipulan directamente para montar un escenario.
     get __D(){ return D; },
     __reset(){ D = semilla(); },
+
+    MIN_USUARIO, MIN_CLAVE,
+    usuarioSugerido(nombre){
+      const limpio = canon(String(nombre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
+      return limpio.length >= MIN_USUARIO ? limpio.slice(0, 20) : '';
+    },
+    revisaUsuario(u){
+      return canon(u).length < MIN_USUARIO
+        ? 'El usuario necesita al menos ' + MIN_USUARIO + ' caracteres, y solo letras, '
+          + 'números, puntos, guiones o rayas.'
+        : null;
+    },
+    revisaClave(c){
+      return String(c || '').length < MIN_CLAVE
+        ? 'La contraseña necesita al menos ' + MIN_CLAVE + ' caracteres.'
+        : null;
+    },
+    // Comprueba código y usuario sin crear nada, como `usuario_libre`.
+    async compruebaAlta(usuario, joinCode){
+      const mal = FALSA.revisaUsuario(usuario);
+      if(mal) return mal;
+      if(String(joinCode || '').trim().toUpperCase() !== D.joinCode.toUpperCase()){
+        return 'El código de la liga no es correcto';
+      }
+      if(D.usuarios[canon(usuario)]) return 'El usuario «' + canon(usuario) + '» ya está cogido. Elige otro.';
+      return null;
+    },
 
     // ------------------------------------------------------------ sesión
     async session(){ return D.session; },
@@ -116,6 +148,8 @@
       return D.managers.filter(m => !m.user_id).map(m => ({slot: m.slot, club_name: m.club_name}));
     },
     async claim(slot, club, owner, usuario, clave, joinCode, escudo){
+      const malC = FALSA.revisaClave(clave);
+      if(malC) throw new Error(malC);
       if(joinCode !== D.joinCode) throw new Error('El código de la liga no es correcto');
       const m = D.managers.find(x => x.slot === +slot);
       if(!m || m.user_id) throw new Error('Esa plaza ya está cogida');

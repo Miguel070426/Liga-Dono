@@ -8,7 +8,7 @@
      Sin ella el navegador puede quedarse con la versión de antes durante días:
      a un manager le creó dos cuentas a medias porque su móvil seguía con el
      JavaScript viejo hablando con la base de datos nueva. -->
-<link rel="stylesheet" href="app.css?v=202609251900">
+<link rel="stylesheet" href="app.css?v=202610091200">
 </head>
 <body>
 
@@ -31,39 +31,61 @@
     </div>
 
     <!-- fichar plaza -->
-    <div class="auth-step hidden" id="stepClaim">
-      <div class="kick">Alta de manager</div>
-      <h2>Ficha tu plaza</h2>
-      <p class="lead">Elige plaza, ponle nombre a tu club y crea tu usuario y contraseña. Con ellos entrarás luego, aquí y en el móvil.</p>
-      <div class="err hidden" id="claimErr" role="alert"></div>
-      <div class="field"><label for="claimSlot">Plaza libre</label><select id="claimSlot"></select></div>
-      <div class="field"><label for="claimOwner">Tu nombre</label><input type="text" id="claimOwner" placeholder="Ej. Miguel" autocomplete="name"></div>
-      <div class="field"><label for="claimClub">Nombre de tu club</label><input type="text" id="claimClub" placeholder="Ej. Deportivo Siuuu FC" autocomplete="off"></div>
-      <div class="field">
-        <label for="claimUser">Tu usuario</label>
-        <input type="text" id="claimUser" placeholder="Ej. miguel" autocomplete="username"
-               spellcheck="false" autocapitalize="none">
-        <div class="club-tag" style="margin-top:5px;">Con esto entras. Letras, números, puntos y guiones; mínimo 3.</div>
-      </div>
-      <div class="field">
-        <label for="claimPass">Tu contraseña</label>
-        <input type="password" id="claimPass" placeholder="Mínimo 8 caracteres" autocomplete="new-password">
-        <div class="club-tag" style="margin-top:5px;">Deja que el móvil te la guarde y no tendrás que acordarte.</div>
-      </div>
-      <div class="field">
-        <label for="claimJoin">Código de la liga</label>
-        <input type="text" id="claimJoin" placeholder="El que te ha dado la organización" autocomplete="off" spellcheck="false">
-        <div class="club-tag" style="margin-top:5px;">Es el mismo para los 12. No es tu contraseña.</div>
-      </div>
-      <div class="field">
-        <span class="lbl-esc">Tu escudo</span>
-        <div id="claimEscudo"></div>
-      </div>
-      <button class="btn big wide" id="doClaim">Fichar y entrar</button>
-      <div class="switch"><button class="backWelcome">Volver</button></div>
+    <!-- ALTA, PASO 1 · entrar.
+     Antes eran siete campos de golpe, el escudo entre ellos. Se parte en dos:
+     primero lo imprescindible para tener cuenta, y la parte divertida después.
+     El usuario ya no se pide: se propone a partir del nombre. -->
+<div class="auth-step hidden" id="stepClaim">
+  <div class="kick">Alta de manager · paso 1 de 2</div>
+  <h2>Entra en la liga</h2>
+  <p class="lead">Cuatro datos y ya estás dentro. Lo de ponerle nombre y escudo a tu club viene después.</p>
+  <div class="err hidden" id="claimErr" role="alert"></div>
+  <div class="field"><label for="claimSlot">Plaza libre</label><select id="claimSlot"></select></div>
+  <div class="field"><label for="claimOwner">Tu nombre</label>
+    <input type="text" id="claimOwner" placeholder="Ej. Miguel" autocomplete="name"></div>
+  <div class="field">
+    <label for="claimPass">Tu contraseña</label>
+    <input type="password" id="claimPass" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+    <div class="club-tag" style="margin-top:5px;">Deja que el móvil te la guarde y no tendrás que acordarte.</div>
+  </div>
+  <div class="field">
+    <label for="claimJoin">Código de la liga</label>
+    <input type="text" id="claimJoin" placeholder="El que te ha dado la organización" autocomplete="off" spellcheck="false">
+    <div class="club-tag" style="margin-top:5px;">Es el mismo para los 12. No es tu contraseña.</div>
+  </div>
+  <!-- El usuario sale del nombre. Se enseña siempre, para que sepas con qué
+       vas a entrar, pero solo se edita si lo pides. -->
+  <div class="field" id="claimUserWrap">
+    <div class="usuario-linea">
+      <span>Entrarás como <strong id="claimUserVista">—</strong></span>
+      <button type="button" class="enlace" id="claimUserCambiar">cambiar</button>
     </div>
+    <input type="text" id="claimUser" class="hidden" aria-label="Tu usuario"
+           placeholder="Ej. miguel" autocomplete="username" spellcheck="false" autocapitalize="none">
+    <div class="club-tag hidden" id="claimUserAyuda" style="margin-top:5px;">Letras, números, puntos y guiones; mínimo 3.</div>
+  </div>
+  <button class="btn big wide" id="doClaimNext">Siguiente</button>
+  <div class="switch"><button class="backWelcome">Volver</button></div>
+</div>
 
-    <!-- entrar -->
+<!-- ALTA, PASO 2 · tu club.
+     La parte que engancha, sola y sin formularios alrededor. -->
+<div class="auth-step hidden" id="stepClub">
+  <div class="kick">Alta de manager · paso 2 de 2</div>
+  <h2>Monta tu club</h2>
+  <p class="lead">Esto es lo que verán los otros once en la clasificación. Puedes cambiarlo cuando quieras.</p>
+  <div class="err hidden" id="clubErr" role="alert"></div>
+  <div class="field"><label for="claimClub">Nombre de tu club</label>
+    <input type="text" id="claimClub" placeholder="Ej. Deportivo Siuuu FC" autocomplete="off"></div>
+  <div class="field">
+    <span class="lbl-esc">Tu escudo</span>
+    <div id="claimEscudo"></div>
+  </div>
+  <button class="btn big wide" id="doClaim">Crear mi club y entrar</button>
+  <div class="switch"><button id="clubVolver">Atrás</button></div>
+</div>
+
+<!-- entrar -->
     <div class="auth-step hidden" id="stepSignIn">
       <div class="kick">Acceso</div>
       <h2>Entra en la liga</h2>
@@ -274,6 +296,6 @@
   </div>
 </div>
 
-<script type="module" src="app.js?v=202609251900"></script>
+<script type="module" src="app.js?v=202610091200"></script>
 </body>
 </html>

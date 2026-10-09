@@ -6,6 +6,7 @@
 // no llegue y el nombre del club siga ahí.
 import pkg from '/opt/node22/lib/node_modules/playwright/index.js';
 const { chromium } = pkg;
+import { fichar } from './alta.mjs';
 const URL = 'http://127.0.0.1:8791/prueba.html';
 const errores = [];
 const check = (q, ok, extra = '') => {
@@ -38,15 +39,7 @@ await p.route('**://highlightly.net/**', route => {
 });
 
 await p.goto(URL);
-await p.waitForSelector('#stepWelcome:not(.hidden)');
-await p.click('#goClaim');
-await p.waitForFunction(() => document.querySelector('#claimSlot option')?.value);
-await p.selectOption('#claimSlot', '1');
-await p.fill('#claimOwner', 'Miguel'); await p.fill('#claimClub', 'Null City');
-await p.fill('#claimUser', 'miguel'); await p.fill('#claimPass', 'contrasena1');
-await p.fill('#claimJoin', 'DONO-2026');
-await p.click('#doClaim');
-await p.waitForSelector('.hero-team', { timeout: 10000 });
+await fichar(p, { slot: '1', owner: 'Miguel', club: 'Null City', user: 'miguel', pass: 'contrasena1', join: 'DONO-2026' });
 await p.waitForTimeout(600);
 
 // ── EL MES EN LAS FECHAS ──────────────────────────────────────────────────

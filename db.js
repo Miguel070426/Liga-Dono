@@ -33,7 +33,22 @@ export function emailForUser(usuario){
   return 'u' + canonicalUser(usuario) + '@' + CFG.mailDomain;
 }
 export const MIN_USUARIO = 3;
-export const MIN_CLAVE = 8;
+// Seis, no ocho. Ocho era una cifra elegida por costumbre, y para doce amigos
+// que entran desde el móvil cada carácter de más es una excusa para no entrar.
+// Seis es además el mínimo que permite Supabase: probado contra el proyecto de
+// verdad, cinco lo rechaza con «Password should be at least 6 characters».
+export const MIN_CLAVE = 6;
+
+// El usuario se propone a partir del nombre en vez de pedirlo aparte. Era un
+// campo más que inventarse justo cuando ya te estás inventando el nombre del
+// club, y el que lo rellenaba a lo loco luego no sabía con qué entrar.
+// Se puede cambiar; lo que no hace falta es pensarlo.
+export function usuarioSugerido(nombre){
+  const limpio = canonicalUser(
+    String(nombre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
+  if(limpio.length >= MIN_USUARIO) return limpio.slice(0, 20);
+  return '';
+}
 
 // Lo que se puede decir de un usuario y una contraseña antes de tocar la red.
 export function revisaUsuario(usuario){
@@ -60,6 +75,11 @@ function fail(error, fallback){
 
 // ------------------------------------------------------------------ ACCESO
 export const DB = {
+  // Las reglas de usuario y contraseña viajan también en el objeto, no solo
+  // como exportaciones sueltas: en las pruebas `app.js` recibe una capa falsa
+  // y db.js no se carga, así que lo que no esté aquí dentro no existe allí.
+  usuarioSugerido, revisaUsuario, revisaClave, MIN_CLAVE, MIN_USUARIO,
+
   async session(){
     const { data } = await sb.auth.getSession();
     return data.session || null;
@@ -73,6 +93,21 @@ export const DB = {
 
   // Crea la cuenta con el usuario y la contraseña que ha elegido, y ata esa
   // cuenta a la plaza.
+  // Comprueba el código de la liga y que el usuario esté libre, SIN crear
+  // nada. Es lo que deja partir el alta en dos pasos: así nadie se diseña un
+  // escudo para que al final le digan que el código estaba mal.
+  // Devuelve null si todo bien, o el motivo.
+  async compruebaAlta(usuario, joinCode){
+    const malU = revisaUsuario(usuario);
+    if(malU) return malU;
+    const { data, error } = await sb.rpc('usuario_libre', {
+      p_usuario: canonicalUser(usuario), p_join_code: joinCode
+    });
+    if(error) return error.message || 'No se ha podido comprobar el código';
+    if(data === false) return 'El usuario «' + canonicalUser(usuario) + '» ya está cogido. Elige otro.';
+    return null;
+  },
+
   async claim(slot, club, owner, usuario, clave, joinCode, escudo){
     const malU = revisaUsuario(usuario), malC = revisaClave(clave);
     if(malU) throw new Error(malU);

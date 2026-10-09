@@ -10,6 +10,7 @@
 // cuando aprieta. Con «Null City» no habría fallado nunca.
 import pkg from '/opt/node22/lib/node_modules/playwright/index.js';
 const { chromium } = pkg;
+import { fichar } from './alta.mjs';
 const URL = 'http://127.0.0.1:8791/prueba.html';
 const ANCHOS = [320, 360, 390, 430, 1100];
 const errores = [];
@@ -25,16 +26,9 @@ for(const ancho of ANCHOS){
   await p.route('**://highlightly.net/**', r => r.abort());
 
   await p.goto(URL);
-  await p.waitForSelector('#stepWelcome:not(.hidden)');
-  await p.click('#goClaim');
-  await p.waitForFunction(() => document.querySelector('#claimSlot option')?.value);
-  await p.selectOption('#claimSlot', '1');
-  await p.fill('#claimOwner', 'Miguel');
-  await p.fill('#claimClub', 'Deportivo Siuuu FC');   // largo a propósito
-  await p.fill('#claimUser', 'miguel'); await p.fill('#claimPass', 'contrasena1');
-  await p.fill('#claimJoin', 'DONO-2026');
-  await p.click('#doClaim');
-  await p.waitForSelector('.hero-team', { timeout: 10000 });
+  // Nombre de club largo a propósito: es cuando la cabecera aprieta.
+  await fichar(p, { slot: '1', owner: 'Miguel', club: 'Deportivo Siuuu FC',
+                    user: 'miguel', pass: 'contrasena1', join: 'DONO-2026' });
   await p.waitForTimeout(400);
 
   const r = await p.evaluate(() => {

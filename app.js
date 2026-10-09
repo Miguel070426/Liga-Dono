@@ -167,7 +167,7 @@ async function fillFreeSlots(){
     sel.innerHTML = free.length
       ? free.map(s => `<option value="${s.slot}">Plaza ${s.slot}</option>`).join('')
       : '<option value="">— no quedan plazas libres —</option>';
-    $('doClaim').disabled = free.length === 0;
+    $('doClaimNext').disabled = free.length === 0;
     if(!free.length) stepErr('claimErr', 'La liga está completa. Si ya eres manager, entra con tu código.');
   }catch(err){
     sel.innerHTML = '<option value="">— error —</option>';
@@ -252,45 +252,112 @@ function montarSelectorEscudo(caja, inicial){
 
 let selectorAlta = null;
 
+// Lo que se recogió en el paso 1, a la espera del paso 2. No se crea nada
+// hasta el final: así nadie se queda con media cuenta por cerrar la pestaña
+// mientras elegía escudo.
+let alta = null;
+
 function wireAuth(){
   $('goClaim').addEventListener('click', () => {
     stepErr('claimErr','');
+    alta = null;
     showStep('stepClaim');
     fillFreeSlots();
-    if(!selectorAlta){
-      selectorAlta = montarSelectorEscudo($('claimEscudo'), ESC.sugerir($('claimClub').value));
-      $('claimClub').addEventListener('input', () => selectorAlta.iniciales($('claimClub').value));
-    }
+    pintarUsuario();
   });
-  $('goSignIn').addEventListener('click', () => { stepErr('signInErr',''); showStep('stepSignIn'); });
-  $('goAdmin').addEventListener('click', () => { stepErr('adminErr',''); showStep('stepAdmin'); });
-  document.querySelectorAll('.backWelcome').forEach(b => b.addEventListener('click', () => showStep('stepWelcome')));
 
-  $('doClaim').addEventListener('click', () => guard(async () => {
+  // ---- paso 1: el usuario se propone a partir del nombre ----
+  const pintarUsuario = () => {
+    if($('claimUser').dataset.tocado) return;
+    $('claimUser').value = DB.usuarioSugerido($('claimOwner').value);
+    $('claimUserVista').textContent = $('claimUser').value || '—';
+  };
+  $('claimOwner').addEventListener('input', pintarUsuario);
+  $('claimUser').addEventListener('input', () => {
+    $('claimUser').dataset.tocado = '1';
+    $('claimUserVista').textContent = $('claimUser').value || '—';
+  });
+  // El aviso en rojo se va en cuanto tocas algo. Dejarlo puesto mientras ya
+  // has corregido el fallo hace dudar de si lo has corregido.
+  ['claimOwner','claimPass','claimJoin','claimUser'].forEach(id =>
+    $(id).addEventListener('input', () => stepErr('claimErr','')));
+  $('claimSlot').addEventListener('change', () => stepErr('claimErr',''));
+  $('claimClub').addEventListener('input', () => stepErr('clubErr',''));
+
+  $('claimUserCambiar').addEventListener('click', () => {
+    $('claimUser').classList.remove('hidden');
+    $('claimUserAyuda').classList.remove('hidden');
+    $('claimUserCambiar').classList.add('hidden');
+    $('claimUser').focus();
+  });
+
+  $('doClaimNext').addEventListener('click', () => guard(async () => {
     const slot  = +$('claimSlot').value;
     const owner = $('claimOwner').value.trim();
-    const club  = $('claimClub').value.trim();
     const user  = $('claimUser').value.trim();
     const pass  = $('claimPass').value;
     const join  = $('claimJoin').value.trim();
     stepErr('claimErr','');
-    if(!slot){ stepErr('claimErr','Elige una plaza.'); return; }
-    if(!owner || !club){ stepErr('claimErr','Hacen falta tu nombre y el de tu club.'); return; }
-    if(!user){ stepErr('claimErr','Elige un usuario: es con lo que entrarás.'); return; }
-    if(!pass){ stepErr('claimErr','Elige una contraseña.'); return; }
-    if(!join){ stepErr('claimErr','Falta el código de la liga. Pídeselo a la organización.'); return; }
+    if(!slot)  { stepErr('claimErr','Elige una plaza.'); return; }
+    if(!owner) { stepErr('claimErr','Pon tu nombre: es como te verán los demás.'); return; }
+    if(!user)  { stepErr('claimErr','De tu nombre no sale un usuario válido. Pulsa «cambiar» y escribe uno.'); return; }
+    if(!pass)  { stepErr('claimErr','Elige una contraseña.'); return; }
+    if(!join)  { stepErr('claimErr','Falta el código de la liga. Pídeselo a la organización.'); return; }
+    const malC = DB.revisaClave(pass);
+    if(malC){ stepErr('claimErr', malC); return; }
+
+    // Se comprueba el código y el usuario AQUÍ, antes de que nadie se ponga a
+    // diseñar un escudo. Decirle lo del código al final, después del trabajo
+    // bonito, es la peor forma de dar un error.
+    $('doClaimNext').disabled = true;
+    try{
+      const mal = await DB.compruebaAlta(user, join);
+      if(mal){ stepErr('claimErr', mal); return; }
+    }catch(err){
+      stepErr('claimErr', err.message); return;
+    }finally{ $('doClaimNext').disabled = false; }
+
+    alta = { slot, owner, user, pass, join };
+    stepErr('clubErr','');
+    showStep('stepClub');
+    if(!selectorAlta){
+      selectorAlta = montarSelectorEscudo($('claimEscudo'), ESC.sugerir(owner));
+      $('claimClub').addEventListener('input', () => selectorAlta.iniciales($('claimClub').value));
+    }else{
+      selectorAlta.iniciales($('claimClub').value || owner);
+    }
+  }));
+  $('clubVolver').addEventListener('click', () => { stepErr('claimErr',''); showStep('stepClaim'); });
+  $('goSignIn').addEventListener('click', () => { stepErr('signInErr',''); showStep('stepSignIn'); });
+  $('goAdmin').addEventListener('click', () => { stepErr('adminErr',''); showStep('stepAdmin'); });
+  document.querySelectorAll('.backWelcome').forEach(b => b.addEventListener('click', () => showStep('stepWelcome')));
+
+  // ---- paso 2: el club, y aquí sí se crea todo de una vez ----
+  $('doClaim').addEventListener('click', () => guard(async () => {
+    if(!alta){ showStep('stepClaim'); return; }
+    const club = $('claimClub').value.trim();
+    stepErr('clubErr','');
+    if(!club){ stepErr('clubErr','Tu club necesita un nombre.'); return; }
     $('doClaim').disabled = true;
     try{
-      // Ya no hay pantalla intermedia con un código que apuntar: la cuenta es
-      // suya desde el primer momento, así que se entra directo.
-      await DB.claim(slot, club, owner, user, pass, join,
+      // Una sola llamada al final. La cuenta no existe hasta aquí, así que
+      // dejarlo a medias no deja nada suelto que arreglar después.
+      await DB.claim(alta.slot, club, alta.owner, alta.user, alta.pass, alta.join,
                      selectorAlta ? selectorAlta.valor() : null);
+      alta = null;
       hideAuth();
       await boot();
       toast('Plaza fichada. Ya puedes poner tu once', 'good');
     }catch(err){
-      stepErr('claimErr', err.message);
-      await fillFreeSlots();
+      // Si lo que falla es la plaza —que otro la haya cogido mientras
+      // elegías escudo— hay que volver al paso 1, que es donde se elige.
+      if(/plaza/i.test(err.message || '')){
+        stepErr('claimErr', err.message);
+        showStep('stepClaim');
+        await fillFreeSlots();
+      }else{
+        stepErr('clubErr', err.message);
+      }
     }finally{ $('doClaim').disabled = false; }
   }));
 

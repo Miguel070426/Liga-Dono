@@ -934,6 +934,72 @@ club leído a medias no se reconoce, que es justo para lo que está el escudo.
 Ni siquiera valía deducir el mes del primer partido: una jornada puede caer a
 caballo entre dos meses, y la jornada de pruebas lo hace a propósito.
 
+## El alta, en dos pasos
+
+Era un formulario de **siete campos de golpe**, con el selector de escudo
+metido entre ellos. Es la primera pantalla que ve alguien invitado a la liga,
+y pedía a la vez lo aburrido y lo divertido.
+
+Ahora son dos:
+
+1. **Entra.** Plaza, tu nombre, contraseña y código de la liga. Cuatro cosas.
+2. **Monta tu club.** Nombre y escudo, solos, sin formulario alrededor.
+
+**La cuenta no se crea hasta el final.** Los dos pasos recogen y una sola
+llamada lo hace todo al terminar. Dejarlo a medias no deja nada suelto que
+arreglar después — y volver atrás no pierde lo escrito.
+
+### El código se comprueba en el paso 1
+
+Lo que más importa de este cambio. Antes el código de la liga se validaba al
+enviar, o sea **después** de que te hubieras diseñado un escudo. Decirle a
+alguien que el código está mal justo después del trabajo bonito es la peor
+forma de dar un error.
+
+Ahora el paso 1 llama a `usuario_libre`, que ya existía y comprueba las dos
+cosas —código correcto y usuario libre— **sin crear nada**. Si algo falla, te
+enteras antes de invertir un minuto en el escudo.
+
+### El usuario se propone, no se pide
+
+Era un campo más que inventarse justo cuando ya te estás inventando el del
+club, y quien lo rellenaba a lo loco luego no sabía con qué entrar.
+
+Sale de tu nombre, sin tildes: «Miguel Ángel» → `miguelangel`. Se enseña
+siempre («Entrarás como **miguelangel**») para que sepas con qué entras, pero
+solo se convierte en campo editable si pulsas «cambiar». Y si lo cambias a
+mano, deja de reescribirse al tocar el nombre.
+
+No se puede quitar del todo, aunque la revisión lo pedía: **este juego no usa
+correo**, así que el usuario *es* la forma de entrar. Quitarlo dejaría la
+puerta sin llave.
+
+### La contraseña baja de 8 a 6
+
+Ocho era una cifra elegida por costumbre. Para doce amigos entrando desde el
+móvil, cada carácter de más es una excusa para no entrar.
+
+Seis, no cinco, y no por gusto: **es el mínimo que permite Supabase**.
+Comprobado contra el proyecto de verdad, no de memoria — cinco devuelve
+`422 weak_password: "Password should be at least 6 characters."`, seis
+devuelve sesión. Las dos cuentas de usar y tirar de esa prueba se borraron.
+
+### Detalles
+
+- **El aviso en rojo se va al escribir.** Dejarlo puesto cuando ya has
+  corregido el fallo hace dudar de si lo has corregido.
+- **Si alguien te quita la plaza mientras eliges escudo**, el error te
+  devuelve al paso 1, que es donde se eligen las plazas, con la lista
+  recargada.
+- `MIN_CLAVE`, `revisaClave` y `usuarioSugerido` viajan **dentro del objeto
+  `DB`**, no solo como exportaciones sueltas: en las pruebas `app.js` recibe
+  una capa falsa y `db.js` no se carga, así que lo que no esté ahí dentro no
+  existe allí.
+
+Lo vigila `t-alta.mjs`. Y el alta se hace desde `pruebas/alta.mjs`, un
+ayudante común: estaba repetida en cinco baterías y este cambio las habría
+roto las cinco.
+
 ## Elegir jugador: reconocer en vez de recordar (migración 0036)
 
 Era el fallo de diseño más caro del juego y llevaba ahí desde el principio.
