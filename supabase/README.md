@@ -934,6 +934,67 @@ club leído a medias no se reconoce, que es justo para lo que está el escudo.
 Ni siquiera valía deducir el mes del primer partido: una jornada puede caer a
 caballo entre dos meses, y la jornada de pruebas lo hace a propósito.
 
+## Ausencia no es traspaso
+
+Al reiniciar la liga salió una lista incómoda: **55 jugadores activos que no
+habían jugado ni un minuto** en las cuatro jornadas reales que llegaron a
+cargarse. El automático no los quita porque su regla es «si dejas de aparecer,
+te doy de baja», y estos **nunca llegaron a aparecer**: no hay desde dónde
+empezar a contar.
+
+La tentación era darlos de baja a los 55, con el argumento de que la baja se
+deshace sola —`cargar_partido` vuelve a poner `activo = true` a cualquiera que
+salga en un acta—. **Miguel paró eso, y tenía razón:** en esa lista estaban
+Rodrygo, Ferland Mendy y Marcão, que no se han ido a ninguna parte.
+
+La regla correcta no es «lleva cuatro jornadas sin jugar» sino «ya no está en
+el club». Y eso sí se puede preguntar: `/players/{id}` devuelve
+`profile.club.current`.
+
+El reparto que funcionó:
+
+- **Él repasó los 55** y marcó 19 como idos, con el club de destino.
+- **La API resolvió los 12 que dudaba**, a dos llamadas cada uno (una para
+  encontrar el id por nombre, otra para el club actual).
+- **Dos se salvaron por dudar en vez de decidir**: Raúl de Tomás y Sergi
+  Canós figuraban «sin dorsal» y la API los pone en su club. Si se hubieran
+  dado por idos, se habrían perdido dos fichajes buenos.
+
+Total: **28 bajas, cada una con su `motivo_baja`**, y ningún club se quedó
+corto en ninguna posición.
+
+### Aarón Ochoa era Aarón Otxoa
+
+El hallazgo del día, y no lo encontró ninguna comprobación automática.
+
+No se había ido a ningún sitio: **lo teníamos mal escrito**. La API lo llama
+*Otxoa*, con equis. Al no coincidir el nombre, el día que jugara se habría
+creado un duplicado y nuestra ficha se habría quedado a cero para siempre —
+exactamente el fallo de la migración 0037, pero por una variante que
+`app.clave_corta` no cubre: no es una inicial abreviada, es otra ortografía.
+
+Se corrigió el nombre en nuestra lista. Y queda la lección: **la regla de la
+inicial tapa un caso, no la familia entera**. Contra las ortografías distintas
+no hay más remedio que un par de ojos que sepan de fútbol.
+
+## El escudo con el fondo pegado
+
+Diecinueve de los veinte escudos llegan recortados y quedan flotando sobre el
+verde. El del **Racing de Santander** llega dentro de un cuadrado blanco. En
+una lista de veinte, canta muchísimo: parece que se ha roto algo.
+
+No se arregla en origen, así que se disimula: se redondea, se le deja el
+blanco a propósito y se le da un poco de aire dentro, para que se lea como una
+chapa y no como un fallo.
+
+Se valoró ponerle pastilla blanca **a los veinte**, que es lo que hacen
+Biwenger y FotMob, y se descartó al verlo: los otros diecinueve quedan bien
+como están y habría sido estropear lo que funciona por arreglar uno.
+
+El club se marca a mano, en `ESCUDOS_CON_FONDO`. Detectar «este PNG no tiene
+transparencia» exige mirarle los píxeles, y eso el navegador no lo deja hacer
+con una imagen de otro dominio. Si aparece otro igual, se añade su número.
+
 ## El jugador que nunca puntuaba (migración 0037)
 
 El fallo más caro que ha tenido el juego, y era silencioso.

@@ -85,6 +85,28 @@ check('y la dirección se construye con el identificador del club',
 check('sin repetir el mismo escudo en dos clubes',
   new Set(esc.map(e => e.src)).size === 20, new Set(esc.map(e => e.src)).size + ' distintos');
 
+// ── EL ESCUDO QUE VIENE CON FONDO BLANCO ──────────────────────────────────
+// El del Racing llega dentro de un cuadrado blanco en vez de recortado. En
+// una lista de veinte transparentes parece que se ha roto algo, así que se
+// redondea para que el blanco se lea como una chapa y no como un fallo.
+const conFondo = await p.evaluate(() => {
+  const img = [...document.querySelectorAll('.esc-club')].find(i => i.src.includes('3970699'));
+  if(!img) return null;
+  const cs = getComputedStyle(img);
+  return { marcado: img.classList.contains('esc-fondo'),
+           redondo: cs.borderRadius === '50%',
+           blanco: cs.backgroundColor === 'rgb(255, 255, 255)' };
+});
+check('el escudo del Racing va marcado aparte', conFondo && conFondo.marcado);
+check('y se pinta redondo, no como un recuadro suelto', conFondo && conFondo.redondo,
+  conFondo ? conFondo.redondo : 'no está');
+check('con el mismo blanco detrás, para que no se vean las esquinas', conFondo && conFondo.blanco);
+
+// Y solo ese: los otros diecinueve se quedan como estaban.
+const otros = await p.$$eval('.partidos .esc-club:not(.esc-fondo)', ns =>
+  ns.filter(n => getComputedStyle(n).borderRadius === '50%').length);
+check('ningún otro escudo se ha redondeado', otros === 0, otros + ' tocados de más');
+
 // ── SI UNA IMAGEN NO LLEGA, EL NOMBRE SIGUE ───────────────────────────────
 const roto = await p.evaluate(() => {
   const img = [...document.querySelectorAll('.partidos .esc-club')].find(i => i.src.includes('450963'));
