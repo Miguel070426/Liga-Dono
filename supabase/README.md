@@ -934,6 +934,30 @@ club leído a medias no se reconoce, que es justo para lo que está el escudo.
 Ni siquiera valía deducir el mes del primer partido: una jornada puede caer a
 caballo entre dos meses, y la jornada de pruebas lo hace a propósito.
 
+## El límite de cambios no estaba en el reglamento
+
+Lo encontró Miguel leyendo las reglas antes de mandárselas a sus amigos.
+
+La regla existe y **rechaza el guardado**: `guardar_alineacion` levanta una
+excepción si te pasas. No es un aviso, es un no. Y no se contaba en ninguna
+parte: te enterabas al intentar guardar, con el once ya montado. La peor forma
+posible de descubrir una regla.
+
+Lo que dice ahora el reglamento, sacado de la función, no de la memoria:
+
+- **7 cambios como mucho** por jornada, o sea **al menos 4 repiten**.
+- Se compara con **el último once que pusiste de verdad**, no con la jornada
+  anterior sin más: saltarse una jornada no sirve para empezar de cero.
+- **La primera jornada no tiene límite**, que es cuando montas el once de
+  partida.
+
+El 7 va escrito a mano en `index.html` y eso es deuda conocida:
+`leagues.max_cambios` **no es legible desde el navegador** —no está en el
+`grant` de columnas de `authenticated`— y solo llega dentro de
+`once_referencia`, que se pide cuando ya estás alineando, no cuando lees las
+reglas. Si ese número cambia en la base, hay que cambiarlo también en el
+texto. Queda anotado en un comentario junto a él.
+
 ## Ausencia no es traspaso
 
 Al reiniciar la liga salió una lista incómoda: **55 jugadores activos que no

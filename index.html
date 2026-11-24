@@ -8,7 +8,7 @@
      Sin ella el navegador puede quedarse con la versión de antes durante días:
      a un manager le creó dos cuentas a medias porque su móvil seguía con el
      JavaScript viejo hablando con la base de datos nueva. -->
-<link rel="stylesheet" href="app.css?v=202611241500">
+<link rel="stylesheet" href="app.css?v=202611241700">
 </head>
 <body>
 
@@ -250,6 +250,15 @@
       <h2>Reglamento</h2>
       <h3>Plantillas</h3>
       <p style="font-size:13px;line-height:1.6;">11 titulares de toda la Primera División, máximo 1 jugador por club real. Formación libre. Si el club real de un jugador no juega esa jornada, ese jugador no puntúa en ninguna categoría.</p>
+      <!-- El 7 está escrito a mano porque `leagues.max_cambios` no es legible
+           desde el navegador: solo llega dentro de `once_referencia`, y ahí
+           llega cuando ya estás alineando, no cuando lees las reglas. Si
+           algún día se cambia ese número en la base, hay que cambiarlo aquí
+           también. -->
+      <h3>Cuántos puedes cambiar de una jornada a otra</h3>
+      <p style="font-size:13px;line-height:1.6;">Tu once no se rehace entero cada semana: puedes cambiar <strong>7 jugadores como mucho</strong> respecto a tu alineación anterior, o sea que <strong>al menos 4 repiten</strong>. Si intentas guardar más cambios, el juego no te deja.</p>
+      <p style="font-size:13px;line-height:1.6;">Se compara con <strong>el último once que pusiste de verdad</strong>, no con la jornada anterior sin más. Si una semana no alineas, la siguiente se mide contra la última que sí jugaste: saltarse una jornada no sirve para empezar de cero.</p>
+      <p style="font-size:13px;line-height:1.6;">La <strong>primera jornada no tiene límite</strong>, que es cuando montas tu once de partida. Mientras eliges, arriba te va diciendo cuántos cambios llevas, y los jugadores nuevos salen marcados.</p>
       <h3>Cómo va una jornada</h3>
       <p style="font-size:13px;line-height:1.6;">Mientras la jornada está abierta cada uno alinea a ciegas: no puedes ver el once de tu rival. Cuando la organización la cierra se destapan todas las alineaciones y se cargan los resultados.</p>
       <h3>8 categorías por jornada</h3>
@@ -296,6 +305,6 @@
   </div>
 </div>
 
-<script type="module" src="app.js?v=202611241500"></script>
+<script type="module" src="app.js?v=202611241700"></script>
 </body>
 </html>

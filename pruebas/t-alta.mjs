@@ -209,6 +209,17 @@ await p.waitForSelector('.hero-team', { timeout: 10000 });
 check('cambiando el usuario, entra sin empezar de cero',
   await p.evaluate(() => window.__LIGA_FAKE_DB__.__D.managers[2].usuario) === 'javi2');
 
+// ── EL REGLAMENTO CUENTA EL LÍMITE DE CAMBIOS ─────────────────────────────
+// Faltaba, y es una regla que te RECHAZA el guardado. Enterarse al intentar
+// guardar, con el once ya montado, es la peor forma de descubrirla.
+await p.evaluate(() => document.getElementById('helpBtn').click());
+await p.waitForTimeout(400);
+const reglas = await p.evaluate(() => document.getElementById('view-reglas').innerText);
+check('el reglamento dice cuántos cambios caben', /7 jugadores como mucho/i.test(reglas));
+check('y que eso significa repetir cuatro', /al menos 4 repiten/i.test(reglas));
+check('y contra qué once se compara', /último once que pusiste/i.test(reglas));
+check('y que la primera jornada va libre', /primera jornada no tiene límite/i.test(reglas));
+
 const desborde = await p.evaluate(() =>
   document.documentElement.scrollWidth - document.documentElement.clientWidth);
 check('nada desborda el móvil', desborde <= 0, desborde + ' px');
