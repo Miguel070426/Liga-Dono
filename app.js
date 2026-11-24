@@ -79,30 +79,29 @@ const clubHl    = id => (S.clubs.find(c => c.id === id) || {}).highlightly_id ||
    usa esto, y por eso el alt va vacío — quien navega a oídas ya oye el
    nombre y no necesita oírlo dos veces. Si la imagen no carga, el listener
    de abajo la esconde y queda el nombre solo, que es lo que había antes.  */
-/* Escudos que vienen con el fondo blanco pegado en vez de recortado.
+/* Escudos nuestros, para los clubes cuya imagen de la API no vale.
 
-   Los otros diecinueve llegan con transparencia y quedan flotando sobre el
-   verde. Este llega dentro de un cuadrado blanco, y en una lista de veinte
-   canta muchísimo: parece que se ha roto algo.
+   El del Racing de Santander llegaba dentro de un cuadrado blanco en vez de
+   recortado, y entre diecinueve transparentes parecía que se había roto algo.
+   Se probó a disimularlo con CSS —redondeándolo— y quedaba mejor, pero seguía
+   siendo un disco blanco entre escudos que flotan.
 
-   No se arregla en origen —la imagen es de quien la publica— así que se
-   disimula: se redondea y se le deja el blanco a propósito, con un poco de
-   aire dentro, para que se lea como una chapa y no como un fallo.
-
-   Se marca a mano por una razón: distinguir «este PNG no tiene transparencia»
-   hace falta mirarle los píxeles, y eso no se puede hacer desde el navegador
-   con una imagen de otro dominio. Si algún día aparece otro igual, se añade
-   aquí su número y listo. */
-const ESCUDOS_CON_FONDO = new Set([
+   Así que se guarda uno propio, recortado a mano desde una imagen que trajo
+   Miguel: fondo fuera, recorte al contorno y 128 px. Son 24 kB y resuelve el
+   problema de raíz en vez de taparlo. Si algún día otro club llega igual de
+   mal, se añade su número aquí y su archivo en `escudos/`. */
+const ESCUDOS_PROPIOS = new Set([
   3970699   // Racing de Santander
 ]);
 
 function escudoClub(clubId, clase = ''){
   const hl = clubHl(clubId);
   if(!hl) return '';
-  const fondo = ESCUDOS_CON_FONDO.has(Number(hl)) ? ' esc-fondo' : '';
-  return `<img class="esc-club ${clase}${fondo}" alt="" aria-hidden="true" loading="lazy" decoding="async"
-    src="https://highlightly.net/soccer/images/teams/${hl}.png">`;
+  const src = ESCUDOS_PROPIOS.has(Number(hl))
+    ? `escudos/${hl}.png`
+    : `https://highlightly.net/soccer/images/teams/${hl}.png`;
+  return `<img class="esc-club ${clase}" alt="" aria-hidden="true" loading="lazy" decoding="async"
+    src="${src}">`;
 }
 
 // `error` no burbujea, así que se escucha en captura. Un solo listener para

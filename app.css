@@ -734,13 +734,6 @@ button.btn.wide{ width:100%; }
     vertical-align:middle;
   }
   .esc-club.sin-carga{ display:none; }
-  /* El blanco que trae pegado se vuelve deliberado: círculo, mismo blanco de
-     fondo para que no se noten las esquinas recortadas, y un pelín de aire
-     dentro para no comerle las puntas al escudo. */
-  .esc-club.esc-fondo{
-    border-radius:50%; background:#fff; padding:1px;
-    box-shadow:0 0 0 1px rgba(244,241,230,0.18);
-  }
   .esc-hueco{ width:22px; height:22px; flex:0 0 auto; display:inline-flex;
     align-items:center; justify-content:center; }
   .esc-mini{ width:14px; height:14px; margin-right:4px; }

@@ -72,40 +72,40 @@ check('con los partidos plegados no se pide ni un escudo', pedidas.length === 0,
 
 await p.click('#partidosPliegue > summary');
 await p.waitForTimeout(1200);
-check('al abrirlos se piden los veinte', pedidas.length === 20, pedidas.length + ' peticiones');
+// Diecinueve, no veinte: el del Racing es nuestro y no sale a internet.
+check('al abrirlos se piden los diecinueve de fuera', pedidas.length === 19,
+  pedidas.length + ' peticiones');
 
 // ── LOS ESCUDOS EN LOS PARTIDOS ───────────────────────────────────────────
 const esc = await p.$$eval('.partidos .esc-club', ns => ns.map(n => ({
   src: n.getAttribute('src'), oculto: n.classList.contains('sin-carga')
 })));
 check('cada partido enseña los dos escudos', esc.length === 20, esc.length + ' escudos en 10 partidos');
-check('y la dirección se construye con el identificador del club',
-  esc.every(e => /highlightly\.net\/soccer\/images\/teams\/\d+\.png$/.test(e.src)),
+check('y cada dirección lleva el identificador del club',
+  esc.every(e => /highlightly\.net\/soccer\/images\/teams\/\d+\.png$/.test(e.src)
+               || /(^|\/)escudos\/\d+\.png$/.test(e.src)),
   esc[0] ? esc[0].src.split('/').pop() : '—');
 check('sin repetir el mismo escudo en dos clubes',
   new Set(esc.map(e => e.src)).size === 20, new Set(esc.map(e => e.src)).size + ' distintos');
 
-// ── EL ESCUDO QUE VIENE CON FONDO BLANCO ──────────────────────────────────
-// El del Racing llega dentro de un cuadrado blanco en vez de recortado. En
-// una lista de veinte transparentes parece que se ha roto algo, así que se
-// redondea para que el blanco se lea como una chapa y no como un fallo.
-const conFondo = await p.evaluate(() => {
+// ── EL ESCUDO QUE NO SERVÍA, AHORA ES NUESTRO ─────────────────────────────
+// El del Racing llegaba de la API dentro de un cuadrado blanco. Ahora se
+// sirve uno propio, recortado y transparente, desde el repositorio. Lo que
+// importa comprobar: que ese club NO pide ya nada a la API, y que los otros
+// diecinueve la siguen usando.
+const propio = await p.evaluate(() => {
   const img = [...document.querySelectorAll('.esc-club')].find(i => i.src.includes('3970699'));
-  if(!img) return null;
-  const cs = getComputedStyle(img);
-  return { marcado: img.classList.contains('esc-fondo'),
-           redondo: cs.borderRadius === '50%',
-           blanco: cs.backgroundColor === 'rgb(255, 255, 255)' };
+  return img ? { src: img.getAttribute('src'), cargado: img.complete && img.naturalWidth > 0 } : null;
 });
-check('el escudo del Racing va marcado aparte', conFondo && conFondo.marcado);
-check('y se pinta redondo, no como un recuadro suelto', conFondo && conFondo.redondo,
-  conFondo ? conFondo.redondo : 'no está');
-check('con el mismo blanco detrás, para que no se vean las esquinas', conFondo && conFondo.blanco);
-
-// Y solo ese: los otros diecinueve se quedan como estaban.
-const otros = await p.$$eval('.partidos .esc-club:not(.esc-fondo)', ns =>
-  ns.filter(n => getComputedStyle(n).borderRadius === '50%').length);
-check('ningún otro escudo se ha redondeado', otros === 0, otros + ' tocados de más');
+check('el escudo del Racing sale de nuestro repositorio', 
+  propio && propio.src === 'escudos/3970699.png', propio ? propio.src : 'no está');
+check('y carga de verdad', propio && propio.cargado);
+check('no se le ha pedido a la API',
+  !pedidas.some(u => u.includes('3970699')),
+  pedidas.filter(u => u.includes('3970699')).length + ' peticiones');
+const deLaApi = await p.$$eval('.partidos .esc-club', ns =>
+  ns.filter(n => n.getAttribute('src').startsWith('https://')).length);
+check('los otros diecinueve siguen viniendo de la API', deLaApi === 19, deLaApi + ' de 19');
 
 // ── SI UNA IMAGEN NO LLEGA, EL NOMBRE SIGUE ───────────────────────────────
 const roto = await p.evaluate(() => {
