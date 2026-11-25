@@ -1509,7 +1509,9 @@ nombre.
    README, que es público: se han cambiado y ya no se documentan aquí.
 5. ~~Cargar las plantillas~~ · hecho. Los 20 clubes tienen plantilla y se
    mantienen solas a partir de los box score.
-6. **Faltan 11 managers** por fichar su plaza. Hasta que la fichen, sus cruces
+6. **Faltan 10 managers** por fichar su plaza (25/11). Ya están dentro Miguel
+   (plaza 1, *Null City*, sin once todavía) y Vallecillos (plaza 2, *Real
+   Tabardillo*, con su once puesto). Hasta que fichen el resto, sus cruces
    salen contra plazas vacías. Es lo único que bloquea el arranque.
 7. ~~Cargar los resultados cada jornada~~ · ya no hace falta: lo hace el ciclo
    automático. Los botones del panel siguen ahí para cuando haya que forzar algo.
@@ -1527,6 +1529,20 @@ nombre.
    dentro: guardarlo, no reenviarlo.
 11. ~~Comprobar a qué rama apunta GitHub Pages~~ · era lo mismo que el punto 3,
    y está comprobado.
+12. **Borrar las dos cuentas de prueba sueltas.** Son `uprueba@ligadono.app`
+   (19 sep) y `zz-prueba-longitud@ligadono.app` (9 oct). Las dos tienen cero
+   plazas y cero onces, y en `public` lo único que cuelga de una cuenta es
+   `managers.user_id`, así que borrarlas no toca nada del juego. Se intentó el
+   25/11 y no salió: Supabase pide confirmación al dueño del proyecto antes de
+   ejecutar un borrado, y la pregunta se quedó sin respuesta. Ese día el panel
+   tenía además una incidencia abierta. No corre prisa.
+13. **Activar la protección de contraseñas filtradas.** Sigue desactivada
+   (comprobado el 25/11). Está en *Authentication → Sign In / Providers*, no
+   en *Database → Policies*, que es otra cosa con el mismo nombre. La ruta
+   directa es `/project/<id>/auth/providers`, y si la han movido, con Ctrl+K y
+   escribir «leaked» se llega. Comprueba contra una base pública de
+   contraseñas robadas; no ve la contraseña de nadie, compara una huella. No
+   revisa hacia atrás, así que solo protege a quien se dé de alta después.
 
 ## No publicar con la jornada abierta
 
