@@ -203,6 +203,58 @@ check('sin estadísticas la lista sigue sirviendo', vacia.filas > 0, vacia.filas
 check('avisa de que aún no hay números en vez de enseñar ceros', vacia.aviso);
 check('y cada fila lo dice también', vacia.sinDatos === vacia.filas);
 
+// ── EL PARTIDO DE LA JORNADA, EN CADA FILA ────────────────────────────────
+// El dato que cambia cada semana. Lo que se vigila: que esté, que diga contra
+// quién —un escudo de 13 px no lo decía—, que no corte la fila, y que no se
+// repita cien veces cuando ya has cab por club.
+await p2.click('#pickCerrar');
+await p2.waitForTimeout(200);
+await p.$$eval('.slotPick', ns => ns[3].click());   // un defensa: 100 opciones
+await p.waitForSelector('.pick-fila');
+await p.waitForTimeout(300);
+const cruce = await p.evaluate(() => {
+  const filas = [...document.querySelectorAll('.pick-fila')];
+  const libres = filas.filter(f => !f.disabled);
+  const subs = filas.map(f => f.querySelector('.pick-sub'));
+  const caja = document.querySelector('.selector-lista').getBoundingClientRect();
+  return {
+    libres: libres.length,
+    conCruce: libres.filter(f => f.querySelector('.pick-cruce')).length,
+    vetadasConCruce: filas.filter(f => f.disabled && f.querySelector('.pick-cruce')).length,
+    cortadas: subs.filter(s => s.scrollWidth > s.clientWidth + 1).length,
+    desborde: filas.filter(f => f.getBoundingClientRect().right > caja.right + 1).length,
+    texto: libres[0].querySelector('.pick-cruce').textContent.trim(),
+    nombres: [...new Set(libres.map(f =>
+      f.querySelector('.pick-cruce').textContent.replace(/[^\p{L}\s.]/gu, '').trim()))]
+  };
+});
+check('cada jugador elegible enseña contra quién juega su club',
+  cruce.conCruce === cruce.libres, `${cruce.conCruce} de ${cruce.libres}`);
+check('y lo dice con el nombre del rival, no solo con un escudo',
+  /\p{L}{3,}/u.test(cruce.texto), '«' + cruce.texto + '»');
+check('el nombre del rival viene recortado para que quepa',
+  cruce.nombres.every(n => n.length <= 12), cruce.nombres.slice(0, 4).join(', '));
+check('ninguna fila se corta con el rival dentro', cruce.cortadas === 0,
+  cruce.cortadas + ' cortadas');
+check('ninguna fila desborda la caja', cruce.desborde === 0, cruce.desborde + ' filas');
+check('al vetado no se le pone rival: el hueco es para el motivo',
+  cruce.vetadasConCruce === 0, cruce.vetadasConCruce + ' vetadas con rival');
+
+// Con el club ya cab el rival sube a la cabecera y sale una sola vez.
+await p.selectOption('#pickClub', { label: 'Real Betis' });
+await p.waitForTimeout(300);
+const cab = await p.evaluate(() => ({
+  enFilas: document.querySelectorAll('.pick-cruce').length,
+  cabecera: document.getElementById('pickCruce').textContent.replace(/\s+/g, ' ').trim(),
+  visible: !document.getElementById('pickCruce').classList.contains('hidden')
+}));
+check('con un club filtrado el rival no se repite en cada fila',
+  cab.enFilas === 0, cab.enFilas + ' veces');
+check('sale una sola vez arriba, con el nombre entero',
+  cab.visible && /casa|fuera/.test(cab.cabecera) && cab.cabecera.length > 12,
+  '«' + cab.cabecera + '»');
+await p.screenshot({ path: 'pruebas/salida/elegir-5-cruce.png', fullPage: false });
+
 const desborde = await p2.evaluate(() =>
   document.documentElement.scrollWidth - document.documentElement.clientWidth);
 check('nada desborda el móvil', desborde <= 0, desborde + ' px');

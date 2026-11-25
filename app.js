@@ -1241,8 +1241,26 @@ function motivoVetado(jug, i, d, fuera){
   return null;
 }
 
-function abrirSelector(i, d, fuera){
-  S.eligiendo = { i, d, fuera, texto:'', club:'' };
+/* A quién se enfrenta cada club esta jornada.
+
+   Es el único dato de la lista que cambia cada semana: los goles de un
+   jugador son casi los mismos el viernes que el anterior, su rival no. Y pesa
+   en dos de las ocho categorías —los puntos de equipo y la portería a cero—,
+   así que «el Betis recibe al Levante» es una razón de verdad para fichar a
+   un bético. Antes había que salir de aquí, mirar la lista de partidos y
+   volver. */
+function cruceDeLaJornada(partidos){
+  const m = {};
+  (partidos || []).forEach(p => {
+    if(p.excluido) return;
+    if(p.local_club)     m[p.local_club]     = { rival: p.visitante_club, casa: true };
+    if(p.visitante_club) m[p.visitante_club] = { rival: p.local_club,     casa: false };
+  });
+  return m;
+}
+
+function abrirSelector(i, d, fuera, cruces){
+  S.eligiendo = { i, d, fuera, cruces: cruces || {}, texto:'', club:'' };
   const sl = d.slots[i];
   $('pickTitulo').textContent = `${POS_LABEL[sl.pos]} · hueco ${i + 1}`;
   $('pickBuscar').value = '';
@@ -1262,6 +1280,42 @@ function cerrarSelector(){
   S.eligiendo = null;
   $('selector').classList.add('hidden');
   document.body.classList.remove('con-selector');
+}
+
+/* El nombre del rival, corto.
+
+   Primero se probó con el escudo del rival en vez del nombre, porque
+   «Deportivo de La Coruña · ✈️ Racing de Santander» no cabe en un móvil ni de
+   lejos. No salió bien: a trece píxeles el escudo es una mancha de color y no
+   te dice contra quién juegas, que es justo el dato que venías a buscar.
+
+   Así que el nombre, recortado. Se quita el «FC», el «Club» y todo lo que
+   venga detrás de un «de» —que en los nombres de los clubes españoles es
+   siempre la ciudad, no el club—, y las dos casas Reales que quedarían
+   ambiguas llevan su propio apaño. El escudo del rival se queda solo para la
+   cabecera, donde hay sitio y va acompañado del nombre entero. */
+const RIVAL_CORTO = {
+  'Real Madrid':    'R. Madrid',
+  'Real Sociedad':  'R. Sociedad',
+  'Real Betis':     'Betis',
+  'Rayo Vallecano': 'Rayo'
+};
+
+function nombreCorto(nombre){
+  const n = String(nombre || '');
+  if(RIVAL_CORTO[n]) return RIVAL_CORTO[n];
+  return n.replace(/^(FC|CF|CD|RC|UD|SD)\s+/, '')
+          .replace(/\s+(FC|CF|CD|RC|UD|SD|Club)$/, '')
+          .replace(/\s+de\s+.*$/, '')
+          .trim() || n;
+}
+
+function cruceHtml(clubId){
+  const c = (S.eligiendo && S.eligiendo.cruces) ? S.eligiendo.cruces[clubId] : null;
+  if(!c || !c.rival) return '';
+  const nom = clubName(c.rival);
+  return ` · <span class="pick-cruce" title="${c.casa ? 'En casa contra' : 'Fuera contra'} ${
+    esc(nom)}">${c.casa ? '🏠' : '✈️'} ${esc(nombreCorto(nom))}</span>`;
 }
 
 function pintarSelector(){
@@ -1301,6 +1355,12 @@ function pintarSelector(){
         <span class="pick-txt">
           <span class="pick-nom">${esc(p.name)}</span>
           <span class="pick-sub">${esc(clubName(p.club_id))}${
+            // El rival no se repite cuando ya has filtrado por club: ahí sale
+            // una sola vez arriba. Siete béticos con «🏠 Levante» siete veces
+            // es ruido, y encima el club lo has elegido tú. Y a quien no
+            // puedes fichar tampoco le hace falta: contra quién juega no te
+            // sirve de nada, y el motivo del veto necesita todo el ancho.
+            (e.club || veto) ? '' : cruceHtml(p.club_id)}${
             // A quien no puedes elegir no le hacen falta sus números: el hueco
             // se lo queda el motivo, que es lo único que necesitas leer.
             veto ? ` · <span class="pick-veto">${veto}</span>` : ' ' + lineaTemporada(p.id)}</span>
@@ -1311,6 +1371,14 @@ function pintarSelector(){
   }
   $('pickCuenta').textContent = lista.length === 1
     ? '1 jugador' : `${lista.length} jugadores`;
+  // Con un club filtrado, el cruce sube a la cabecera: el dato está una vez,
+  // en el sitio que le toca, en vez de repetido en cada fila.
+  const cab = $('pickCruce');
+  const cc = e.club ? (S.eligiendo.cruces || {})[e.club] : null;
+  cab.innerHTML = cc && cc.rival
+    ? `${cc.casa ? '🏠 en casa contra' : '✈️ fuera contra'} ${escudoClub(cc.rival, 'esc-rival')} <strong>${esc(clubName(cc.rival))}</strong>`
+    : '';
+  cab.classList.toggle('hidden', !(cc && cc.rival));
   $('pickAviso').classList.toggle('hidden', hayDatos);
 }
 
@@ -1516,7 +1584,7 @@ async function renderPlantilla(){
     renderPlantilla();
   });
   el.querySelectorAll('.slotPick').forEach(b => b.addEventListener('click', () => {
-    abrirSelector(+b.dataset.i, d, fuera);
+    abrirSelector(+b.dataset.i, d, fuera, cruceDeLaJornada(partidosCache[j]));
   }));
   el.querySelectorAll('.slotClear').forEach(b => b.addEventListener('click', () => {
     const i = +b.dataset.i;

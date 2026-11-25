@@ -476,6 +476,13 @@
   .pick-fila.vetada{ opacity:0.4; cursor:default; }
   .pick-fila.elegida{ background:rgba(232,184,75,0.13); }
   .pick-tic{ color:var(--gold); font-size:15px; flex:0 0 auto; }
+  /* El cruce de la jornada: casa o fuera, y contra quién. En la fila va el
+     nombre corto —el escudo a 13px no se distingue— y en la cabecera, donde
+     hay sitio, el escudo con el nombre entero. */
+  .pick-cruce{ white-space:nowrap; color:rgba(244,241,230,0.78); }
+  .esc-rival{ width:15px; height:15px; margin-left:3px; vertical-align:-3px; }
+  .pick-cruce-cab{ color:var(--chalk-dim); white-space:nowrap; }
+  .pick-cruce-cab strong{ color:var(--chalk); }
   @media (max-width:520px){
     .selector-filtros{ grid-template-columns:1fr; }
     .selector-caja{ max-height:92vh; }
