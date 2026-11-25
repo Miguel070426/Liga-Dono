@@ -1446,6 +1446,53 @@ el esquema `app`, que PostgREST no publica.
 | `claim_admin(codigo)` | con sesión |
 | `generate_brackets()` | organización |
 
+## Apuntado para después de la jornada 1: datos del jugador al elegirlo
+
+Pedido por Miguel el 25/11/2026, **a hacer entre la jornada 1 y la 2**, no
+antes: faltaban dos días para el arranque y tocar la pantalla de alinear justo
+cuando entran diez personas nuevas es buscarse el problema.
+
+El porqué: la pantalla de elegir jugador es donde se juega el juego, y hoy solo
+enseña un total de temporada. No contesta la pregunta que uno se hace al
+elegir, que es **«¿va a jugar el domingo?»**. Y en esta liga eso pesa más que
+los goles: un jugador que no juega da **cero en las ocho categorías**, no poco.
+
+Por orden de valor:
+
+1. **La tira de las últimas cinco jornadas.** Cinco marcas: titular (60 min o
+   más), suplente que entró, no jugó. De un vistazo separas al fijo del que
+   calienta banquillo. Sale de `player_jornada_stats.minutes`, sin coste de
+   API.
+2. **El partido que le toca esa jornada**, con casa o fuera. Es lo que más
+   cambia una decisión, y alimenta dos categorías directas —puntos de equipo y
+   portería a cero—. Los partidos ya están cargados en `partidosCache`.
+3. **Medias por jornada en vez de totales.** Para decidir importa lo esperable
+   en *una* jornada, no el acumulado: compara mal un «3 goles» de seis
+   partidos con otro de dos.
+4. **Avisos**: «lleva 3 jornadas sin jugar», «su club no juega esta jornada».
+
+### Lo que NO se puede recuperar
+
+Al reiniciar la liga se borró `player_jornada_stats`, y con ella el detalle de
+minutos partido a partido de las seis rondas que llegaron a cargarse. Sobrevive
+`club_players.ultima_aparicion`, así que hoy solo se puede decir «última vez
+que jugó: 8 nov».
+
+Volver a cargar esas rondas costaría unas 60 llamadas y **corrompería la liga**:
+los datos entrarían etiquetados con números de jornada que ahora apuntan a
+otros fines de semana. No se hace.
+
+Conclusión: la tira de cinco empieza a decir algo **desde la jornada 2** y está
+completa hacia la 5 o la 6. Por eso se hace entonces y no antes.
+
+### La trampa de diseño
+
+Las filas del selector **ya van justas a 390 px** — se midió al construirlo. Si
+se meten cuatro datos más por fila, el remedio es peor que la enfermedad. La
+tira va en puntos diminutos y el rival en letra pequeña, **midiendo el
+desbordamiento**, y si no cabe se mueve a una ficha que se abre al pulsar el
+nombre.
+
 ## Lo que queda por hacer a mano
 
 1. ~~Desactivar la confirmación por email~~ · hecho (Authentication → Sign In /
