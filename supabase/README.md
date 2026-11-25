@@ -1500,12 +1500,11 @@ nombre.
    la cuenta al fichar se quedaba a medias esperando un correo que nadie iba a
    recibir, porque las direcciones son internas.
 2. ~~Activar GitHub Pages~~ · hecho.
-3. **Apuntar GitHub Pages a `main`.** Estuvo sirviendo la rama de trabajo
-   `claude/game-ui-gameplay-focus-k22mhu` mientras `main` iba por detrás.
-   Ahora que está fusionada, el enlace público debe salir de `main`: mientras
-   apunte a una rama de trabajo, cualquier commit a medias se publica en el
-   momento a los doce jugadores. Settings → Pages → *Branch* → `main` → `/`
-   (root).
+3. ~~Apuntar GitHub Pages a `main`~~ · hecho y comprobado el 25/11. No hizo
+   falta tocar nada: el despliegue número 46 salió de `main` con el commit
+   correcto, así que ya estaba bien apuntado. Se comprobó por la API de
+   GitHub (`head_branch: main`, `conclusion: success`) y no abriendo la web,
+   porque el proxy del contenedor tiene bloqueado `github.io`.
 4. ~~Cambiar los dos códigos~~ · hecho. Estuvieron un tiempo escritos en este
    README, que es público: se han cambiado y ya no se documentan aquí.
 5. ~~Cargar las plantillas~~ · hecho. Los 20 clubes tienen plantilla y se
@@ -1526,9 +1525,32 @@ nombre.
 10. **Descargar una copia de vez en cuando** desde *Dirección → Copias*. Es lo
    único que sobrevive a perder el proyecto. El fichero lleva los códigos
    dentro: guardarlo, no reenviarlo.
-11. **Comprobar a qué rama apunta GitHub Pages** (Settings → Pages → Branch).
-   Debe ser `main`. Mientras apunte a la rama de trabajo, cualquier commit a
-   medias se publica al momento a los doce.
+11. ~~Comprobar a qué rama apunta GitHub Pages~~ · era lo mismo que el punto 3,
+   y está comprobado.
+
+## No publicar con la jornada abierta
+
+El juego es una página estática: el navegador se baja el programa al entrar y
+lo deja corriendo en la pestaña. Si se publica una versión nueva mientras
+alguien tiene el juego abierto, esa persona sigue con la copia vieja hasta que
+cierre y vuelva a entrar. No se le rompe nada —el `?v=` del `index.html` evita
+que se mezclen versiones de los archivos—, simplemente no se entera del
+cambio. Miguel se lo encontró el 25/11: tuvo que salir y volver a entrar para
+ver el partido de la jornada en la lista.
+
+La regla, decidida entre los dos, es la aburrida: **de viernes por la mañana
+hasta que cierre la jornada no se publica nada.** Los cambios se acumulan y
+entran entre jornadas, cuando nadie está dentro. Cuesta cero y quita el
+problema de en medio.
+
+La alternativa era un aviso dentro del juego —«hay una versión nueva, recarga»—
+y se descartó a propósito: es media hora de trabajo y una pieza más que puede
+fallar justo la semana del estreno. Queda apuntada por si algún día hace falta
+publicar de verdad con gente jugando.
+
+Lo que sí aguanta una versión nueva es la sesión: la identificación vive en el
+navegador y no depende del programa. Al recargar no te pide la contraseña otra
+vez. Comprobado el 25/11.
 
 ## Estado de la verificación
 
