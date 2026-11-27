@@ -40,8 +40,25 @@ ejecutándolo, no leyéndolo.
 ## Decidido el 27/11: la liga va a ser de 6
 
 Miguel no llega a doce. La liga será de **6 managers, ida y vuelta (10
-jornadas), con playoff al que pasan los 4 primeros**. Los dos últimos juegan
-su propio cruce. Total estimado: 16 jornadas, de la 14 de Primera a la 30.
+jornadas), con playoff al que pasan los 4 primeros**. Total 16 jornadas, de la
+14 de Primera a la 30 más o menos.
+
+| Fase | Quién juega | Jornadas |
+|---|---|---|
+| Liga regular | los 6, ida y vuelta | 10 |
+| Ronda 1 | 1º-4º · 2º-3º · 5º-6º | 3 |
+| Ronda 2 | Final (ganadores) · 3º y 4º puesto (perdedores) | 3 |
+
+Reglas que decidió él el 27/11, y que no se tocan sin preguntarle:
+
+- **En el playoff, un 4-4 en categorías lo gana el que juega en casa.** Como
+  los partidos 1 y 3 son en casa del mejor clasificado, quedar primero premia.
+  Con esto ninguna serie puede quedarse sin ganador.
+- En la **liga regular** el 4-4 sigue siendo empate, con su punto para cada uno.
+- **Los tres partidos de cada serie se juegan siempre**, aunque vaya 2-0. Así
+  cada ronda son 3 jornadas fijas y el calendario no depende de resultados.
+- El 5º y el 6º terminan tres jornadas antes: juegan su cruce durante las
+  semifinales y ahí acaba su temporada.
 
 Nada de esto está construido todavía. Lo que hay montado es para 12.
 
@@ -58,10 +75,6 @@ Nada de esto está construido todavía. Lo que hay montado es para 12.
    - *En enero:* el playoff flexible y la pantalla de ajustes. Si se hace un
      botón de regenerar calendario, va con cerrojo: se niega si hay una sola
      jornada jugada. Ese botón borra la liga.
-2. **El empate en el playoff no está resuelto.** Las ocho categorías pueden
-   quedar 4-4, y entonces ese partido no lo gana nadie. Una serie al mejor de
-   3 puede acabar 1-1 sin ganador. Hay que decidirlo antes de febrero. La
-   propuesta sobre la mesa: pasa el mejor clasificado de la liga regular.
-3. Pendientes suyos en Supabase: borrar las dos cuentas de prueba sueltas
+2. Pendientes suyos en Supabase: borrar las dos cuentas de prueba sueltas
    (`uprueba@` y `zz-prueba-longitud@`) y activar la protección de contraseñas
    filtradas (*Authentication → Sign In / Providers*, no *Database → Policies*).

@@ -1606,14 +1606,38 @@ Cómo está montado, comprobado leyendo `generate_brackets()` y la vista
 - Cada partido se gana por subpuntos (`playoff_games.home_sub` contra
   `away_sub`), que es quien se lleva más de las ocho categorías esa jornada.
 
-**El agujero:** la vista solo cuenta victorias. Un partido empatado —cuatro
-categorías y cuatro— no suma a nadie, así que una serie puede acabar 1-1, o
-0-0 con los tres partidos empatados, y quedarse sin ganador. El cuadro
-entonces no avanza y no hay ninguna regla escrita que lo desatasque.
+**El agujero que tenía:** la vista solo cuenta victorias. Un partido empatado
+—cuatro categorías y cuatro— no sumaba a nadie, así que una serie podía
+acabar 1-1, o 0-0 con los tres empatados, y quedarse sin ganador.
 
-Hay que decidirlo antes de febrero. La propuesta sobre la mesa es la que usan
-casi todas las ligas: **pasa el mejor clasificado de la liga regular**. Cero
-código nuevo y premia la temporada entera, que es lo justo.
+**Resuelto el 27/11 por Miguel: en el playoff, un 4-4 lo gana el que juega en
+casa.** Se había propuesto antes que pasara el mejor clasificado, y la suya es
+mejor: aquello era un desempate de despacho y esto se decide en el campo. Y
+como los partidos 1 y 3 son en casa del mejor clasificado, el empate le
+favorece en dos de los tres, así que quedar primero en la liga regular pasa a
+tener un premio real. Con esto todos los partidos tienen ganador y ninguna
+serie puede quedarse atascada.
+
+En la **liga regular** el 4-4 sigue siendo empate con su punto para cada uno,
+que es como funciona el fútbol: en liga se empata, en eliminatoria no.
+
+**Los tres partidos se juegan siempre**, aunque la serie ya esté decidida 2-0.
+Decisión suya y con una ventaja práctica: cada ronda son 3 jornadas pase lo
+que pase, así que el calendario es fijo en vez de depender de los resultados.
+El coste es que el tercer partido de una serie resuelta no decide nada.
+
+### El cuadro, con 6 equipos
+
+| Fase | Quién juega | Jornadas |
+|---|---|---|
+| Liga regular | los 6, ida y vuelta | 10 |
+| Ronda 1 | 1º-4º · 2º-3º · 5º-6º | 3 |
+| Ronda 2 | Final (ganadores) · 3º y 4º puesto (perdedores) | 3 |
+
+Total **16 jornadas**. El 5º y el 6º terminan tres jornadas antes que el resto:
+juegan su cruce mientras los otros disputan las semifinales y ahí acaba su
+temporada. Es deliberado —ponerles la serie en la ronda 2 los dejaría parados
+justo al acabar la liga regular, que es peor— pero hay que avisarles.
 
 ## Estado de la verificación
 
