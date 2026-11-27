@@ -1568,6 +1568,53 @@ Lo que sí aguanta una versión nueva es la sesión: la identificación vive en 
 navegador y no depende del programa. Al recargar no te pide la contraseña otra
 vez. Comprobado el 25/11.
 
+## La liga va a ser de 6, no de 12 (27/11)
+
+Miguel no llegó a doce amigos y decidió no esperar más. La liga será de **6
+managers, ida y vuelta, con playoff al que pasan los cuatro primeros**. Los
+dos últimos se cruzan entre ellos para que no se queden sin jugar.
+
+Las cuentas: 10 jornadas de liga regular, 3 de semifinales, 3 de final. Son
+16 jornadas, de la 14 de Primera a la 30 más o menos. Cabe de sobra, la Liga
+llega a la 38 — el límite de 11 jornadas que figuraba antes era una elección,
+no un tope.
+
+**Nada de esto está construido.** Lo que hay montado es para 12: el calendario
+son 66 cruces metidos una vez a mano (no hay función que lo regenere) y
+`generate_brackets()` tiene el 8 y el 4 escritos dentro. Hace falta:
+
+1. Un generador de calendario para N equipos, con ida o ida y vuelta.
+2. Ajustar las plazas al número elegido, sin poder tocar una ya fichada.
+3. Generalizar el playoff a cuántos pasan arriba y cuántos abajo.
+
+El orden importa: el calendario desbloquea arrancar, el playoff no hace falta
+hasta febrero. Montar el playoff ahora es construir en caliente una pieza que
+nunca se ha ejecutado y que no se necesita en tres meses.
+
+La regla que hay que decirle al grupo: **el número se cierra el día del
+arranque**. El calendario se construye entero al empezar, así que si entra
+alguien en la jornada 4 hay que rehacerlo y se pierde lo jugado.
+
+## El playoff: al mejor de tres, y un empate sin resolver
+
+Cómo está montado, comprobado leyendo `generate_brackets()` y la vista
+`playoff_series_state`:
+
+- Cada eliminatoria son **tres partidos y gana quien llegue a dos**.
+- Los partidos 1 y 3 son en casa del mejor clasificado, el 2 en casa del peor.
+  Si la serie se decide en dos, el tercero no se juega.
+- Cada partido se gana por subpuntos (`playoff_games.home_sub` contra
+  `away_sub`), que es quien se lleva más de las ocho categorías esa jornada.
+
+**El agujero:** la vista solo cuenta victorias. Un partido empatado —cuatro
+categorías y cuatro— no suma a nadie, así que una serie puede acabar 1-1, o
+0-0 con los tres partidos empatados, y quedarse sin ganador. El cuadro
+entonces no avanza y no hay ninguna regla escrita que lo desatasque.
+
+Hay que decidirlo antes de febrero. La propuesta sobre la mesa es la que usan
+casi todas las ligas: **pasa el mejor clasificado de la liga regular**. Cero
+código nuevo y premia la temporada entera, que es lo justo.
+
 ## Estado de la verificación
 
 Comprobado ejecutando SQL con la identidad de un jugador y de la organización:
