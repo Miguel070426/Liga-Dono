@@ -49,7 +49,7 @@
   function semilla(){
     const clubs = copia(CLUBES);
     const players = clubs.flatMap((c, i) => jugadoresDe(c, i + 1));
-    const managers = Array.from({length: 12}, (_, i) => ({
+    const managers = Array.from({length: 6}, (_, i) => ({
       id: 'm' + (i + 1), slot: i + 1,
       club_name: i === 0 ? 'Null City' : 'Club ' + (i + 1),
       owner_name: 'Dueño ' + (i + 1),
@@ -77,7 +77,7 @@
 
     return {
       league: { id: 'lg1', name: 'Liga Dono', current_jornada: 1,
-                lineups_locked: false, admin_user_id: null },
+                lineups_locked: false, admin_user_id: null, playoff_arriba: 4 },
       managers, clubs, players, partidos,
       lineups: [], standings: [], form: [], results: [],
       playerStats: [], clubStats: [], picked: [],

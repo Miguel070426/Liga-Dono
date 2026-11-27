@@ -1639,6 +1639,68 @@ juegan su cruce mientras los otros disputan las semifinales y ahí acaba su
 temporada. Es deliberado —ponerles la serie en la ronda 2 los dejaría parados
 justo al acabar la liga regular, que es peor— pero hay que avisarles.
 
+## El calendario de 6, construido (27/11)
+
+Dos piezas, a propósito separadas:
+
+- **`app.rueda(n)`** no toca ninguna tabla y devuelve solo números: quién
+  juega contra quién a una vuelta, por el método del círculo. Vive aparte
+  justo para poder probarla con 4, 6, 8, 10 y 12 equipos sin inventarse
+  plazas. Se verificó que con todos ellos nadie se enfrenta a sí mismo, nadie
+  juega dos veces la misma jornada, se dan todas las parejas exactamente una
+  vez, y el reparto de casa y fuera es el mejor posible (con n-1 jornadas,
+  que son impares, lo máximo es que difieran en uno).
+
+  La primera versión pasaba todas esas pruebas y aun así estaba mal: dejaba al
+  equipo 0 jugando las cinco jornadas de ida fuera de casa. Se vio midiendo,
+  no leyendo. Ahora el local se elige sobre la marcha, el que menos veces lo
+  ha sido.
+
+- **`public.generar_calendario(ida_vuelta)`** la aplica a las plazas reales.
+  **Borra el calendario entero**, así que lleva cerrojo: se niega si hay un
+  solo dato de jornada jugada o una serie de playoff creada. Probado de
+  verdad, fingiendo una liga en marcha: se negó y el calendario quedó intacto.
+
+Resultado para la liga: 30 partidos en 10 jornadas, cada pareja dos veces, una
+en cada campo. Las jornadas 1 a 10 van a las rondas 14 a 22 y 24 de Primera.
+
+## Auditoría antes del estreno (27/11)
+
+Con la liga ya de seis, se repasó qué había quedado descolgado del cambio
+desde doce. Lo limpio: sin alineaciones ni huecos huérfanos, seis plazas
+correlativas, cada jornada con su ronda real cargada.
+
+Lo que estaba roto y se arregló:
+
+1. **El pie de la clasificación anunciaba «1º-8º» y «9º-12º»** en una liga de
+   seis. Lo veía cualquiera que abriese la pestaña. Ahora el número vive en
+   `leagues.playoff_arriba` (que sí se puede leer, no es secreto) y la
+   pantalla lo pinta: «1º-4º» y «5º-6º».
+2. **`generate_brackets()` reventaba** con 6 equipos buscando al 7º y al 8º,
+   con el mensaje `null value in column low_id violates not-null constraint`.
+   No se generalizó —eso es trabajo de enero— pero ahora avisa en cristiano y
+   no deja nada a medias. Comprobado.
+
+Y se pasó la base de pruebas de 12 managers a 6, para que a partir de ahora
+las baterías corran contra la liga de verdad. Las cuatro siguen en verde.
+
+## La ventaja de campo en el playoff son dos cosas, no una
+
+Decisión de Miguel el 27/11, cuando se le enseñó que el reglamento ya tenía un
+plus para el local y él acababa de añadir otra regla: **se quedan las dos.**
+
+- El local de cada partido recibe el plus en cada categoría: +1 gol,
+  +1 asistencia, +2 tarjetas, +3 puntos de equipo, +2 portería a cero,
+  +3 faltas, +45 minutos, +2 tiros.
+- Y si aun así los subpuntos quedan empatados, **el partido lo gana el local**.
+
+Las dos premian lo mismo: haber quedado arriba en la liga regular, porque los
+partidos 1 y 3 de cada serie se juegan en casa del mejor clasificado. Ya está
+escrito en el reglamento del juego.
+
+Queda pendiente que los subpuntos del playoff se cargan **a mano** desde el
+panel: nadie los calcula solo. Para febrero.
+
 ## Estado de la verificación
 
 Comprobado ejecutando SQL con la identidad de un jugador y de la organización:

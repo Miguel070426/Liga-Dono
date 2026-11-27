@@ -51,16 +51,28 @@ jornadas), con playoff al que pasan los 4 primeros**. Total 16 jornadas, de la
 
 Reglas que decidió él el 27/11, y que no se tocan sin preguntarle:
 
-- **En el playoff, un 4-4 en categorías lo gana el que juega en casa.** Como
-  los partidos 1 y 3 son en casa del mejor clasificado, quedar primero premia.
-  Con esto ninguna serie puede quedarse sin ganador.
+- **La ventaja de campo en el playoff son dos cosas, y se quedan las dos:** el
+  local recibe el plus en cada categoría (+1 gol, +1 asist, +2 tarjetas,
+  +3 pts equipo, +2 portería a 0, +3 faltas, +45 min, +2 tiros), **y** si aun
+  así los subpuntos quedan empatados, el partido lo gana el local. Como los
+  partidos 1 y 3 son en casa del mejor clasificado, quedar primero premia. Con
+  esto ninguna serie puede quedarse sin ganador.
 - En la **liga regular** el 4-4 sigue siendo empate, con su punto para cada uno.
 - **Los tres partidos de cada serie se juegan siempre**, aunque vaya 2-0. Así
   cada ronda son 3 jornadas fijas y el calendario no depende de resultados.
 - El 5º y el 6º terminan tres jornadas antes: juegan su cruce durante las
   semifinales y ahí acaba su temporada.
 
-Nada de esto está construido todavía. Lo que hay montado es para 12.
+**El calendario de la liga regular ya está construido y verificado** (30
+partidos, 10 jornadas, rondas 14-22 y 24 de Primera). Lo hacen `app.rueda(n)`
+—pura, sin tablas, probada con 4/6/8/10/12— y `public.generar_calendario()`,
+que **borra el calendario entero** y por eso se niega si hay una sola jornada
+jugada.
+
+**El playoff sigue siendo el de doce** y no se ha tocado: `generate_brackets()`
+busca al 7º y al 8º. Ahora avisa en cristiano en vez de reventar, pero hay que
+generalizarlo antes de febrero. Los subpuntos del playoff se cargan a mano
+desde el panel; nadie los calcula solo.
 
 ## RECORDARLE A MIGUEL (lo pidió él)
 

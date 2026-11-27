@@ -208,7 +208,7 @@ export const DB = {
   // ---------------------------------------------------------------- LECTURA
   async bootstrap(){
     const [lg, mgrs, cls, pls, jrs] = await Promise.all([
-      sb.from('leagues').select('id,name,current_jornada,lineups_locked,admin_user_id').limit(1).single(),
+      sb.from('leagues').select('id,name,current_jornada,lineups_locked,admin_user_id,playoff_arriba').limit(1).single(),
       sb.from('managers').select('id,slot,club_name,owner_name,usuario,user_id,is_admin,escudo').order('slot'),
       sb.from('clubs').select('id,name,highlightly_id').order('name'),
       sb.from('club_players').select('id,club_id,name,pos,activo,revisar,club_segun_api,motivo_baja'),

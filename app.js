@@ -1008,6 +1008,7 @@ async function renderInicio(){
     }
   }
 
+  const arriba = playoffArriba();
   const shown = S.standings.slice(0,5);
   if(S.me && !shown.some(s => s.manager_id === S.me.id)){
     const mineRow = S.standings.find(s => s.manager_id === S.me.id);
@@ -1016,7 +1017,7 @@ async function renderInicio(){
   top.innerHTML = `<table>
     <tr><th>#</th><th>Club</th><th>PJ</th><th>Pts</th></tr>
     ${shown.map(s => `<tr class="${isMine(s.manager_id) ? 'me' : ''}">
-      <td><span class="zone ${s.rank <= 8 ? 'zone-top' : 'zone-low'}" role="img" aria-label="${s.rank <= 8 ? 'Playoff por el título' : 'Playoff de consolación'}"></span>${s.rank}</td>
+      <td><span class="zone ${s.rank <= arriba ? 'zone-top' : 'zone-low'}" role="img" aria-label="${s.rank <= arriba ? 'Playoff por el título' : 'Playoff de consolación'}"></span>${s.rank}</td>
       <td>${esc(s.club_name)}</td><td>${s.pj}</td>
       <td><strong style="color:var(--gold);">${s.pts}</strong></td></tr>`).join('')}
   </table>
@@ -1228,6 +1229,37 @@ async function ensureDraft(){
    día que la liga pasó a seis managers y diez jornadas. Un número a mano en
    una pantalla es un número que algún día será falso, así que sale de los
    datos; y lo que no se sepa, no se dice. */
+/* Cuántos entran en el playoff por el título.
+
+   Sale de la base de datos. Estuvo escrito a mano como «8» en cuatro sitios,
+   y el día que la liga pasó de doce managers a seis los cuatro se quedaron
+   mintiendo a la vez: el pie de la clasificación anunciaba un playoff de
+   1º a 8º en una liga de seis. Si no se sabe, se cae a la mitad de arriba,
+   que es lo menos falso que se puede decir sin dato. */
+function playoffArriba(){
+  const n = S.managers.length;
+  const v = S.league && S.league.playoff_arriba;
+  if(v && v > 0 && v < n) return v;
+  return n ? Math.ceil(n / 2) : 0;
+}
+
+// El pie de la clasificación, con los puestos de verdad en vez de «1º-8º».
+function pintarZonas(){
+  const n = S.managers.length, a = playoffArriba();
+  const top = $('zonaTop'), low = $('zonaLow');
+  if(!top || !low) return;
+  top.textContent = (a ? `1º-${a}º · ` : '') + 'Playoff por el título';
+  low.textContent = (a && n > a ? `${a + 1}º-${n}º · ` : '') + 'Playoff de consolación';
+  const regla = $('reglaPlayoff');
+  if(regla && a && n > a){
+    // «del 5º al 6º» para dos puestos suena a formulario. Con pocos, se nombran.
+    const abajo = n - a === 1 ? `el ${n}º`
+                : n - a === 2 ? `el ${a + 1}º y el ${n}º`
+                : `del ${a + 1}º al ${n}º`;
+    regla.textContent = `Los ${a} primeros al playoff por el título; ${abajo}, al de consolación.`;
+  }
+}
+
 function lemaLiga(){
   const n = S.managers.length || S.plazas;
   const partes = [];
@@ -1722,13 +1754,15 @@ async function renderJornada(){
    que es una columna que dice lo mismo doce veces. La racha se queda, que es de
    las que más se miran. */
 function renderClasificacion(){
+  const arriba = playoffArriba();
+  pintarZonas();
   $('tablaClasificacion').innerHTML = `<div style="overflow-x:auto;"><table>
     <tr><th>#</th><th></th><th>Club</th>
       <th class="col-extra">PJ</th><th class="col-extra">G</th><th class="col-extra">E</th>
       <th class="col-extra">P</th><th class="col-extra">SF</th><th class="col-extra">SC</th>
       <th>Dif</th><th>Pts</th><th>Racha</th></tr>
     ${S.standings.map(s => `<tr class="st-row ${isMine(s.manager_id)?'me':''}">
-      <td><span class="zone ${s.rank<=8?'zone-top':'zone-low'}" role="img" aria-label="${s.rank<=8?'Playoff por el título':'Playoff de consolación'}"></span>${s.rank}</td>
+      <td><span class="zone ${s.rank<=arriba?'zone-top':'zone-low'}" role="img" aria-label="${s.rank<=arriba?'Playoff por el título':'Playoff de consolación'}"></span>${s.rank}</td>
       <td style="width:34px;">${ESC.escudoDe(mgr(s.manager_id), { clase:'esc-fila' })}</td>
       <td>${esc(s.club_name)}<br><span class="club-tag">${esc(s.owner_name || '—')}</span>
         <span class="club-tag solo-movil">${s.pj} PJ · ${s.g}G ${s.e}E ${s.p}P · ${s.sub_f}-${s.sub_c}</span></td>

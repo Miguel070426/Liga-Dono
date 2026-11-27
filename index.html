@@ -8,7 +8,7 @@
      Sin ella el navegador puede quedarse con la versión de antes durante días:
      a un manager le creó dos cuentas a medias porque su móvil seguía con el
      JavaScript viejo hablando con la base de datos nueva. -->
-<link rel="stylesheet" href="app.css?v=202611271130">
+<link rel="stylesheet" href="app.css?v=202611271215">
 </head>
 <body>
 
@@ -215,8 +215,8 @@
         <h2>Clasificación — Liga regular</h2>
         <div id="tablaClasificacion"></div>
         <div class="legend">
-          <span><span class="zone zone-top"></span> 1º-8º · Playoff por el título</span>
-          <span><span class="zone zone-low"></span> 9º-12º · Playoff de consolación</span>
+          <span><span class="zone zone-top"></span> <span id="zonaTop">Playoff por el título</span></span>
+          <span><span class="zone zone-low"></span> <span id="zonaLow">Playoff de consolación</span></span>
         </div>
       </div>
     </div>
@@ -276,7 +276,7 @@
       <h3 style="margin-top:14px;">Resultado del cruce</h3>
       <p style="font-size:13px;line-height:1.6;">Cada categoría reparte 1 subpunto, o 1 a cada uno si hay empate. Quien sume más subpuntos gana el cruce y se lleva 3 puntos de liga; si los subpuntos quedan igualados, 1 punto para cada uno.</p>
       <h3 style="margin-top:14px;">Playoffs</h3>
-      <p style="font-size:13px;line-height:1.6;">Los 8 primeros al playoff por el título; los 4 últimos, a consolación por las plazas 9ª a 12ª. Series al mejor de 3. El local de cada partido recibe el plus: +1 gol, +1 asist, +2 tarjetas, +3 pts equipo, +2 portería a 0, +3 faltas, +45 minutos, +2 tiros.</p>
+      <p style="font-size:13px;line-height:1.6;"><span id="reglaPlayoff">Los primeros clasificados van al playoff por el título y el resto al de consolación.</span> Series al mejor de 3, y los tres partidos se juegan aunque la serie ya esté decidida. El local de cada partido recibe el plus: +1 gol, +1 asist, +2 tarjetas, +3 pts equipo, +2 portería a 0, +3 faltas, +45 minutos, +2 tiros. <strong>Y si aun así los subpuntos quedan empatados, el partido lo gana el local.</strong> Los partidos 1 y 3 se juegan en casa del mejor clasificado, el 2 en casa del otro: quedar arriba en la liga regular se paga aquí.</p>
     </div>
   </div>
 
@@ -306,6 +306,6 @@
   </div>
 </div>
 
-<script type="module" src="app.js?v=202611271130"></script>
+<script type="module" src="app.js?v=202611271215"></script>
 </body>
 </html>
