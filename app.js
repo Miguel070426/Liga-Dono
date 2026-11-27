@@ -44,7 +44,7 @@ const CLUB_NOISE = new Set(['fc','cf','cd','ud','sd','ad','ac','ca','rc','rcd','
 
 const S = {
   league:null, managers:[], clubs:[], players:[], me:null, isAdmin:false,
-  standings:[], form:{}, playoffs:null,
+  standings:[], form:{}, playoffs:null, jornadas:0, plazas:0,
   view:'inicio', viewPrev:'inicio', clasSec:'tabla', viewJornada:1, plantillaJornada:1,
   cache:{}, draft:null, busy:false,
   // Lo que lleva cada jugador en la temporada, y el hueco que se está eligiendo.
@@ -182,6 +182,10 @@ async function fillFreeSlots(){
   try{
     const slots = await DB.freeSlots();
     const free = slots.filter(s => !s.taken);
+    // De cuántos es la liga. Es lo único que se sabe antes de entrar, así que
+    // en cuanto llega se repinta el lema: hasta ahora decía el de reserva.
+    S.plazas = slots.length;
+    if(!S.me) $('hdrSub').textContent = lemaLiga();
     sel.innerHTML = free.length
       ? free.map(s => `<option value="${s.slot}">Plaza ${s.slot}</option>`).join('')
       : '<option value="">— no quedan plazas libres —</option>';
@@ -455,7 +459,7 @@ async function boot(){
     Object.assign(S, snap, { me:null, isAdmin:false });
     await fillFreeSlots();
     showStep('stepWelcome');
-    $('hdrSub').textContent = '12 managers · 11 jornadas · playoffs';
+    $('hdrSub').textContent = lemaLiga();
     toast('Esa cuenta no llegó a fichar plaza. Empieza otra vez por «Es mi primera vez».', 'bad');
     return;
   }
@@ -621,7 +625,7 @@ function renderHeader(){
   const st = S.me ? S.standings.find(s => s.manager_id === S.me.id) : null;
   $('hdrSub').textContent = S.me
     ? `${S.me.club_name} · ${st && st.pj ? st.rank + 'º con ' + st.pts + ' pts' : 'sin jugar todavía'}`
-    : '12 managers · 11 jornadas · playoffs';
+    : lemaLiga();
 
   // Con plaza fichada manda tu escudo; sin ella se queda el balón de la liga.
   const hc = $('hdrCrest');
@@ -1218,6 +1222,21 @@ async function ensureDraft(){
 // Lo que lleva hecho un jugador esta temporada, en corto. Sin puntos: en esta
 // liga los jugadores no tienen puntos, los tiene tu club al comparar sus ocho
 // categorías con las del rival. Inventar un número aquí sería mentir.
+/* El lema de la cabecera para quien todavía no tiene plaza.
+
+   Estuvo escrito a mano —«12 managers · 11 jornadas»— y se quedó mintiendo el
+   día que la liga pasó a seis managers y diez jornadas. Un número a mano en
+   una pantalla es un número que algún día será falso, así que sale de los
+   datos; y lo que no se sepa, no se dice. */
+function lemaLiga(){
+  const n = S.managers.length || S.plazas;
+  const partes = [];
+  if(n) partes.push(`${n} managers`);
+  if(S.jornadas) partes.push(`${S.jornadas} jornadas`);
+  partes.push('playoffs');
+  return partes.length > 1 ? partes.join(' · ') : 'Liga fantasy entre amigos';
+}
+
 function lineaTemporada(playerId){
   const t = S.temporada[playerId];
   if(!t || !t.partidos) return '<span class="pick-sin">sin datos aún</span>';
@@ -3007,7 +3026,7 @@ $('jNow').addEventListener('click',  () => { S.viewJornada = clamp(S.league.curr
       return;
     }
     showStep('stepWelcome');
-    $('hdrSub').textContent = '12 managers · 11 jornadas · playoffs';
+    $('hdrSub').textContent = lemaLiga();
   }catch(err){
     console.error(err);
     $('hdrSub').textContent = 'Error de conexión';

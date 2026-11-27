@@ -207,13 +207,17 @@ export const DB = {
 
   // ---------------------------------------------------------------- LECTURA
   async bootstrap(){
-    const [lg, mgrs, cls, pls] = await Promise.all([
+    const [lg, mgrs, cls, pls, jrs] = await Promise.all([
       sb.from('leagues').select('id,name,current_jornada,lineups_locked,admin_user_id').limit(1).single(),
       sb.from('managers').select('id,slot,club_name,owner_name,usuario,user_id,is_admin,escudo').order('slot'),
       sb.from('clubs').select('id,name,highlightly_id').order('name'),
-      sb.from('club_players').select('id,club_id,name,pos,activo,revisar,club_segun_api,motivo_baja')
+      sb.from('club_players').select('id,club_id,name,pos,activo,revisar,club_segun_api,motivo_baja'),
+      // Cuántas jornadas tiene la liga. Va aquí, en la misma tanda, para que
+      // no cueste una vuelta más. La cabecera lo decía a mano y se quedó
+      // mintiendo cuando la liga pasó de doce managers a seis.
+      sb.from('jornada_rondas').select('jornada')
     ]);
-    for(const r of [lg, mgrs, cls, pls]){
+    for(const r of [lg, mgrs, cls, pls, jrs]){
       if(r.error) throw fail(r.error, 'No se han podido cargar los datos de la liga');
     }
     const { data: { user } } = await sb.auth.getUser();
@@ -224,6 +228,7 @@ export const DB = {
       clubs: cls.data || [],
       players: pls.data || [],
       me,
+      jornadas: (jrs.data || []).length,
       isAdmin: !!(me?.is_admin || (user && lg.data.admin_user_id === user.id))
     };
   },

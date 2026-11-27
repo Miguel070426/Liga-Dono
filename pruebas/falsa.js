@@ -83,7 +83,7 @@
       playerStats: [], clubStats: [], picked: [],
       session: null, usuarios: {}, latidos: [], temporada: [],
       jornadaCerrada: false, clubesFuera: [], cierre: partidos[0].comienza,
-      joinCode: 'DONO-2026'
+      jornadas: 10, joinCode: 'DONO-2026'
     };
   }
 
@@ -183,7 +183,7 @@
       const me = yo();
       return copia({
         league: D.league, managers: D.managers, clubs: D.clubs, players: D.players,
-        me, isAdmin: !!(me && me.is_admin)
+        me, jornadas: D.jornadas || 0, isAdmin: !!(me && me.is_admin)
       });
     },
     async standings(){ return esperar(D.standings); },
