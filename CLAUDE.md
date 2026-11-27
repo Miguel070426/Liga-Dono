@@ -87,6 +87,17 @@ desde el panel; nadie los calcula solo.
    - *En enero:* el playoff flexible y la pantalla de ajustes. Si se hace un
      botón de regenerar calendario, va con cerrojo: se niega si hay una sola
      jornada jugada. Ese botón borra la liga.
-2. Pendientes suyos en Supabase: borrar las dos cuentas de prueba sueltas
+2. **El ciclo se cree que la última jornada es la 11** (`if j >= 11` en
+   `app.ciclo`), de cuando la liga era de doce. Ahora la última es la 10. No
+   rompe nada, pero al acabar la liga regular se quedaría enseñando una
+   jornada 11 vacía. Se arregla junto con el playoff.
+3. **Una alineación de relleno.** Miguel lo preguntó el 27/11 y quedó en
+   estudio: un botón «rellénamelo» que el jugador pulsa y puede retocar (sí),
+   y como respaldo automático repetir el once de la jornada anterior en vez de
+   sortear uno (mejor que el azar: no inventa equipo, premia a quien se
+   molestó una vez y no gasta cambios). El azar, si se hace, de verdad al
+   azar: si el botón monta el mejor once posible, quien se lo curra sale
+   perdiendo frente a quien pulsa un botón.
+4. Pendientes suyos en Supabase: borrar las dos cuentas de prueba sueltas
    (`uprueba@` y `zz-prueba-longitud@`) y activar la protección de contraseñas
    filtradas (*Authentication → Sign In / Providers*, no *Database → Policies*).

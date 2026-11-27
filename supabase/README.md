@@ -1701,6 +1701,28 @@ escrito en el reglamento del juego.
 Queda pendiente que los subpuntos del playoff se cargan **a mano** desde el
 panel: nadie los calcula solo. Para febrero.
 
+## Dos cosas que se vieron leyendo el ciclo (27/11)
+
+**Quien no pone once no pierde: su cruce no se juega.** `fixture_results`
+marca `played` solo si los DOS equipos tienen alineación, y `standings` cuenta
+únicamente los `played`. Así que una plaza sin once no regala una goleada al
+rival: el partido entero desaparece de la clasificación. Durante la mañana del
+27 se le dijo a Miguel varias veces que se perdía 8-0, y era falso.
+
+El daño real de empezar con plazas vacías es otro, y es peor de explicar: esos
+cruces no se juegan nunca. En una liga a ida y vuelta eso deja a unas parejas
+vistas dos veces y a otras una sola, y la tabla queda descuadrada para
+siempre. No hay forma de recuperarlos sin rehacer el calendario.
+
+**El ciclo se cree que la última jornada es la 11.** Lleva escrito
+`if j >= 11 then ... 'la jornada 11 es la última'`, de cuando la liga era de
+doce managers a una vuelta. Ahora la última es la 10. No rompe nada —al
+terminar la 10 pasaría a la 11, no encontraría ronda asignada y se pararía
+sola— pero la liga se quedaría enseñando una «jornada 11» vacía en vez de
+anunciar que la liga regular ha terminado. Hay que arreglarlo cuando se
+generalice el playoff, que es el mismo trabajo: el ciclo tiene que saber
+cuándo acaba la liga regular y empezar las eliminatorias.
+
 ## Estado de la verificación
 
 Comprobado ejecutando SQL con la identidad de un jugador y de la organización:
