@@ -1723,6 +1723,25 @@ anunciar que la liga regular ha terminado. Hay que arreglarlo cuando se
 generalice el playoff, que es el mismo trabajo: el ciclo tiene que saber
 cuándo acaba la liga regular y empezar las eliminatorias.
 
+## La liga se retrasa una semana (27/11)
+
+El 27 de noviembre, con la jornada 14 empezando esa misma noche, solo había
+2 de 6 plazas fichadas. Miguel decidió retrasar el arranque al **viernes 4 de
+diciembre a las 21:00** para hacerlo con los seis y con tiempo.
+
+El cambio fue correr el mapeo una posición: las jornadas 1 a 10 pasaron de las
+rondas 14-22 y 24 a las **15-22, 24 y 25**. Nada más. Los 30 partidos del
+calendario van por número de jornada, no por ronda de Primera, así que no se
+tocaron; el once que ya tenía guardado un manager para la jornada 1 siguió
+valiendo; y no se había cargado ni un resultado, así que no quedó nada a
+medias. Comprobado después: 0 estadísticas, 0 partidos de la ronda 14
+cargados, 30 partidos en pie y las diez rondas con calendario real.
+
+La decisión fue suya y era la buena. Lo que estaba en juego no era empezar
+tarde, era empezar torcido: los tres cruces de una jornada con plazas vacías
+no se juegan nunca, y en una liga a ida y vuelta eso deja a unas parejas
+vistas dos veces y a otras una sola.
+
 ## Estado de la verificación
 
 Comprobado ejecutando SQL con la identidad de un jugador y de la organización:

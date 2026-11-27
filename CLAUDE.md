@@ -23,9 +23,12 @@ ejecutándolo, no leyéndolo.
 - **Los códigos de acceso NUNCA se escriben en el repositorio.** Es público y
   su historia es permanente. Viven solo en la base de datos (`leagues.join_code`
   y `leagues.admin_claim_code`). Si hay que decírselos a alguien, por el chat.
-- **No publicar con la jornada abierta.** De viernes por la mañana hasta que
-  cierre la jornada no se sube nada a `main`. Quien tenga el juego abierto se
-  queda con la versión vieja hasta que recargue.
+- **No publicar con la jornada en juego.** Desde la mañana del viernes en que
+  se cierra la jornada hasta que termina de resolverse, no se sube nada a
+  `main`. Quien tenga el juego abierto se queda con la versión vieja hasta que
+  recargue. Entre semana, con la jornada abierta pero sin partidos, se publica
+  sin problema: lo que se evita es tocar el juego con gente dentro mirando
+  resultados.
 - Rama de trabajo: `claude/game-ui-gameplay-focus-k22mhu`. A `main` solo se
   fusiona para publicar.
 
@@ -63,8 +66,14 @@ Reglas que decidió él el 27/11, y que no se tocan sin preguntarle:
 - El 5º y el 6º terminan tres jornadas antes: juegan su cruce durante las
   semifinales y ahí acaba su temporada.
 
+**La liga arranca el viernes 4 de diciembre a las 21:00.** El 27/11 solo
+había 2 de 6 plazas fichadas, así que Miguel decidió retrasarla una semana
+para hacerlo con tiempo. La jornada 1 se movió de la ronda 14 a la 15 y el
+resto corrió una posición. No se perdió nada: los 30 partidos siguen igual y
+el once que ya había guardado un manager sigue valiendo.
+
 **El calendario de la liga regular ya está construido y verificado** (30
-partidos, 10 jornadas, rondas 14-22 y 24 de Primera). Lo hacen `app.rueda(n)`
+partidos, 10 jornadas, rondas 15-22, 24 y 25 de Primera). Lo hacen `app.rueda(n)`
 —pura, sin tablas, probada con 4/6/8/10/12— y `public.generar_calendario()`,
 que **borra el calendario entero** y por eso se niega si hay una sola jornada
 jugada.
